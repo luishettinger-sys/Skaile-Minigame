@@ -22,6 +22,7 @@ import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
 import { SKINS } from "./skins.js";
 import { META_UPGRADES, META_ORDER, metaPrice, metaMods, metaStartCoins } from "./metaupgrades.js";
+import { BOONS, rollBoons } from "./boons.js";
 import { Achievements } from "./achievements.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
@@ -214,6 +215,7 @@ export class Game {
   _recomputeMods() {
     const m = defaultMods();
     mergeMods(m, this._metaMods()); // permanente Lab-Ausbauten zuerst
+    mergeMods(m, this.boonMods); // Run-Boons
     mergeMods(m, this.upgradeMods);
     mergeMods(m, this.equipMods);
     mergeMods(m, this._gadgetMods());
@@ -315,6 +317,12 @@ export class Game {
     this.autoTntT = 6; // Timer bis zum nächsten automatischen TNT-Wurf
     this.won = false; // Sieg in diesem Run schon erreicht?
     this._banked = false; // Run-Coins schon in die Bank gebucht? (gegen Doppelung)
+    // Roguelite-Boons (run-only, stapelbar): Mods + Sonder-Flags.
+    this.boons = [];
+    this.boonMods = defaultMods();
+    this.boonFlags = { lifesteal: 0, coinMult: 1 };
+    this.boonChoosing = false;
+    this.boonPending = false;
     this.runStats = { kills: 0, bossKills: 0, bonus: 0, maxCombo: 0, wave: 1 };
     this.inventory.reset();
     this.progression.reset();
