@@ -8,8 +8,22 @@ export class Throwables {
     this.group = new THREE.Group();
     scene.add(this.group);
     this.items = [];
+    this.flying = []; // automatisch geworfene TNTs (mit Ziel-Bogen)
     this._t = 0;
     this._spawnAll();
+  }
+
+  // Automatisch eine TNT von 'from' auf 'target' werfen (schöner Bogen).
+  autoThrow(from, target) {
+    const mesh = makeTNT();
+    mesh.position.set(from.x, 2.2, from.z);
+    this.group.add(mesh);
+    const T = 0.65; // Flugzeit
+    const g = 24;
+    const vx = (target.x - from.x) / T;
+    const vz = (target.z - from.z) / T;
+    const vy = (0.5 * g * T * T - 2.2) / T; // landet bei y=0 (Start y=2.2)
+    this.flying.push({ mesh, vx, vz, vy, g });
   }
 
   _spawnAll() {
@@ -46,6 +60,25 @@ export class Throwables {
 
   update(dt, onImpact) {
     this._t += dt;
+
+    // Automatisch geworfene TNTs: Bogen fliegen, beim Aufprall explodieren.
+    for (let i = this.flying.length - 1; i >= 0; i--) {
+      const f = this.flying[i];
+      f.vy -= f.g * dt;
+      f.mesh.position.x += f.vx * dt;
+      f.mesh.position.z += f.vz * dt;
+      f.mesh.position.y += f.vy * dt;
+      f.mesh.rotation.x += dt * 8;
+      f.mesh.rotation.z += dt * 6;
+      const spark = f.mesh.userData.spark;
+      if (spark) spark.scale.setScalar(0.8 + Math.sin(this._t * 18) * 0.4);
+      if (f.mesh.position.y <= 0) {
+        onImpact(f.mesh.position.x, f.mesh.position.z);
+        this.group.remove(f.mesh);
+        this.flying.splice(i, 1);
+      }
+    }
+
     for (const it of this.items) {
       if (it.state === "thrown") {
         it.vy -= 24 * dt;
@@ -78,6 +111,8 @@ export class Throwables {
       it.mesh.position.set(it.home.x, 0, it.home.z);
       it.mesh.rotation.set(0, 0, 0);
     }
+    for (const f of this.flying) this.group.remove(f.mesh);
+    this.flying = [];
   }
 }
 

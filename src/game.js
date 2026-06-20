@@ -258,6 +258,7 @@ export class Game {
     this.bonusT = 22; // Timer bis zum nächsten Bonus-Bug
     this.tipT = 14; // Timer bis zum nächsten Rubber-Duck-Tipp
     this.magnetBoost = 0; // Sekunden Riesen-Magnet (nach Level-Up)
+    this.autoTntT = 6; // Timer bis zum nächsten automatischen TNT-Wurf
     this.runStats = { kills: 0, bossKills: 0, bonus: 0, maxCombo: 0, wave: 1 };
     this.inventory.reset();
     this.progression.reset();
@@ -537,6 +538,20 @@ export class Game {
 
     // Wurfobjekte: aufheben / werfen mit F.
     this.throwables.update(dt, (x, z) => this._throwImpact(x, z));
+
+    // Automatischer TNT-Wurf auf die nächste Gegnergruppe.
+    this.autoTntT -= dt;
+    if (this.autoTntT <= 0) {
+      const tgt = this._nearestEnemy(60);
+      if (tgt) {
+        this.autoTntT = 3.5;
+        this.throwables.autoThrow(this.player.pos, tgt.mesh.position);
+        this.audio.shoot?.();
+      } else {
+        this.autoTntT = 1.0; // gleich nochmal prüfen
+      }
+    }
+
     if (this.carrying) {
       this.carrying.mesh.position.set(this.player.pos.x, this.player.pos.y + 2.6, this.player.pos.z);
     }
