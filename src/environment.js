@@ -24,12 +24,13 @@ export function buildOffice(scene) {
 
 // Umlaufender Hintergrund als großer Zylinder (Textur austauschbar).
 export function buildBackdrop(scene, url = "./assets/textures/office_bg.png") {
-  const geo = new THREE.CylinderGeometry(95, 95, 56, 48, 1, true);
+  // Groß genug, um das ganze (erweiterte) Gebäude zu umschließen.
+  const geo = new THREE.CylinderGeometry(180, 180, 110, 48, 1, true);
   const mat = new THREE.MeshBasicMaterial({
     side: THREE.BackSide, fog: false, depthWrite: false, color: 0x0b0d12,
   });
   const cyl = new THREE.Mesh(geo, mat);
-  cyl.position.y = 16;
+  cyl.position.y = 30;
   scene.add(cyl);
   setBackdropTexture(cyl, url);
   return cyl;

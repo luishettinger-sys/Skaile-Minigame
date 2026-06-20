@@ -7,6 +7,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
 import { buildOffice, buildBackdrop, setBackdropTexture } from "./environment.js";
+import { buildOffice2 } from "./furnish.js";
 import { Building } from "./building.js";
 import { clamp } from "./utils.js";
 
@@ -66,6 +67,10 @@ export function createWorld(canvas) {
   // Office-Kulisse + umlaufender Hintergrund (Atmosphäre).
   buildOffice(scene);
   const backdrop = buildBackdrop(scene);
+
+  // Große Büro-Hülle: das gesamte Areal liegt in einem Büro (Fensterwände,
+  // Deckenlicht, Cubicles, Server-Racks, Pflanzen).
+  buildOffice2(scene);
 
   // Das begehbare Gebäude: Böden, Wände, Rampe, Räume.
   const building = new Building(scene);

@@ -96,10 +96,10 @@ export class Building {
     this._roomWalls(ROOF, [{ side: "north", from: -9, to: 9 }], 1.2);
     this._roomWalls(GALLERY, [{ side: "south", from: -9, to: 9 }], 1.2);
 
-    // Sammel-Bodenplatte ganz unten als optischer Untergrund (dunkel, groß).
+    // Großer Büro-Teppichboden unter allem (verbindet die Räume optisch zum Büro).
     const base = new THREE.Mesh(
       new THREE.PlaneGeometry(320, 360),
-      new THREE.MeshStandardMaterial({ color: 0x06070b, roughness: 0.95, metalness: 0.1 })
+      new THREE.MeshStandardMaterial({ color: 0x252b3a, roughness: 0.97, metalness: 0.04 })
     );
     base.rotation.x = -Math.PI / 2;
     base.position.set(0, -0.06, 0);
