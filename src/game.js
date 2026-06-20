@@ -106,6 +106,9 @@ export class Game {
     this.autoCamT = 0; // Timer für automatische Perspektivwechsel
     this.camRevert = 0; // verbleibende Zeit bis Kamera zurücksetzt
     this.invOpen = false;
+    this.shopOpen = false;
+    this.shopOffers = [];
+    this.coins = 0;
     this.inventory.reset();
     this.progression.reset();
     this._initLoadout();
@@ -140,6 +143,8 @@ export class Game {
     this.hud.setWeapon(this.weapon.name, this.weapon.icon);
     this.hud.setEnergy(1);
     this.hud.setVignette(0);
+    this.hud.setCoins(0);
+    this.hud.hidePrompt();
     this.world.resetCamera();
     this.state = STATE.PLAYING;
   }
@@ -179,6 +184,58 @@ export class Game {
     this._renderInv();
   }
 
+  toggleShop() {
+    this.shopOpen = !this.shopOpen;
+    if (this.shopOpen) {
+      if (this.shopOffers.length === 0) this._rollShop();
+      this.hud.hidePrompt();
+      this._renderShop();
+      this.hud.showShop();
+    } else {
+      this.hud.hideShop();
+    }
+  }
+
+  _rollShop() {
+    const offers = [];
+    const ids = [...WEAPON_IDS].sort(() => Math.random() - 0.5).slice(0, 3);
+    for (const id of ids) {
+      const w = WEAPONS[id];
+      offers.push({
+        type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc,
+        price: 70 + Math.floor(Math.random() * 60),
+      });
+    }
+    for (let i = 0; i < 2; i++) {
+      const it = rollItem();
+      offers.push({
+        type: "item", item: it, icon: it.icon, name: it.name, desc: it.desc,
+        price: 40 + Math.floor(Math.random() * 40),
+      });
+    }
+    this.shopOffers = offers;
+  }
+
+  _renderShop() {
+    this.hud.renderShop(this.shopOffers, this.coins, (i) => this._buy(i));
+  }
+
+  _buy(i) {
+    const o = this.shopOffers[i];
+    if (!o || this.coins < o.price) return;
+    this.coins -= o.price;
+    this.hud.setCoins(this.coins);
+    if (o.type === "weapon") {
+      this._setWeapon(o.id);
+      this.hud.banner("GEKAUFT", WEAPONS[o.id].name);
+    } else {
+      this.inventory.add(o.item);
+      this.hud.banner("GEKAUFT", o.item.icon + " " + o.item.name);
+    }
+    this.shopOffers.splice(i, 1);
+    this._renderShop();
+  }
+
   gameOver() {
     this.state = STATE.OVER;
     this.audio.gameOver();
@@ -203,7 +260,11 @@ export class Game {
     if (this.input.wasPressed("KeyI") || this.input.wasPressed("Tab")) {
       this.toggleInventory();
     }
-    if (this.paused || this.levelingUp || this.invOpen) return;
+    if (this.input.wasPressed("KeyE") &&
+        (this.shopOpen || this.stations.shopNear(this.player.pos))) {
+      this.toggleShop();
+    }
+    if (this.paused || this.levelingUp || this.invOpen || this.shopOpen) return;
 
     // Hit-Stop: kurzes Einfrieren für spürbaren Impact.
     if (this.hitStop > 0) {
@@ -259,6 +320,9 @@ export class Game {
       this.energy = Math.min(CONFIG.energy.max, this.energy + 55 * dt);
       this.hud.setEnergy(this.energy / CONFIG.energy.max);
     }
+    // Shop-Hinweis, wenn man am Stand steht.
+    if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] SHOP");
+    else this.hud.hidePrompt();
 
     this._fireWeapon(dt);
     this._handleProjectileHits();
@@ -457,6 +521,13 @@ export class Game {
     if (Math.random() < 0.05) {
       this.pickups.spawnLoot(e.mesh.position.x, e.mesh.position.z, rollItem());
     }
+    if (Math.random() < 0.02) {
+      this.pickups.spawnLucky(e.mesh.position.x, e.mesh.position.z);
+    }
+
+    // Coins.
+    this.coins += Math.max(1, Math.round(e.def.score / 10));
+    this.hud.setCoins(this.coins);
 
     if (e.def.isBoss) {
       this.boss = null;
@@ -475,6 +546,7 @@ export class Game {
       }
       this.pickups.spawnLoot(e.mesh.position.x + 2, e.mesh.position.z, rollItem());
       this.pickups.spawnLoot(e.mesh.position.x - 2, e.mesh.position.z, rollItem());
+      this.pickups.spawnLucky(e.mesh.position.x, e.mesh.position.z + 2);
     }
 
     if (e.def.splits) {
@@ -504,6 +576,40 @@ export class Game {
       this.audio.levelUp();
       this.hud.banner("LOOT", value.icon + " " + value.name);
       if (this.invOpen) this._renderInv();
+    } else if (kind === "coin") {
+      this.coins += value;
+      this.hud.setCoins(this.coins);
+      this.audio.pickup();
+    } else if (kind === "lucky") {
+      this._luckyReward();
+    }
+  }
+
+  // Lucky-Drop: zufällige Belohnung mit Tamtam.
+  _luckyReward() {
+    this.audio.levelUp();
+    this.hud.flash("#ff6ec7", 0.4);
+    this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.pink, 24, 1.4);
+    const roll = Math.random();
+    if (roll < 0.35) {
+      const amt = 30 + Math.floor(Math.random() * 40);
+      this.coins += amt;
+      this.hud.setCoins(this.coins);
+      this.hud.banner("🍀 LUCKY", "+" + amt + " Coins");
+    } else if (roll < 0.6) {
+      this.player.hp = this.player.maxHp;
+      this.hud.setHp(this.player.hp, this.player.maxHp);
+      this.hud.banner("🍀 LUCKY", "Voll geheilt");
+    } else if (roll < 0.85) {
+      const item = rollItem();
+      this.inventory.add(item);
+      this.hud.banner("🍀 LUCKY", item.icon + " " + item.name);
+      if (this.invOpen) this._renderInv();
+    } else {
+      const ids = WEAPON_IDS.filter((id) => id !== this.weaponId);
+      const id = ids[Math.floor(Math.random() * ids.length)];
+      this._setWeapon(id);
+      this.hud.banner("🍀 LUCKY-WAFFE", WEAPONS[id].name);
     }
   }
 

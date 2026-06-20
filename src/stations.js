@@ -9,6 +9,31 @@ export class Stations {
     this.field = null;
     this.timer = 9; // bis zum nächsten Spawn
     this._t = 0;
+    this.shop = null;
+    this._buildShop();
+  }
+
+  _buildShop() {
+    const x = 0, z = 15;
+    const counter = new THREE.Mesh(
+      new THREE.BoxGeometry(5, 1.6, 2.2),
+      new THREE.MeshStandardMaterial({ color: 0x6b3f1d, roughness: 0.7 })
+    );
+    counter.position.set(x, 0.8, z);
+    const top = new THREE.Mesh(
+      new THREE.BoxGeometry(5.4, 0.25, 2.6),
+      new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.6 })
+    );
+    top.position.set(x, 1.7, z);
+    const sign = new THREE.Sprite(makeIcon("🛒"));
+    sign.scale.set(2.8, 2.8, 1);
+    sign.position.set(x, 3.7, z);
+    this.group.add(counter, top, sign);
+    this.shop = { x, z, r: 3.8, sign };
+  }
+
+  shopNear(pos) {
+    return this.shop && Math.hypot(pos.x - this.shop.x, pos.z - this.shop.z) <= this.shop.r;
   }
 
   _spawnField(arenaHalf) {

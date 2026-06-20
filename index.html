@@ -24,9 +24,12 @@
       <div id="hud">
         <div id="hud-top">
           <span id="score">SCORE 0</span>
+          <span id="coins">🪙 0</span>
           <span id="combo"></span>
           <span id="wave">WAVE 1</span>
         </div>
+
+        <div id="prompt" class="hidden">[E] SHOP</div>
 
         <div id="xpbar">
           <div id="xp-fill"></div>
@@ -70,10 +73,23 @@
             <li><kbd>Space</kbd> / <kbd>Enter</kbd> &nbsp;schießen</li>
             <li><kbd>Shift</kbd> &nbsp;Dash (Ausweichen, mit i-Frames)</li>
             <li><kbd>Q</kbd> &nbsp;<b>Rubber Duck Moment</b> (wenn geladen)</li>
-            <li><kbd>I</kbd> &nbsp;Inventar · <kbd>P</kbd> / <kbd>ESC</kbd> &nbsp;Pause</li>
+            <li><kbd>I</kbd> Inventar · <kbd>E</kbd> Shop · <kbd>P</kbd>/<kbd>ESC</kbd> Pause</li>
           </ul>
           <button class="btn" id="start-btn">START</button>
           <p class="hint">SKAILE Building Challenge · Thema: Gummiente</p>
+        </div>
+      </div>
+
+      <!-- Shop -->
+      <div class="overlay hidden" id="overlay-shop">
+        <div class="overlay-card inv-card">
+          <h1 class="shop-title">🛒 BUG-MARKT</h1>
+          <p class="tagline">Coins: <span id="shop-coins">0</span> 🪙</p>
+          <div id="shop-offers" class="inv-grid"></div>
+          <div class="inv-actions">
+            <button class="btn small" id="shop-close">SCHLIESSEN [E]</button>
+          </div>
+          <p class="hint">Klick ein Angebot zum Kaufen</p>
         </div>
       </div>
 

@@ -37,6 +37,12 @@ export class HUD {
       invItems: document.getElementById("inv-items"),
       invSort: document.getElementById("inv-sort"),
       invClose: document.getElementById("inv-close"),
+      coins: document.getElementById("coins"),
+      prompt: document.getElementById("prompt"),
+      shopOverlay: document.getElementById("overlay-shop"),
+      shopOffers: document.getElementById("shop-offers"),
+      shopCoins: document.getElementById("shop-coins"),
+      shopClose: document.getElementById("shop-close"),
     };
     this._bannerTimer = null;
   }
@@ -163,6 +169,38 @@ export class HUD {
 
   hideLevelUp() {
     this.el.levelup.classList.add("hidden");
+  }
+
+  setCoins(n) {
+    this.el.coins.textContent = "🪙 " + n;
+  }
+
+  showPrompt(text) {
+    this.el.prompt.textContent = text;
+    this.el.prompt.classList.remove("hidden");
+  }
+
+  hidePrompt() {
+    this.el.prompt.classList.add("hidden");
+  }
+
+  showShop() { this.el.shopOverlay.classList.remove("hidden"); }
+  hideShop() { this.el.shopOverlay.classList.add("hidden"); }
+
+  // offers: [{icon,name,desc,price}], coins, onBuy(i)
+  renderShop(offers, coins, onBuy) {
+    this.el.shopCoins.textContent = coins;
+    this.el.shopOffers.innerHTML = "";
+    offers.forEach((o, i) => {
+      const d = document.createElement("div");
+      const afford = coins >= o.price;
+      d.className = "inv-cell" + (afford ? "" : " empty");
+      d.innerHTML =
+        `<div class="icon">${o.icon}</div><div class="nm">${o.name}</div>` +
+        `<div class="ds">${o.desc}</div><div class="nm">${o.price} 🪙</div>`;
+      if (afford) d.addEventListener("click", () => onBuy(i));
+      this.el.shopOffers.appendChild(d);
+    });
   }
 
   showInventory() {

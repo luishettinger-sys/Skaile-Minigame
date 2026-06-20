@@ -59,6 +59,24 @@ body {
 
 #score { color: var(--yellow); }
 #wave { color: var(--cyan); }
+#coins { color: #ffd23f; }
+
+#prompt {
+  position: absolute;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  background: rgba(14, 18, 28, 0.85);
+  border: 1px solid var(--cyan);
+  border-radius: 10px;
+  color: var(--cyan);
+  font-size: 14px;
+  letter-spacing: 0.12em;
+}
+#prompt.hidden { display: none; }
+
+.shop-title { font-size: 38px; color: #ffd23f; }
 #combo {
   color: var(--pink);
   font-weight: 700;

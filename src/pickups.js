@@ -17,10 +17,22 @@ export class PickupSystem {
     this.healMat = new THREE.MeshBasicMaterial({ color: 0x80ed99 });
     this.lootGeo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
     this.lootMat = new THREE.MeshBasicMaterial({ color: 0xffd23f });
+    this.coinGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.08, 16);
+    this.coinMat = new THREE.MeshBasicMaterial({ color: 0xffcf3f });
+    this.luckyGeo = new THREE.BoxGeometry(0.75, 0.75, 0.75);
+    this.luckyMat = new THREE.MeshBasicMaterial({ color: 0xff6ec7 });
   }
 
   spawnLoot(x, z, item) {
     this._spawn("loot", x, z, item);
+  }
+
+  spawnCoins(x, z, amount) {
+    this._spawn("coin", x, z, amount);
+  }
+
+  spawnLucky(x, z) {
+    this._spawn("lucky", x, z, 0);
   }
 
   spawnGem(x, z, value = CONFIG.pickups.gemValue) {
@@ -35,6 +47,8 @@ export class PickupSystem {
     let mesh;
     if (kind === "gem") mesh = new THREE.Mesh(this.gemGeo, this.gemMat);
     else if (kind === "loot") mesh = new THREE.Mesh(this.lootGeo, this.lootMat);
+    else if (kind === "coin") mesh = new THREE.Mesh(this.coinGeo, this.coinMat);
+    else if (kind === "lucky") mesh = new THREE.Mesh(this.luckyGeo, this.luckyMat);
     else mesh = new THREE.Mesh(this.healGeo, this.healMat);
     mesh.position.set(x, 0.6, z);
     mesh.scale.setScalar(0.01); // Pop-in
