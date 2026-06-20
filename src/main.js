@@ -17,6 +17,7 @@ const game = new Game({ world, input, hud, audio });
 // --- UI verdrahten ---------------------------------------------------------
 function beginGame() {
   if (game.state === "playing") return;
+  hud.hideSkins();
   audio.init();
   audio.resume();
   game.start();
@@ -28,6 +29,8 @@ hud.el.resumeBtn.addEventListener("click", () => game.resume());
 hud.el.invClose.addEventListener("click", () => game.toggleInventory());
 hud.el.invSort.addEventListener("click", () => game.sortInventory());
 hud.el.shopClose.addEventListener("click", () => game.toggleShop());
+hud.el.skinsBtn?.addEventListener("click", () => game.openSkins());
+hud.el.skinsClose?.addEventListener("click", () => game.closeSkins());
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space" && game.state !== "playing") beginGame();
 });
@@ -57,6 +60,7 @@ setTimeout(hideLoader, 9000); // Fallback, falls etwas hängt
 // Statisches Enten-Modell: kleiner (1.7) und ohne Eigen-Leuchten (noGlow).
 loadModel("./assets/duck.glb", { targetHeight: 1.7, noGlow: true }).then((obj) => {
   if (obj) game.player.setModel(obj);
+  game.applyEquippedSkin(); // gewählten Skin auf die Ente legen
   assetTick();
 });
 for (const type of BUG_TYPES) {

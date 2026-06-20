@@ -90,6 +90,7 @@
             <li><kbd>I</kbd> Inventar · <kbd>E</kbd> Shop · <kbd>M</kbd> Stumm · <kbd>P</kbd>/<kbd>ESC</kbd> Pause</li>
           </ul>
           <button class="btn" id="start-btn">START</button>
+          <button class="btn small" id="skins-btn">🦆 SKINS</button>
           <p class="hint" id="meta-line"></p>
           <p class="hint">SKAILE Building Challenge · Thema: Gummiente</p>
         </div>
@@ -108,6 +109,17 @@
             <p class="cw-bug"><span id="cw-bug-name">KERNEL PANIC</span></p>
             <p class="cw-line warn">Es entkommt aus dem System…</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Skin-Shop (dauerhafte Kosmetik, aus der Bank) -->
+      <div class="overlay hidden" id="overlay-skins">
+        <div class="overlay-card">
+          <h1 class="skins-title">🦆 DUCK SKINS</h1>
+          <p class="tagline">Bank: <span id="skin-bank">0</span> 🪙</p>
+          <div id="skin-grid" class="skin-grid"></div>
+          <button class="btn small" id="skins-close">SCHLIESSEN</button>
+          <p class="hint">Gekaufte Skins gehören dir dauerhaft &middot; werden direkt angelegt</p>
         </div>
       </div>
 

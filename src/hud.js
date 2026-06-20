@@ -1,4 +1,5 @@
 // HUD: DOM-Overlay-Steuerung (Score, Wellen, Balken, Banner, Popups, Screens).
+import { SKINS, SKIN_ORDER } from "./skins.js";
 
 export class HUD {
   constructor() {
@@ -52,8 +53,48 @@ export class HUD {
       shopOffers: document.getElementById("shop-offers"),
       shopCoins: document.getElementById("shop-coins"),
       shopClose: document.getElementById("shop-close"),
+      skinsBtn: document.getElementById("skins-btn"),
+      skinsOverlay: document.getElementById("overlay-skins"),
+      skinGrid: document.getElementById("skin-grid"),
+      skinBank: document.getElementById("skin-bank"),
+      skinsClose: document.getElementById("skins-close"),
     };
     this._bannerTimer = null;
+  }
+
+  // --- Skin-Shop -------------------------------------------------------------
+  showSkins() { this.el.skinsOverlay.classList.remove("hidden"); }
+  hideSkins() { this.el.skinsOverlay.classList.add("hidden"); }
+
+  renderSkins(meta, onBuy, onEquip) {
+    const grid = this.el.skinGrid;
+    if (!grid) return;
+    this.el.skinBank.textContent = meta.coins.toLocaleString("de-DE");
+    grid.innerHTML = "";
+    for (const key of SKIN_ORDER) {
+      const def = SKINS[key];
+      if (!def) continue;
+      const owned = meta.ownedSkins.includes(key);
+      const equipped = meta.equippedSkin === key;
+      const affordable = meta.coins >= def.price;
+      const card = document.createElement("div");
+      card.className =
+        "skin-card " + (equipped ? "equipped" : owned ? "owned" : "locked") +
+        (!owned && affordable ? " affordable" : "");
+      const status = equipped ? "✓ Aktiv" : owned ? "Anlegen" : def.price.toLocaleString("de-DE") + " 🪙";
+      card.innerHTML =
+        `<div class="skin-emoji">${def.emoji}</div>` +
+        `<div class="skin-name">${def.label}</div>` +
+        `<div class="skin-status">${status}</div>`;
+      if (equipped) {
+        // aktiv – kein Klick
+      } else if (owned) {
+        card.onclick = () => onEquip(key);
+      } else {
+        card.onclick = () => onBuy(key);
+      }
+      grid.appendChild(card);
+    }
   }
 
   setScore(v) {

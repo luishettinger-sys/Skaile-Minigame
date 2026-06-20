@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { clamp, damp } from "./utils.js";
+import { loadSkinTexture } from "./skins.js";
 
 export class Player {
   constructor(scene) {
@@ -214,6 +215,46 @@ export class Player {
     } else {
       this.mixer = null;
     }
+
+    if (this._skin) this.setSkin(this._skin); // gewählten Skin auf neues Modell anwenden
+  }
+
+  // Wendet einen Skin (recolorierte Albedo-Textur + Material-Props) auf das
+  // geladene GLB an. def === Eintrag aus SKINS. Originalzustand wird gemerkt,
+  // damit "classic" sauber zurücksetzt.
+  setSkin(def) {
+    this._skin = def;
+    if (!this.model || !def) return;
+    this.model.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) {
+        if (m.userData.skinOrig === undefined) {
+          m.userData.skinOrig = {
+            map: m.map || null,
+            metalness: m.metalness ?? 0,
+            roughness: m.roughness ?? 1,
+            emissive: m.emissive ? m.emissive.getHex() : 0x000000,
+            emissiveMap: m.emissiveMap || null,
+            emissiveIntensity: m.emissiveIntensity ?? 1,
+          };
+        }
+        const orig = m.userData.skinOrig;
+        m.map = def.map ? loadSkinTexture(def.map) : orig.map;
+        m.metalness = def.metalness ?? orig.metalness;
+        m.roughness = def.roughness ?? orig.roughness;
+        if (def.emissive != null) {
+          m.emissive.setHex(def.emissive);
+          m.emissiveIntensity = def.emissiveIntensity ?? 1;
+          m.emissiveMap = def.emissiveFromMap ? m.map : orig.emissiveMap;
+        } else {
+          m.emissive.setHex(orig.emissive);
+          m.emissiveIntensity = orig.emissiveIntensity;
+          m.emissiveMap = orig.emissiveMap;
+        }
+        m.needsUpdate = true;
+      }
+    });
   }
 
   _setVisible(v) {

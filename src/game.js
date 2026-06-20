@@ -18,6 +18,7 @@ import { Throwables } from "./throwables.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
+import { SKINS } from "./skins.js";
 import { Achievements } from "./achievements.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
@@ -80,8 +81,48 @@ export class Game {
   }
 
   _loadMeta() {
-    try { return JSON.parse(localStorage.getItem("duckdebug_meta")) || { coins: 0, bestWave: 1, kills: 0 }; }
-    catch (e) { return { coins: 0, bestWave: 1, kills: 0 }; }
+    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic" };
+    let m;
+    try { m = JSON.parse(localStorage.getItem("duckdebug_meta")) || {}; }
+    catch (e) { m = {}; }
+    m = { ...def, ...m };
+    if (!Array.isArray(m.ownedSkins) || !m.ownedSkins.includes("classic")) m.ownedSkins = ["classic", ...(m.ownedSkins || []).filter((k) => k !== "classic")];
+    if (!SKINS[m.equippedSkin] || !m.ownedSkins.includes(m.equippedSkin)) m.equippedSkin = "classic";
+    return m;
+  }
+
+  _saveMeta() {
+    localStorage.setItem("duckdebug_meta", JSON.stringify(this.meta));
+  }
+
+  // --- Skin-Shop (dauerhafte Kosmetik, bezahlt aus der Bank) -----------------
+  openSkins() {
+    this.hud.renderSkins(this.meta, (k) => this.buySkin(k), (k) => this.equipSkin(k));
+    this.hud.showSkins();
+  }
+  closeSkins() { this.hud.hideSkins(); }
+
+  buySkin(key) {
+    const def = SKINS[key];
+    if (!def || this.meta.ownedSkins.includes(key)) return;
+    if (this.meta.coins < def.price) { this.hud.toast?.("Nicht genug Bank 🪙"); return; }
+    this.meta.coins -= def.price;
+    this.meta.ownedSkins.push(key);
+    this._saveMeta();
+    this.equipSkin(key); // direkt anlegen
+  }
+
+  equipSkin(key) {
+    if (!this.meta.ownedSkins.includes(key)) return;
+    this.meta.equippedSkin = key;
+    this._saveMeta();
+    this.applyEquippedSkin();
+    this._showMetaLine();
+    this.hud.renderSkins(this.meta, (k) => this.buySkin(k), (k) => this.equipSkin(k));
+  }
+
+  applyEquippedSkin() {
+    this.player.setSkin(SKINS[this.meta.equippedSkin] || SKINS.classic);
   }
 
   _showMetaLine() {
