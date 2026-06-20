@@ -122,6 +122,7 @@ export class Game {
     this.enemies.reset();
     this.effects.reset();
     this.pickups.reset();
+    this.stations.reset();
     this.waves.reset();
     this.audio.init();
     this.audio.resume();
@@ -252,15 +253,11 @@ export class Game {
       this._collect(kind, value)
     );
 
-    // Stationen: auf Feld stehen → Energie/Heilung.
-    this.stations.update(dt);
-    const st = this.stations.activeAt(this.player.pos);
-    if (st === "recharge") {
-      this.energy = Math.min(CONFIG.energy.max, this.energy + 90 * dt);
+    // Temporäres Energiefeld: draufstehen lädt moderat nach.
+    this.stations.update(dt, this.world.arenaHalf);
+    if (this.stations.activeAt(this.player.pos) === "recharge") {
+      this.energy = Math.min(CONFIG.energy.max, this.energy + 55 * dt);
       this.hud.setEnergy(this.energy / CONFIG.energy.max);
-    } else if (st === "repair") {
-      this.player.hp = Math.min(this.player.maxHp, this.player.hp + 12 * dt);
-      this.hud.setHp(this.player.hp, this.player.maxHp);
     }
 
     this._fireWeapon(dt);
@@ -329,7 +326,7 @@ export class Game {
     if (!firing || this.fireTimer > 0) return;
 
     // Energie-Gating: leer ⇒ kein Dauerfeuer, muss nachladen.
-    const cost = this.weapon.energyCost;
+    const cost = this.weapon.energyCost * this.mods.energyMult;
     if (this.energy < cost) return;
     this.energy -= cost;
     this.sinceShot = 0;
@@ -338,14 +335,14 @@ export class Game {
     this.fireTimer = this._fireInterval() * (this.ultActive ? 0.5 : 1);
 
     const n = this._projCount();
-    const spread = this.weapon.spread;
+    const spread = this.weapon.spread * this.mods.spreadMult;
     const fwd = CONFIG.weapon.muzzleForward;
     const opts = {
       damage: this._damage(),
       pierce: this._pierce(),
       scale: this._projScale(),
       color: this.weapon.color,
-      speed: this.weapon.speed,
+      speed: this.weapon.speed * this.mods.projSpeedMult,
       style: this.weapon.style,
     };
     for (let i = 0; i < n; i++) {
@@ -377,7 +374,7 @@ export class Game {
         if (!e.alive || !e.visible || p.hits.has(e)) continue;
         if (distXZ(p.mesh.position, e.mesh.position) <= pr + e.radius) {
           p.hits.add(e);
-          const crit = Math.random() < CONFIG.juice.critChance;
+          const crit = Math.random() < CONFIG.juice.critChance + this.mods.critAdd;
           const dmg = crit ? p.damage * CONFIG.juice.critMult : p.damage;
           const killed = this.enemies.damage(e, dmg);
           this.audio.hit();

@@ -1,70 +1,79 @@
-// Stationen auf der Map: begehbare Felder mit Effekten (Energie, Reparatur).
-// Mehr Stationen je größerer Map.
+// Temporäres Energiefeld: erscheint selten an zufälliger Stelle, blinkt am Ende
+// und verschwindet wieder. (Keine Dauer-Pads mehr.)
 import * as THREE from "three";
 
 export class Stations {
   constructor(scene) {
     this.group = new THREE.Group();
     scene.add(this.group);
-    this.list = [];
+    this.field = null;
+    this.timer = 9; // bis zum nächsten Spawn
     this._t = 0;
-    this._build();
   }
 
-  _build() {
-    this._add("recharge", -15, -15, 0xffb02e); // Energie
-    this._add("repair", 15, 15, 0x80ed99); // Heilung
-    this._add("recharge", 16, -14, 0xffb02e);
-    this._add("repair", -16, 14, 0x80ed99);
-  }
-
-  _add(kind, x, z, color) {
+  _spawnField(arenaHalf) {
+    const x = (Math.random() * 2 - 1) * (arenaHalf - 5);
+    const z = (Math.random() * 2 - 1) * (arenaHalf - 5);
+    const color = 0xffd23f;
     const pad = new THREE.Mesh(
-      new THREE.CylinderGeometry(2.6, 2.6, 0.25, 28),
-      new THREE.MeshStandardMaterial({
-        color, emissive: color, emissiveIntensity: 0.5,
-        transparent: true, opacity: 0.85,
-      })
+      new THREE.CylinderGeometry(2.2, 2.2, 0.2, 24),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.7 })
     );
     pad.position.set(x, 0.12, z);
-    this.group.add(pad);
-
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(2.6, 0.14, 8, 32),
-      new THREE.MeshBasicMaterial({ color })
+      new THREE.TorusGeometry(2.2, 0.12, 8, 28),
+      new THREE.MeshBasicMaterial({ color, transparent: true })
     );
     ring.rotation.x = Math.PI / 2;
-    ring.position.set(x, 0.4, z);
-    this.group.add(ring);
-
-    // Schwebendes Symbol (Sprite) über der Station.
-    const spr = new THREE.Sprite(makeIconMaterial(kind === "recharge" ? "⚡" : "🔧"));
-    spr.scale.set(2.2, 2.2, 1);
+    ring.position.set(x, 0.35, z);
+    const spr = new THREE.Sprite(makeIcon("⚡"));
+    spr.scale.set(2, 2, 1);
     spr.position.set(x, 3, z);
-    this.group.add(spr);
-
-    this.list.push({ kind, x, z, r: 2.8, pad, ring, spr });
+    this.group.add(pad, ring, spr);
+    this.field = { x, z, r: 2.4, pad, ring, spr, life: 7 };
   }
 
-  update(dt) {
+  _removeField() {
+    if (!this.field) return;
+    this.group.remove(this.field.pad, this.field.ring, this.field.spr);
+    this.field = null;
+  }
+
+  update(dt, arenaHalf) {
     this._t += dt;
-    for (const s of this.list) {
-      s.ring.rotation.z += dt * 1.5;
-      s.pad.position.y = 0.12 + Math.sin(this._t * 2 + s.x) * 0.05;
-      s.spr.position.y = 3 + Math.sin(this._t * 2 + s.z) * 0.2;
+    if (this.field) {
+      this.field.life -= dt;
+      this.field.ring.rotation.z += dt * 2;
+      // letzte 2 Sekunden: blinken.
+      const blink = this.field.life < 2 ? (Math.sin(this._t * 20) > 0 ? 1 : 0.2) : 1;
+      this.field.pad.material.opacity = 0.7 * blink;
+      this.field.ring.material.opacity = blink;
+      this.field.spr.material.opacity = blink;
+      this.field.spr.position.y = 3 + Math.sin(this._t * 3) * 0.2;
+      if (this.field.life <= 0) this._removeField();
+    } else {
+      this.timer -= dt;
+      if (this.timer <= 0) {
+        this.timer = 12 + Math.random() * 8;
+        this._spawnField(arenaHalf);
+      }
     }
   }
 
-  // Art der Station, auf der die Position steht (sonst null).
   activeAt(pos) {
-    for (const s of this.list) {
-      if (Math.hypot(pos.x - s.x, pos.z - s.z) <= s.r) return s.kind;
+    if (this.field && Math.hypot(pos.x - this.field.x, pos.z - this.field.z) <= this.field.r) {
+      return "recharge";
     }
     return null;
   }
+
+  reset() {
+    this._removeField();
+    this.timer = 9;
+  }
 }
 
-function makeIconMaterial(emoji) {
+function makeIcon(emoji) {
   const c = document.createElement("canvas");
   c.width = c.height = 128;
   const ctx = c.getContext("2d");

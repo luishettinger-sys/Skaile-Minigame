@@ -25,6 +25,18 @@ export const UPGRADES = [
     apply: (m) => { m.dmgMult *= 1.25; } },
   { id: "haste", name: "Turbo-Dash", desc: "-25 % Dash-Cooldown", icon: "💨",
     apply: (m) => { m.dashCdMult *= 0.75; } },
+  { id: "efficient", name: "Effizienz-Kern", desc: "-20 % Energiekosten", icon: "🔋",
+    apply: (m) => { m.energyMult *= 0.8; } },
+  { id: "crit", name: "Crit-Chip", desc: "+10 % Crit-Chance", icon: "🎲",
+    apply: (m) => { m.critAdd += 0.1; } },
+  { id: "velocity", name: "Schub-Modul", desc: "+25 % Geschoss-Tempo", icon: "🚀",
+    apply: (m) => { m.projSpeedMult *= 1.25; } },
+  { id: "accuracy", name: "Ziel-Stabilisator", desc: "-25 % Streuung", icon: "📐",
+    apply: (m) => { m.spreadMult *= 0.75; } },
+  { id: "glass", name: "Glaskanone", desc: "+40 % Schaden, -15 max HP", icon: "⚗️",
+    apply: (m, p) => { m.dmgMult *= 1.4; m.maxHpAdd -= 15; if (p) p.hp = Math.max(10, p.hp - 15); } },
+  { id: "bulwark", name: "Bollwerk", desc: "+40 max HP (und heilen)", icon: "🧱",
+    apply: (m, p) => { m.maxHpAdd += 40; if (p) p.hp += 40; } },
 ];
 
 export class Progression {

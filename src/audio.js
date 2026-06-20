@@ -52,6 +52,26 @@ export class Audio {
     this._tone({ type: "sawtooth", from: 680, to: 320, dur: 0.06, gain: 0.07 });
   }
 
+  // Gefilterter Rausch-Burst (für Schrot, Explosionen, Cracks).
+  _noise({ dur = 0.2, gain = 0.2, type = "lowpass", freq = 1000, delay = 0 }) {
+    if (!this.ctx || this.muted) return;
+    const t0 = this.ctx.currentTime + delay;
+    const n = Math.floor(this.ctx.sampleRate * dur);
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    const filt = this.ctx.createBiquadFilter();
+    filt.type = type;
+    filt.frequency.value = freq;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filt); filt.connect(g); g.connect(this.master);
+    src.start(t0); src.stop(t0 + dur);
+  }
+
   // Dispatcher: spielt den Sound der aktuellen Waffe.
   weapon(id) {
     switch (id) {
@@ -59,17 +79,26 @@ export class Audio {
       case "smg": return this.smg();
       case "rail": return this.rail();
       case "cannon": return this.cannon();
+      case "minigun": return this.minigun();
+      case "sniper": return this.sniper();
+      case "pulse": return this.pulse();
       default: return this.shoot();
     }
   }
 
   shotgun() {
-    this._tone({ type: "square", from: 320, to: 80, dur: 0.18, gain: 0.22 });
-    this._tone({ type: "sawtooth", from: 620, to: 120, dur: 0.14, gain: 0.12, delay: 0.005 });
+    this._noise({ dur: 0.18, gain: 0.28, type: "bandpass", freq: 1400 });
+    this._tone({ type: "square", from: 300, to: 70, dur: 0.16, gain: 0.16 });
   }
 
   smg() {
-    this._tone({ type: "square", from: 840, to: 260, dur: 0.05, gain: 0.1 });
+    this._tone({ type: "square", from: 820, to: 240, dur: 0.05, gain: 0.1 });
+    this._noise({ dur: 0.04, gain: 0.06, type: "highpass", freq: 2000 });
+  }
+
+  minigun() {
+    this._tone({ type: "sawtooth", from: 700, to: 300, dur: 0.04, gain: 0.08 });
+    this._noise({ dur: 0.03, gain: 0.05, type: "bandpass", freq: 1800 });
   }
 
   rail() {
@@ -77,9 +106,19 @@ export class Audio {
     this._tone({ type: "sine", from: 400, to: 1700, dur: 0.26, gain: 0.12, delay: 0.02 });
   }
 
+  sniper() {
+    this._noise({ dur: 0.05, gain: 0.3, type: "highpass", freq: 3000 });
+    this._tone({ type: "sawtooth", from: 1200, to: 120, dur: 0.28, gain: 0.2 });
+  }
+
+  pulse() {
+    this._tone({ type: "sine", from: 240, to: 700, dur: 0.18, gain: 0.18 });
+    this._tone({ type: "triangle", from: 500, to: 180, dur: 0.16, gain: 0.12, delay: 0.02 });
+  }
+
   cannon() {
-    this._tone({ type: "square", from: 150, to: 46, dur: 0.34, gain: 0.3 });
-    this._tone({ type: "sawtooth", from: 300, to: 70, dur: 0.22, gain: 0.16, delay: 0.02 });
+    this._noise({ dur: 0.3, gain: 0.3, type: "lowpass", freq: 320 });
+    this._tone({ type: "square", from: 130, to: 42, dur: 0.34, gain: 0.26 });
   }
 
   hit() {

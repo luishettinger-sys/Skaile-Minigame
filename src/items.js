@@ -6,6 +6,7 @@ export function defaultMods() {
     fireMult: 1, dmgAdd: 0, dmgMult: 1, projAdd: 0, pierceAdd: 0,
     projScaleMult: 1, moveSpeedMult: 1, magnetMult: 1, regen: 0,
     dashCdMult: 1, maxHpAdd: 0,
+    energyMult: 1, critAdd: 0, projSpeedMult: 1, spreadMult: 1,
   };
 }
 
