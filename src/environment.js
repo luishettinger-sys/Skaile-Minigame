@@ -67,27 +67,28 @@ export function applyDeskTexture(material, url = "./assets/textures/desk.png") {
 
 function makeMonitor(x, z) {
   const g = new THREE.Group();
-  const dark = new THREE.MeshStandardMaterial({ color: 0x0c0e14, roughness: 0.6, metalness: 0.3 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x0c0e14, roughness: 0.5, metalness: 0.45 });
 
-  const W = 20, H = 11;
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.8), dark);
-  frame.position.set(0, H / 2 + 2, 0);
+  // Großer, prominenter Monitor.
+  const W = 32, H = 18;
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(W, H, 1.1), dark);
+  frame.position.set(0, H / 2 + 3, 0);
   g.add(frame);
 
-  // Leuchtender Code-Screen (CanvasTexture, unbeleuchtet → glüht).
+  // Animierter, scrollender Build-Screen (leuchtet).
   const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(W - 1.2, H - 1.2),
-    new THREE.MeshBasicMaterial({ map: makeCodeTexture() })
+    new THREE.PlaneGeometry(W - 1.8, H - 1.8),
+    new THREE.MeshBasicMaterial({ map: makeAnimatedScreen() })
   );
-  screen.position.set(0, H / 2 + 2, 0.45);
+  screen.position.set(0, H / 2 + 3, 0.6);
   g.add(screen);
 
-  // Standfuß.
-  const neck = new THREE.Mesh(new THREE.BoxGeometry(1.2, 3, 1), dark);
-  neck.position.set(0, 1.5, 0);
+  // Breiter Standfuß.
+  const neck = new THREE.Mesh(new THREE.BoxGeometry(2.2, 4.5, 1.4), dark);
+  neck.position.set(0, 2.2, 0);
   g.add(neck);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.4, 0.5, 24), dark);
-  base.position.set(0, 0.25, 0);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 5.4, 0.7, 28), dark);
+  base.position.set(0, 0.35, 0);
   g.add(base);
 
   g.position.set(x, 0, z);
@@ -194,32 +195,107 @@ function makeNotebook(x, z) {
   return g;
 }
 
-// Erzeugt eine "Code-Editor"-Textur per Canvas (Fake-Syntax-Highlighting).
-function makeCodeTexture() {
+// Animierter Build-Screen: scrollender Fake-Code, blinkender Cursor,
+// gelegentlicher "BUILD ✓"-Flash. Läuft über setInterval (kein Loop-Hook nötig).
+function makeAnimatedScreen() {
   const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 320;
+  c.width = 640;
+  c.height = 380;
   const ctx = c.getContext("2d");
-  ctx.fillStyle = "#0b0f17";
-  ctx.fillRect(0, 0, c.width, c.height);
-
-  const palette = ["#6ee7ff", "#ffd23f", "#ff6ec7", "#80ed99", "#9b5de5", "#5d6678"];
-  const lineH = 16;
-  for (let y = 12; y < c.height - 8; y += lineH) {
-    const indent = (Math.floor(Math.random() * 4)) * 14 + 12;
-    let x = indent;
-    const tokens = 2 + Math.floor(Math.random() * 5);
-    for (let t = 0; t < tokens; t++) {
-      const w = 18 + Math.random() * 60;
-      ctx.fillStyle = palette[Math.floor(Math.random() * palette.length)];
-      ctx.globalAlpha = 0.85;
-      ctx.fillRect(x, y, w, 7);
-      x += w + 8;
-      if (x > c.width - 30) break;
-    }
-  }
-  ctx.globalAlpha = 1;
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
+
+  const palette = ["#6ee7ff", "#ffd23f", "#ff6ec7", "#80ed99", "#9b5de5", "#5d6678"];
+  const lineH = 22;
+  const top = 38;
+  const lines = [];
+
+  function makeLine(y) {
+    const indent = 14 + Math.floor(Math.random() * 4) * 16;
+    const tokens = [];
+    let x = indent;
+    const n = 2 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < n; i++) {
+      const w = 24 + Math.random() * 70;
+      tokens.push({ w, col: palette[Math.floor(Math.random() * palette.length)] });
+      x += w + 10;
+      if (x > c.width - 40) break;
+    }
+    return { y, indent, tokens };
+  }
+  for (let y = top; y < c.height - 26; y += lineH) lines.push(makeLine(y));
+
+  let t = 0, flash = 0, flashT = 4;
+  const dots = ["#ff5470", "#ffd23f", "#80ed99"];
+
+  function draw() {
+    ctx.fillStyle = "#070a12";
+    ctx.fillRect(0, 0, c.width, c.height);
+
+    // Header.
+    ctx.fillStyle = "#0f1622";
+    ctx.fillRect(0, 0, c.width, 30);
+    ctx.fillStyle = "#6ee7ff";
+    ctx.font = "bold 18px ui-monospace, Menlo, monospace";
+    ctx.textAlign = "left";
+    ctx.fillText("claude ~ building…", 14, 21);
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = dots[i];
+      ctx.beginPath();
+      ctx.arc(c.width - 22 - i * 22, 15, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Scrollende Code-Zeilen (unter dem Header geclippt).
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 30, c.width, c.height - 30);
+    ctx.clip();
+    for (const ln of lines) {
+      let x = ln.indent;
+      for (const tk of ln.tokens) {
+        ctx.fillStyle = tk.col;
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(x, ln.y, tk.w, 9);
+        x += tk.w + 10;
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // Blinkender Cursor.
+    if (Math.sin(t * 6) > 0) {
+      ctx.fillStyle = "#80ed99";
+      ctx.fillRect(16, c.height - 26, 12, 16);
+    }
+
+    // Status-Flash.
+    if (flash > 0) {
+      ctx.globalAlpha = flash * 0.22;
+      ctx.fillStyle = "#80ed99";
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.globalAlpha = flash;
+      ctx.fillStyle = "#80ed99";
+      ctx.font = "bold 48px ui-monospace, Menlo, monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("BUILD ✓", c.width / 2, c.height / 2);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  setInterval(() => {
+    t += 0.07;
+    for (const ln of lines) ln.y -= 2.4;
+    while (lines.length && lines[0].y < top) lines.shift();
+    let lastY = lines.length ? lines[lines.length - 1].y : top;
+    while (lastY < c.height - 26) { lastY += lineH; lines.push(makeLine(lastY)); }
+    flashT -= 0.07;
+    if (flashT <= 0) { flash = 1; flashT = 5 + Math.random() * 4; }
+    if (flash > 0) flash = Math.max(0, flash - 0.04);
+    draw();
+    tex.needsUpdate = true;
+  }, 70);
+
+  draw();
   return tex;
 }
