@@ -93,6 +93,14 @@ export class Player {
     const targetY = groundY + bob;
     this.pos.y += (targetY - this.pos.y) * (1 - Math.exp(-14 * dt));
 
+    // Waffen-Rückstoß abklingen lassen (Wucht beim Schießen).
+    if (this.weaponModel) {
+      this._kick = Math.max(0, (this._kick || 0) - dt * 9);
+      const k = this._kick;
+      this.weaponModel.position.z = -0.16 * k;
+      this.weaponModel.rotation.x = 0.32 * k;
+    }
+
     // Unverwundbarkeit + Blink-Feedback.
     if (this.invuln > 0) {
       this.invuln = Math.max(0, this.invuln - dt);
@@ -181,13 +189,13 @@ export class Player {
     }
   }
 
-  // Getragene Waffe: hängt ein normalisiertes GLB (Länge ~1) an die Ente.
+  // Getragene Waffe: hängt ein normalisiertes GLB an die Ente.
   // obj === Klon aus cloneWeaponModel() oder null (entfernt die Waffe).
   setWeaponModel(obj) {
     if (!this.weaponAnchor) {
-      // Anker an der rechten Seite, leicht vorn & auf Hüfthöhe; Lauf zeigt +Z.
+      // Anker an der rechten Seite, vorn & auf Hüfthöhe; Lauf zeigt +Z.
       this.weaponAnchor = new THREE.Group();
-      this.weaponAnchor.position.set(0.46, 0.92, 0.5);
+      this.weaponAnchor.position.set(0.62, 0.85, 0.35);
       this.root.add(this.weaponAnchor);
     }
     if (this.weaponModel) {
@@ -195,9 +203,21 @@ export class Player {
       this.weaponModel = null;
     }
     if (!obj) return;
-    obj.scale.setScalar(0.8); // einheitlicher Faktor; relative Waffengrößen bleiben
+    // Auf gut sichtbare Ziellänge skalieren – sonst sind Pistolen winzig.
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const len = Math.max(size.x, size.y, size.z) || 1;
+    const targetLen = Math.min(1.8, Math.max(1.3, len)); // 1.3–1.8 Welt-Einheiten
+    obj.scale.setScalar(targetLen / len);
     this.weaponModel = obj;
+    this._kick = 0;
     this.weaponAnchor.add(obj);
+  }
+
+  // Rückstoß auslösen (beim Schießen) – die Waffe ruckt kurz zurück.
+  kickWeapon(amount = 1) {
+    this._kick = Math.min(1.5, (this._kick || 0) + amount);
   }
 
   // Muzzle-Position für Projektile (leicht vor der Ente).

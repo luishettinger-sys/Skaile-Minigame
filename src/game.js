@@ -813,6 +813,7 @@ export class Game {
       this.projectiles.spawn(origin, dir, opts);
     }
     this.audio.weapon(this.weapon.sound);
+    this.player.kickWeapon(); // Rückstoß der getragenen Waffe (Wucht/„Feel")
     // Mündungsblitz in Waffenfarbe (glühender Funke).
     this.effects.burst(
       this.player.pos.x + Math.sin(this.player.facing) * fwd,

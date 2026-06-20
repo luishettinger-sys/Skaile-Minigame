@@ -5,3 +5,8 @@ build/
 *.log
 .env
 .env.local
+
+# lokale Test-/Tooling-Artefakte (nicht Teil des statischen Builds)
+_shoot.mjs
+package.json
+package-lock.json
