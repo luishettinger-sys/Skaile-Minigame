@@ -1,5 +1,6 @@
 // HUD: DOM-Overlay-Steuerung (Score, Wellen, Balken, Banner, Popups, Screens).
 import { SKINS, SKIN_ORDER } from "./skins.js";
+import { META_UPGRADES, META_ORDER, metaPrice } from "./metaupgrades.js";
 
 export class HUD {
   constructor() {
@@ -62,8 +63,50 @@ export class HUD {
       skinBank: document.getElementById("skin-bank"),
       skinBalanceLine: document.getElementById("skin-balance-line"),
       skinsClose: document.getElementById("skins-close"),
+      upgradesBtn: document.getElementById("upgrades-btn"),
+      upgradesBtnPause: document.getElementById("upgrades-btn-pause"),
+      upgradesBtnOver: document.getElementById("upgrades-btn-over"),
+      upgradesOverlay: document.getElementById("overlay-upgrades"),
+      upgradeGrid: document.getElementById("upgrade-grid"),
+      upgradeBank: document.getElementById("upgrade-bank"),
+      upgradesClose: document.getElementById("upgrades-close"),
     };
     this._bannerTimer = null;
+  }
+
+  // --- Lab-Ausbau (permanente Meta-Upgrades) --------------------------------
+  showUpgrades() { this.el.upgradesOverlay.classList.remove("hidden"); }
+  hideUpgrades() { this.el.upgradesOverlay.classList.add("hidden"); }
+
+  renderUpgrades(meta, onBuy) {
+    const grid = this.el.upgradeGrid;
+    if (!grid) return;
+    const bank = meta.coins ?? 0;
+    if (this.el.upgradeBank) this.el.upgradeBank.textContent = bank.toLocaleString("de-DE");
+    grid.innerHTML = "";
+    for (const key of META_ORDER) {
+      const def = META_UPGRADES[key];
+      if (!def) continue;
+      const lvl = meta.upgrades?.[key] || 0;
+      const maxed = lvl >= def.max;
+      const price = metaPrice(def, lvl);
+      const affordable = !maxed && bank >= price;
+      const card = document.createElement("div");
+      card.className =
+        "skin-card up-card " + (maxed ? "equipped" : affordable ? "affordable owned" : "locked");
+      // Stufen-Pips (gefüllt = gekauft).
+      let pips = "";
+      for (let i = 0; i < def.max; i++) pips += `<span class="pip${i < lvl ? " on" : ""}"></span>`;
+      const status = maxed ? "✓ MAX" : `${price.toLocaleString("de-DE")} 🪙`;
+      card.innerHTML =
+        `<div class="skin-emoji">${def.icon}</div>` +
+        `<div class="skin-name">${def.name}</div>` +
+        `<div class="up-desc">${def.short}</div>` +
+        `<div class="up-pips">${pips}</div>` +
+        `<div class="skin-status">Lv ${lvl}/${def.max} · ${status}</div>`;
+      if (!maxed) card.onclick = () => onBuy(key);
+      grid.appendChild(card);
+    }
   }
 
   // --- Skin-Shop -------------------------------------------------------------

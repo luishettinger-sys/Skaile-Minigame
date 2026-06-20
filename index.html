@@ -90,6 +90,7 @@
             <li><kbd>I</kbd> Inventar · <kbd>E</kbd> Shop · <kbd>M</kbd> Stumm · <kbd>P</kbd>/<kbd>ESC</kbd> Pause</li>
           </ul>
           <button class="btn" id="start-btn">START</button>
+          <button class="btn small" id="upgrades-btn">🔧 LAB-AUSBAU</button>
           <button class="btn small" id="skins-btn">🦆 SKINS</button>
           <p class="hint" id="meta-line"></p>
           <p class="hint">SKAILE Building Challenge · Thema: Gummiente</p>
@@ -120,6 +121,17 @@
           <div id="skin-grid" class="skin-grid"></div>
           <button class="btn small" id="skins-close">SCHLIESSEN</button>
           <p class="hint">Gekaufte Skins gehören dir dauerhaft &middot; werden direkt angelegt</p>
+        </div>
+      </div>
+
+      <!-- Lab-Ausbau (permanente Meta-Upgrades, aus der Bank) -->
+      <div class="overlay hidden" id="overlay-upgrades">
+        <div class="overlay-card">
+          <h1 class="skins-title">🔧 LAB-AUSBAU</h1>
+          <p class="tagline">Bank: <span id="upgrade-bank">0</span> 🪙 &middot; dauerhaft &amp; gilt in jedem Run</p>
+          <div id="upgrade-grid" class="skin-grid up-grid"></div>
+          <button class="btn small" id="upgrades-close">SCHLIESSEN</button>
+          <p class="hint">Bezahlt aus der Bank · jeder Tod zahlt auf deinen Ausbau ein</p>
         </div>
       </div>
 
@@ -168,6 +180,7 @@
           <h1 class="paused">PAUSE</h1>
           <p class="tagline">Die Bugs warten geduldig.</p>
           <button class="btn" id="resume-btn">WEITER</button>
+          <button class="btn small" id="upgrades-btn-pause">🔧 LAB-AUSBAU</button>
           <button class="btn small" id="skins-btn-pause">🦆 SKINS</button>
           <p class="hint"><kbd>P</kbd> oder <kbd>ESC</kbd> zum Fortsetzen</p>
         </div>
@@ -185,6 +198,7 @@
             <div><span id="final-hi">0</span><small>BESTE</small></div>
           </div>
           <button class="btn" id="restart-btn">NOCHMAL</button>
+          <button class="btn small" id="upgrades-btn-over">🔧 LAB-AUSBAU</button>
           <button class="btn small" id="skins-btn-over">🦆 SKINS</button>
         </div>
       </div>

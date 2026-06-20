@@ -603,6 +603,33 @@ kbd {
 .skin-card.equipped:hover { transform: none; border-color: var(--green); }
 .skin-card.equipped .skin-status { color: var(--green); }
 
+/* Lab-Ausbau (permanente Meta-Upgrades) */
+#overlay-upgrades { z-index: 12; }
+#overlay-upgrades .overlay-card { max-width: 720px; }
+.up-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.up-card .skin-emoji { font-size: 30px; }
+.up-card .skin-name { font-size: 15px; margin-top: 6px; }
+.up-card .up-desc { font-size: 11px; color: #9aa3b4; margin-top: 4px; min-height: 26px; }
+.up-card .up-pips {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin: 7px 0 5px;
+}
+.up-card .pip {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #2c3550;
+  box-shadow: inset 0 0 0 1px #3a445e;
+}
+.up-card .pip.on {
+  background: var(--cyan);
+  box-shadow: 0 0 7px var(--cyan);
+}
+.up-card.equipped .pip.on { background: var(--green); box-shadow: 0 0 7px var(--green); }
+.up-card .skin-status { font-size: 12px; }
+
 .stats {
   display: flex;
   justify-content: center;

@@ -21,6 +21,7 @@ import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
 import { SKINS } from "./skins.js";
+import { META_UPGRADES, META_ORDER, metaPrice, metaMods, metaStartCoins } from "./metaupgrades.js";
 import { Achievements } from "./achievements.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
@@ -85,13 +86,19 @@ export class Game {
   }
 
   _loadMeta() {
-    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic" };
+    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {} };
     let m;
     try { m = JSON.parse(localStorage.getItem("duckdebug_meta")) || {}; }
     catch (e) { m = {}; }
     m = { ...def, ...m };
     if (!Array.isArray(m.ownedSkins) || !m.ownedSkins.includes("classic")) m.ownedSkins = ["classic", ...(m.ownedSkins || []).filter((k) => k !== "classic")];
     if (!SKINS[m.equippedSkin] || !m.ownedSkins.includes(m.equippedSkin)) m.equippedSkin = "classic";
+    // Meta-Upgrades sanitisieren (nur bekannte Keys, auf Max begrenzt).
+    if (!m.upgrades || typeof m.upgrades !== "object") m.upgrades = {};
+    for (const key in m.upgrades) {
+      if (!META_UPGRADES[key]) { delete m.upgrades[key]; continue; }
+      m.upgrades[key] = Math.max(0, Math.min(META_UPGRADES[key].max, m.upgrades[key] | 0));
+    }
     return m;
   }
 
@@ -151,6 +158,41 @@ export class Game {
     this.hud.setMeta(`Bank: ${m.coins.toLocaleString("de-DE")} 🪙 · Beste Welle ${m.bestWave} · ${m.kills.toLocaleString("de-DE")} Bugs gekillt`);
   }
 
+  // --- Lab-Ausbau (permanente Meta-Upgrades, aus der Bank) -------------------
+  openUpgrades() {
+    this._renderUpgrades();
+    this.hud.showUpgrades();
+  }
+  closeUpgrades() { this.hud.hideUpgrades(); }
+
+  _renderUpgrades() {
+    this.hud.renderUpgrades(this.meta, (k) => this.buyUpgrade(k));
+  }
+
+  buyUpgrade(key) {
+    const def = META_UPGRADES[key];
+    if (!def) return;
+    const lvl = this.meta.upgrades[key] || 0;
+    if (lvl >= def.max) { this.hud.toast?.("✅", "Voll ausgebaut", def.name); return; }
+    const price = metaPrice(def, lvl);
+    if (this.meta.coins < price) { this.hud.toast?.("🪙", "Nicht genug Bank", `${def.name} kostet ${price}`); return; }
+    this.meta.coins -= price;
+    this.meta.upgrades[key] = lvl + 1;
+    this._saveMeta();
+    this.audio.pickup?.();
+    // Wirkt sofort (falls im Pause-Menü gekauft) – beim Run-Start ohnehin neu.
+    this._recomputeMods();
+    this._syncStats();
+    this._showMetaLine();
+    this._renderUpgrades();
+  }
+
+  // Mods aus den permanenten Meta-Upgrades.
+  _metaMods() { return metaMods(this.meta.upgrades); }
+
+  // Run-Coins zu Beginn aus dem Startkapital-Ausbau.
+  _startCoins() { return metaStartCoins(this.meta.upgrades); }
+
   // Waffe + additive/multiplikative Upgrade-Modifikatoren.
   _initLoadout() {
     this.weaponId = "blaster";
@@ -163,6 +205,7 @@ export class Game {
   // Effektive Mods = Upgrades kombiniert mit Ausrüstung.
   _recomputeMods() {
     const m = defaultMods();
+    mergeMods(m, this._metaMods()); // permanente Lab-Ausbauten zuerst
     mergeMods(m, this.upgradeMods);
     mergeMods(m, this.equipMods);
     mergeMods(m, this._gadgetMods());
@@ -251,7 +294,7 @@ export class Game {
     this.invOpen = false;
     this.shopOpen = false;
     this.shopOffers = [];
-    this.coins = 0;
+    this.coins = this._startCoins(); // Startkapital aus permanentem Ausbau
     this.bossIntro = false;
     this.intro = null;
     this.buffs = { rapid: 0, double: 0, shield: 0, slow: 0 };
@@ -302,7 +345,7 @@ export class Game {
     this.hud.setWeapon(this.weapon.name, this.weapon.icon);
     this.hud.setEnergy(1);
     this.hud.setVignette(0);
-    this.hud.setCoins(0);
+    this.hud.setCoins(this.coins);
     this.hud.setBuffs([]);
     this.hud.setGadget("");
     this.player.setGadget(null);

@@ -34,6 +34,10 @@ hud.el.skinsBtnOver?.addEventListener("click", () => game.openSkins("bank"));
 hud.el.skinsBtnPause?.addEventListener("click", () => game.openSkins("bank"));
 hud.el.skinsBtnShop?.addEventListener("click", () => game.openSkins("run"));
 hud.el.skinsClose?.addEventListener("click", () => game.closeSkins());
+hud.el.upgradesBtn?.addEventListener("click", () => game.openUpgrades());
+hud.el.upgradesBtnPause?.addEventListener("click", () => game.openUpgrades());
+hud.el.upgradesBtnOver?.addEventListener("click", () => game.openUpgrades());
+hud.el.upgradesClose?.addEventListener("click", () => game.closeUpgrades());
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space" && game.state !== "playing") beginGame();
 });
