@@ -71,6 +71,15 @@ export class Audio {
     this._tone({ type: "triangle", from: 150, to: 600, dur: 0.6, gain: 0.18, delay: 0.05 });
   }
 
+  dash() {
+    this._tone({ type: "sine", from: 700, to: 1400, dur: 0.12, gain: 0.12 });
+  }
+
+  levelUp() {
+    this._tone({ type: "triangle", from: 600, to: 900, dur: 0.12, gain: 0.18 });
+    this._tone({ type: "triangle", from: 900, to: 1300, dur: 0.16, gain: 0.16, delay: 0.1 });
+  }
+
   waveStart() {
     this._tone({ type: "sine", from: 500, to: 800, dur: 0.15, gain: 0.18 });
     this._tone({ type: "sine", from: 800, to: 1000, dur: 0.15, gain: 0.15, delay: 0.12 });

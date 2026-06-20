@@ -21,7 +21,7 @@ export class ProjectileSystem {
     this.glowGeo = new THREE.CapsuleGeometry(r * 1.9, len, 4, 8);
   }
 
-  spawn(origin, dir) {
+  spawn(origin, dir, opts = {}) {
     let p = this.pool.pop();
     if (!p) {
       const mesh = new THREE.Group();
@@ -31,14 +31,18 @@ export class ProjectileSystem {
       core.rotation.x = Math.PI / 2;
       glow.rotation.x = Math.PI / 2;
       mesh.add(glow, core);
-      p = { mesh, vel: new THREE.Vector3(), life: 0 };
+      p = { mesh, vel: new THREE.Vector3(), life: 0, hits: new Set() };
       this.group.add(mesh);
     }
     p.mesh.visible = true;
+    p.mesh.scale.setScalar(opts.scale ?? 1);
     p.mesh.position.set(origin.x, 1.0, origin.z);
     p.vel.set(dir.x, 0, dir.z).normalize().multiplyScalar(CONFIG.weapon.projSpeed);
     p.mesh.rotation.y = Math.atan2(p.vel.x, p.vel.z); // Bolt zeigt in Flugrichtung
     p.life = CONFIG.weapon.projLife;
+    p.damage = opts.damage ?? CONFIG.weapon.damage;
+    p.pierce = opts.pierce ?? 0; // verbleibende Durchschläge
+    p.hits.clear();
     this.active.push(p);
     return p;
   }

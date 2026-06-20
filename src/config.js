@@ -16,6 +16,13 @@ export const CONFIG = {
     maxHp: 100,
     hitInvuln: 0.9, // Sekunden Unverwundbarkeit nach Treffer
     contactKnockback: 6,
+    regen: 0, // HP/Sekunde (per Upgrade erhöhbar)
+    dash: {
+      mult: 2.8, // Geschwindigkeits-Multiplikator während des Dash
+      duration: 0.18,
+      cooldown: 1.1,
+      iframes: 0.32, // Unverwundbarkeit während/nach dem Dash
+    },
   },
 
   weapon: {
@@ -26,6 +33,9 @@ export const CONFIG = {
     projLife: 1.1,
     damage: 1,
     muzzleForward: 1.3, // wie weit vor der Ente das Geschoss erscheint
+    projCount: 1, // Geschosse pro Schuss (Multishot-Upgrade)
+    spread: 0.14, // Streuung in Radiant bei mehreren Geschossen
+    pierce: 0, // wie viele zusätzliche Gegner ein Geschoss durchschlägt
   },
 
   // Bug-Monster — jedes verkörpert einen Dev-Schmerz
@@ -55,6 +65,11 @@ export const CONFIG = {
       hp: 1, speed: 5.6, radius: 0.85, damage: 14, score: 50,
       color: 0xff6ec7, glow: 0xffc2ec, scale: 1.0, flickers: true,
     },
+    boss: {
+      label: "Kernel Panic",
+      hp: 120, speed: 2.3, radius: 2.6, damage: 26, score: 500,
+      color: 0xff3355, glow: 0xff8899, scale: 3.4, isBoss: true,
+    },
   },
 
   waves: {
@@ -63,6 +78,20 @@ export const CONFIG = {
     spawnInterval: 1.1, // Sekunden zwischen Spawns innerhalb einer Welle
     breakTime: 3.0, // Pause zwischen Wellen
     maxAlive: 60, // harte Obergrenze gleichzeitiger Gegner (Performance)
+    bossEvery: 5, // alle N Wellen erscheint ein Boss
+  },
+
+  progression: {
+    baseXp: 5, // XP für Level 2
+    growth: 4, // zusätzlicher XP-Bedarf pro Level
+  },
+
+  pickups: {
+    magnet: 4.5, // Einsammel-Radius (per Upgrade erhöhbar)
+    collectRadius: 1.3,
+    gemValue: 1, // XP pro Gem
+    healAmount: 25, // HP pro Health-Drop
+    healthDropChance: 0.06, // Wahrscheinlichkeit, dass ein Bug Health droppt
   },
 
   combo: {

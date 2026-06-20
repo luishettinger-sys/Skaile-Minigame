@@ -28,6 +28,16 @@
           <span id="wave">WAVE 1</span>
         </div>
 
+        <div id="xpbar">
+          <div id="xp-fill"></div>
+          <span id="level">LVL 1</span>
+        </div>
+
+        <div id="bossbar" class="hidden">
+          <div id="boss-label">BOSS</div>
+          <div class="bar-track"><div class="bar-fill" id="boss-fill"></div></div>
+        </div>
+
         <div id="bars">
           <div class="bar" id="hp">
             <div class="bar-label">BUILD HEALTH</div>
@@ -51,11 +61,21 @@
           <ul class="controls">
             <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> bewegen &amp; zielen</li>
             <li><kbd>Space</kbd> / <kbd>Enter</kbd> &nbsp;schießen</li>
+            <li><kbd>Shift</kbd> &nbsp;Dash (Ausweichen, mit i-Frames)</li>
             <li><kbd>Q</kbd> &nbsp;<b>Rubber Duck Moment</b> (wenn geladen)</li>
             <li><kbd>P</kbd> / <kbd>ESC</kbd> &nbsp;Pause</li>
           </ul>
           <button class="btn" id="start-btn">START</button>
           <p class="hint">SKAILE Building Challenge · Thema: Gummiente</p>
+        </div>
+      </div>
+
+      <!-- Level-Up: Upgrade-Auswahl -->
+      <div class="overlay hidden" id="overlay-levelup">
+        <div class="overlay-card">
+          <h1 class="levelup">LEVEL UP</h1>
+          <p class="tagline" id="lvl-sub">Wähle ein Upgrade</p>
+          <div id="lvl-cards"></div>
         </div>
       </div>
 
@@ -77,6 +97,7 @@
           <div class="stats">
             <div><span id="final-score">0</span><small>SCORE</small></div>
             <div><span id="final-wave">1</span><small>WELLE</small></div>
+            <div><span id="final-hi">0</span><small>BESTE</small></div>
           </div>
           <button class="btn" id="restart-btn">NOCHMAL</button>
         </div>

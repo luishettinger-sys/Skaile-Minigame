@@ -23,11 +23,35 @@ export class Player {
     this.hp = this.maxHp;
     this.invuln = 0;
     this.alive = true;
+
+    this.dashTimer = 0; // verbleibende Dash-Dauer
+    this.dashCD = 0; // verbleibender Cooldown
+    this.lastDir = { x: 0, z: 1 }; // Richtung für Dash im Stand
   }
 
-  update(dt, move) {
-    const speed = CONFIG.player.speed;
-    this.vel.set(move.x * speed, 0, move.z * speed);
+  // Dash auslösen (Ausweichen mit i-Frames). Gibt true zurück, wenn erfolgreich.
+  tryDash(cooldown) {
+    if (this.dashCD > 0 || !this.alive) return false;
+    this.dashTimer = CONFIG.player.dash.duration;
+    this.dashCD = cooldown;
+    this.invuln = Math.max(this.invuln, CONFIG.player.dash.iframes);
+    return true;
+  }
+
+  update(dt, move, moveSpeed = CONFIG.player.speed) {
+    if (this.dashCD > 0) this.dashCD = Math.max(0, this.dashCD - dt);
+
+    let speed = moveSpeed;
+    const dashing = this.dashTimer > 0;
+    if (dashing) {
+      this.dashTimer = Math.max(0, this.dashTimer - dt);
+      speed *= CONFIG.player.dash.mult;
+    }
+    if (move.x !== 0 || move.z !== 0) this.lastDir = { x: move.x, z: move.z };
+    // Im Stand nur während eines Dash in die letzte Richtung gleiten.
+    const dir =
+      move.x !== 0 || move.z !== 0 ? move : dashing ? this.lastDir : { x: 0, z: 0 };
+    this.vel.set(dir.x * speed, 0, dir.z * speed);
 
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
@@ -79,9 +103,12 @@ export class Player {
     this.pos.set(0, 0, 0);
     this.vel.set(0, 0, 0);
     this.facing = 0;
+    this.maxHp = CONFIG.player.maxHp;
     this.hp = this.maxHp;
     this.invuln = 0;
     this.alive = true;
+    this.dashTimer = 0;
+    this.dashCD = 0;
     this._setVisible(true);
   }
 

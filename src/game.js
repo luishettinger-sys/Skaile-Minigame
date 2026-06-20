@@ -1,5 +1,5 @@
-// Game-Orchestrator: verbindet alle Systeme, hält den Spielzustand,
-// regelt Combat, Combo, das "Rubber Duck Moment"-Ultimate und die Wellen.
+// Game-Orchestrator: verbindet alle Systeme und hält den Spielzustand.
+// Roguelite-Survivor: Wellen, Combo, Ultimate, XP/Level-Ups, Pickups, Boss.
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { Player } from "./player.js";
@@ -7,9 +7,12 @@ import { ProjectileSystem } from "./projectiles.js";
 import { EnemySystem, edgeSpawn } from "./enemies.js";
 import { Effects } from "./effects.js";
 import { WaveManager } from "./waves.js";
+import { Progression } from "./progression.js";
+import { PickupSystem } from "./pickups.js";
 import { distXZ, clamp } from "./utils.js";
 
 const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over" };
+const HISCORE_KEY = "duckdebug_highscore";
 
 export class Game {
   constructor({ world, input, hud, audio }) {
@@ -22,6 +25,8 @@ export class Game {
     this.projectiles = new ProjectileSystem(world.scene);
     this.enemies = new EnemySystem(world.scene);
     this.effects = new Effects(world.scene);
+    this.pickups = new PickupSystem(world.scene);
+    this.progression = new Progression();
 
     this.waves = new WaveManager({
       onSpawn: (type) => this._spawnEnemy(type),
@@ -29,8 +34,24 @@ export class Game {
       onWaveClear: (n) => this._onWaveClear(n),
     });
 
+    this.highscore = Number(localStorage.getItem(HISCORE_KEY)) || 0;
     this.state = STATE.MENU;
     this._resetRun();
+  }
+
+  _initStats() {
+    this.stats = {
+      fireInterval: CONFIG.weapon.fireInterval,
+      damage: CONFIG.weapon.damage,
+      projCount: CONFIG.weapon.projCount,
+      pierce: CONFIG.weapon.pierce,
+      projScale: 1,
+      moveSpeed: CONFIG.player.speed,
+      maxHp: CONFIG.player.maxHp,
+      magnet: CONFIG.pickups.magnet,
+      regen: CONFIG.player.regen,
+      dashCooldown: CONFIG.player.dash.cooldown,
+    };
   }
 
   _resetRun() {
@@ -44,6 +65,11 @@ export class Game {
     this.ultActive = false;
     this.ultTimer = 0;
     this.paused = false;
+    this.levelingUp = false;
+    this.pendingLevels = 0;
+    this.boss = null;
+    this.progression.reset();
+    this._initStats();
   }
 
   start() {
@@ -52,16 +78,20 @@ export class Game {
     this.projectiles.reset();
     this.enemies.reset();
     this.effects.reset();
+    this.pickups.reset();
     this.waves.reset();
     this.audio.init();
     this.audio.resume();
 
     this.hud.hideOverlays();
     this.hud.hidePause();
+    this.hud.hideLevelUp();
+    this.hud.hideBoss();
     this.hud.setScore(0);
     this.hud.setHp(this.player.hp, this.player.maxHp);
     this.hud.setUltimate(0, false);
     this.hud.setCombo(1);
+    this.hud.setXp(0, 1);
     this.state = STATE.PLAYING;
   }
 
@@ -81,31 +111,47 @@ export class Game {
     this.audio.gameOver();
     this.world.addShake(0.8);
     this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.duckBody, 30, 1.6);
-    this.hud.showGameOver(Math.floor(this.score), this.waves.wave);
+
+    const score = Math.floor(this.score);
+    if (score > this.highscore) {
+      this.highscore = score;
+      localStorage.setItem(HISCORE_KEY, String(score));
+    }
+    this.hud.showGameOver(score, this.waves.wave, this.highscore);
   }
 
   // ----------------------------------------------------------------- Loop --
   update(dt) {
     if (this.state !== STATE.PLAYING) return;
 
-    // Pause umschalten (P oder ESC).
     if (this.input.wasPressed("KeyP") || this.input.wasPressed("Escape")) {
       this.togglePause();
     }
-    if (this.paused) return;
+    if (this.paused || this.levelingUp) return;
 
     const move = this.input.moveVector();
-    this.player.update(dt, move);
 
-    // Ultimate auslösen (Q).
+    // Dash (Shift) – Ausweich-Skill.
+    if (this.input.wasPressed("ShiftLeft") || this.input.wasPressed("ShiftRight")) {
+      if (this.player.tryDash(this.stats.dashCooldown)) {
+        this.audio.dash();
+        this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.cyan, 10, 0.9);
+      }
+    }
+
+    this.player.update(dt, move, this.stats.moveSpeed);
+
+    // Passive Regeneration.
+    if (this.stats.regen > 0 && this.player.alive) {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.stats.regen * dt);
+      this.hud.setHp(this.player.hp, this.player.maxHp);
+    }
+
+    // Ultimate (Q).
     if (this.input.wasPressed("KeyQ") && this.ultReady && !this.ultActive) {
       this._activateUltimate();
     }
-
-    // Zeit-Skalierung: im "Rubber Duck Moment" läuft die Welt langsamer,
-    // die Ente bleibt schnell (klassische Bullet-Time).
     const worldDt = this.ultActive ? dt * CONFIG.combo.ultSlowmo : dt;
-
     if (this.ultActive) {
       this.ultTimer -= dt;
       if (this.ultTimer <= 0) this._endUltimate();
@@ -115,11 +161,19 @@ export class Game {
     this.enemies.update(worldDt, this.player.pos, this.ultActive);
     this.projectiles.update(dt);
     this.effects.update(dt);
+    this.pickups.update(dt, this.player.pos, this.stats.magnet, (kind, value) =>
+      this._collect(kind, value)
+    );
 
     this._fireWeapon(dt);
     this._handleProjectileHits();
     this._handleEnemyContact();
     this._updateCombo(dt);
+
+    // Boss-Lebensbalken.
+    if (this.boss && this.boss.alive) {
+      this.hud.setBoss(this.boss.hp / this.boss.maxHp, this.boss.def.label);
+    }
 
     this.world.updateCamera(this.player.pos, dt);
   }
@@ -127,30 +181,37 @@ export class Game {
   // -------------------------------------------------------------- Combat --
   _fireWeapon(dt) {
     this.fireTimer -= dt;
-
-    // Manuell schießen: Leertaste oder Enter (gehalten feuert im Takt).
     const firing =
       this.input.isDown("Space") ||
       this.input.isDown("Enter") ||
       this.input.isDown("NumpadEnter");
     if (!firing || this.fireTimer > 0) return;
 
-    this.fireTimer = CONFIG.weapon.fireInterval * (this.ultActive ? 0.5 : 1);
+    this.fireTimer = this.stats.fireInterval * (this.ultActive ? 0.5 : 1);
 
-    // In Blickrichtung der Ente feuern.
-    const dir = new THREE.Vector3(
-      Math.sin(this.player.facing),
-      0,
-      Math.cos(this.player.facing)
-    );
+    const n = this.stats.projCount;
+    const spread = CONFIG.weapon.spread;
     const fwd = CONFIG.weapon.muzzleForward;
-    const origin = {
-      x: this.player.pos.x + dir.x * fwd,
-      z: this.player.pos.z + dir.z * fwd,
-    };
-    this.projectiles.spawn(origin, dir);
+    for (let i = 0; i < n; i++) {
+      const off = n === 1 ? 0 : (i - (n - 1) / 2) * spread;
+      const ang = this.player.facing + off;
+      const dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
+      const origin = {
+        x: this.player.pos.x + dir.x * fwd,
+        z: this.player.pos.z + dir.z * fwd,
+      };
+      this.projectiles.spawn(origin, dir, {
+        damage: this.stats.damage,
+        pierce: this.stats.pierce,
+        scale: this.stats.projScale,
+      });
+    }
     this.audio.shoot();
-    this.effects.burst(origin.x, origin.z, CONFIG.colors.projectile, 4, 0.5);
+    this.effects.burst(
+      this.player.pos.x + Math.sin(this.player.facing) * fwd,
+      this.player.pos.z + Math.cos(this.player.facing) * fwd,
+      CONFIG.colors.projectile, 4, 0.5
+    );
     this.world.addShake(0.05);
   }
 
@@ -158,18 +219,26 @@ export class Game {
     const list = this.projectiles.active;
     for (let i = list.length - 1; i >= 0; i--) {
       const p = list[i];
+      const pr = CONFIG.weapon.projRadius * p.mesh.scale.x;
+      let retired = false;
       for (const e of this.enemies.enemies) {
-        if (!e.alive || !e.visible) continue;
-        const hitR = CONFIG.weapon.projRadius + e.radius;
-        if (distXZ(p.mesh.position, e.mesh.position) <= hitR) {
-          const killed = this.enemies.damage(e, CONFIG.weapon.damage);
+        if (!e.alive || !e.visible || p.hits.has(e)) continue;
+        if (distXZ(p.mesh.position, e.mesh.position) <= pr + e.radius) {
+          p.hits.add(e);
+          const killed = this.enemies.damage(e, p.damage);
           this.audio.hit();
           this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.glow, 5, 0.7);
-          this.projectiles.retire(i);
           if (killed) this._killEnemy(e);
-          break;
+          if (p.pierce > 0) {
+            p.pierce--;
+          } else {
+            this.projectiles.retire(i);
+            retired = true;
+            break;
+          }
         }
       }
+      if (retired) continue;
     }
   }
 
@@ -187,7 +256,6 @@ export class Game {
           this._breakCombo();
           if (!this.player.alive) { this.gameOver(); return; }
         }
-        // Gegner zurückstoßen, damit er nicht klebt.
         const dx = e.mesh.position.x - this.player.pos.x;
         const dz = e.mesh.position.z - this.player.pos.z;
         const len = Math.hypot(dx, dz) || 1;
@@ -201,7 +269,7 @@ export class Game {
     this.enemies.kill(e);
     this.audio.bugDeath();
     this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.color, 16, 1.1);
-    this.world.addShake(0.18);
+    this.world.addShake(e.def.isBoss ? 0.8 : 0.18);
 
     // Combo + Score.
     this.combo++;
@@ -219,9 +287,30 @@ export class Game {
       const ratio = this.ultCharge / CONFIG.combo.ultThreshold;
       if (ratio >= 1 && !this.ultReady) {
         this.ultReady = true;
-        this.hud.banner("RUBBER DUCK MOMENT", "[ SPACE ] bereit");
+        this.hud.banner("RUBBER DUCK MOMENT", "[ Q ] bereit");
       }
       this.hud.setUltimate(ratio, this.ultReady);
+    }
+
+    // Loot.
+    this.pickups.spawnGem(e.mesh.position.x, e.mesh.position.z, CONFIG.pickups.gemValue);
+    if (Math.random() < CONFIG.pickups.healthDropChance) {
+      this.pickups.spawnHealth(e.mesh.position.x, e.mesh.position.z);
+    }
+
+    // Boss-Belohnung.
+    if (e.def.isBoss) {
+      this.boss = null;
+      this.hud.hideBoss();
+      this.hud.banner("BOSS BESIEGT", "Kernel restored");
+      this.effects.shockwave(e.mesh.position.x, e.mesh.position.z, e.def.glow, 16, 24);
+      this.pickups.spawnHealth(e.mesh.position.x, e.mesh.position.z);
+      for (let i = 0; i < 8; i++) {
+        this.pickups.spawnGem(
+          e.mesh.position.x + (Math.random() - 0.5) * 4,
+          e.mesh.position.z + (Math.random() - 0.5) * 4, 2
+        );
+      }
     }
 
     // Race Condition splittet sich in zwei kleinere Bugs.
@@ -229,11 +318,23 @@ export class Game {
       for (let i = 0; i < e.def.splits; i++) {
         const off = (i - 0.5) * 1.6;
         const child = this.enemies.spawn("syntax", e.mesh.position.x + off, e.mesh.position.z + off);
-        child.baseScale *= 0.7; // wird vom Update angewandt (Treffer-Punch-System)
+        child.baseScale *= 0.7;
         child.radius *= 0.7;
       }
     }
     this.enemies.cull();
+  }
+
+  _collect(kind, value) {
+    if (kind === "gem") {
+      const leveled = this.progression.addXp(value);
+      this.hud.setXp(this.progression.ratio(), this.progression.level);
+      if (leveled > 0) this._queueLevelUp(leveled);
+    } else if (kind === "health") {
+      this.player.hp = clamp(this.player.hp + value, 0, this.player.maxHp);
+      this.hud.setHp(this.player.hp, this.player.maxHp);
+      this._popup(this.player.pos, "+" + value + " HP", "#80ed99");
+    }
   }
 
   // ------------------------------------------------------------- Ultimate --
@@ -243,10 +344,9 @@ export class Game {
     this.ultTimer = CONFIG.combo.ultDuration;
     this.audio.ultimate();
     this.world.addShake(0.6);
-    this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.cyan ?? 0x6ee7ff, 14, 26);
+    this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.cyan, 14, 26);
     this.hud.banner("ERKLÄR'S DER ENTE", "Bugs werden sichtbar");
 
-    // Initialer Puls: Schaden an allen sichtbaren Bugs in Reichweite.
     for (const e of [...this.enemies.enemies]) {
       if (!e.alive) continue;
       if (distXZ(this.player.pos, e.mesh.position) < 12) {
@@ -276,6 +376,36 @@ export class Game {
     this.hud.setCombo(1);
   }
 
+  // ------------------------------------------------------------- Level-Up --
+  _queueLevelUp(n) {
+    this.pendingLevels += n;
+    this.audio.levelUp();
+    if (!this.levelingUp) this._openLevelUp();
+  }
+
+  _openLevelUp() {
+    this.levelingUp = true;
+    const choices = this.progression.roll(3);
+    this.hud.showLevelUp(this.progression.level, choices, (i) =>
+      this._pickUpgrade(choices, i)
+    );
+  }
+
+  _pickUpgrade(choices, i) {
+    const up = choices[i];
+    up.apply(this.stats, this.player, this);
+    this.hud.setHp(this.player.hp, this.player.maxHp);
+    this.hud.banner("UPGRADE", up.name);
+
+    this.pendingLevels--;
+    if (this.pendingLevels > 0) {
+      this._openLevelUp();
+    } else {
+      this.levelingUp = false;
+      this.hud.hideLevelUp();
+    }
+  }
+
   // ----------------------------------------------------------------- Waves --
   _spawnEnemy(type) {
     const { x, z } = edgeSpawn();
@@ -284,12 +414,18 @@ export class Game {
 
   _onWaveStart(n) {
     this.hud.setWave(n);
-    this.hud.banner("WELLE " + n, "Bugs eingehend…");
     this.audio.waveStart();
+
+    if (n % CONFIG.waves.bossEvery === 0) {
+      const half = CONFIG.arena.half;
+      this.boss = this.enemies.spawn("boss", 0, -(half - 3));
+      this.hud.banner("⚠ BOSS: KERNEL PANIC", "Welle " + n);
+    } else {
+      this.hud.banner("WELLE " + n, "Bugs eingehend…");
+    }
   }
 
   _onWaveClear(n) {
-    // Kleine Belohnung: etwas Build-Health zurück.
     this.player.hp = clamp(this.player.hp + 15, 0, this.player.maxHp);
     this.hud.setHp(this.player.hp, this.player.maxHp);
     this.hud.banner("WELLE " + n + " CLEAR", "+15 Build Health");
