@@ -279,7 +279,7 @@ export class Game {
     const collector = 1 + (this.automation?.levels.collector || 0) * 0.6;
     return CONFIG.pickups.magnet * this.mods.magnetMult * collector * (this.magnetBoost > 0 ? 8 : 1);
   }
-  _maxHp() { return CONFIG.player.maxHp + this.mods.maxHpAdd; }
+  _maxHp() { return Math.max(10, CONFIG.player.maxHp + this.mods.maxHpAdd); }
   _dashCd() { return CONFIG.player.dash.cooldown * this.mods.dashCdMult; }
 
   _resetRun() {
@@ -554,7 +554,13 @@ export class Game {
     if (this.input.isDown("KeyM")) this.world.zoom(dt * 0.9);
 
     if (this.bossIntro) { this._updateIntro(dt); return; }
-    if (this.paused || this.levelingUp || this.invOpen || this.shopOpen) return;
+    // Anstehenden Boon anbieten, sobald keine andere Auswahl offen ist.
+    if (this.boonPending && !this.levelingUp && !this.boonChoosing &&
+        !this.paused && !this.invOpen && !this.shopOpen) {
+      this.boonPending = false;
+      this._offerBoon();
+    }
+    if (this.paused || this.levelingUp || this.invOpen || this.shopOpen || this.boonChoosing) return;
 
     // Hit-Stop: kurzes Einfrieren für spürbaren Impact.
     if (this.hitStop > 0) {
@@ -926,6 +932,12 @@ export class Game {
     this.hud.setCombo(this.comboMult);
     this._popup(e.mesh.position, "+" + gained, "#ffd23f");
 
+    // Boon: Vampir-Modus heilt pro Kill.
+    if (this.boonFlags.lifesteal > 0 && this.player.alive && this.player.hp < this.player.maxHp) {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.boonFlags.lifesteal);
+      this.hud.setHp(this.player.hp, this.player.maxHp);
+    }
+
     // Run-Statistik + Achievements.
     this.runStats.kills++;
     if (e.def.isBoss) this.runStats.bossKills++;
@@ -960,8 +972,8 @@ export class Game {
       );
     }
 
-    // Coins.
-    this.coins += Math.max(1, Math.round(e.def.score / 10));
+    // Coins (Boon "Gierschlund" erhöht den Ertrag).
+    this.coins += Math.max(1, Math.round((e.def.score / 10) * this.boonFlags.coinMult));
     this.hud.setCoins(this.coins);
 
     // Bonus-Bug erwischt → fette Belohnung.
@@ -1217,6 +1229,33 @@ export class Game {
     this.hud.setWeapon(this.weapon.name, this.weapon.icon);
   }
 
+  // ----------------------------------------------------------------- Boons --
+  // 1 aus 3 build-definierende Run-Boons anbieten (pausiert den Run).
+  _offerBoon() {
+    this.boonChoosing = true;
+    this.audio.levelUp?.();
+    this._boonChoices = rollBoons(3);
+    this.hud.showBoons(this._boonChoices, (i) => this._pickBoon(i));
+  }
+
+  _pickBoon(i) {
+    const c = this._boonChoices?.[i];
+    if (!c) return;
+    this.boons.push(c.id);
+    if (c.mods) mergeMods(this.boonMods, c.mods);
+    if (c.special === "lifesteal") this.boonFlags.lifesteal += c.amount || 2;
+    else if (c.special === "coinMult") this.boonFlags.coinMult *= c.amount || 1.5;
+    else if (c.special === "drone") this.automation.spawnExtraDrone();
+    this._recomputeMods();
+    this._syncStats();
+    this.hud.setHp(this.player.hp, this.player.maxHp);
+    this.hud.banner("✨ BOON", c.icon + " " + c.name);
+    this.world.addShake(0.2);
+    this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.pink, 22, 1.3);
+    this.boonChoosing = false;
+    this.hud.hideBoons();
+  }
+
   // Waffe im Armory-Raum kaufen + sofort ausrüsten (Run-Coins).
   _buyWeapon(pad) {
     if (this.weaponId === pad.id) return;
@@ -1295,6 +1334,8 @@ export class Game {
       this._startBossIntro(n); // Cinematic: Zoom auf Monitor → Bug springt raus
     } else {
       this.hud.banner("WELLE " + n, "Bugs eingehend…");
+      // Alle 3 Wellen (außer Boss-Wellen) einen Run-Boon zur Wahl stellen.
+      if (n > 1 && n % 3 === 0) this.boonPending = true;
     }
   }
 

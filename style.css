@@ -292,6 +292,24 @@ body {
   line-height: 1.4;
 }
 
+/* Boon-Karten (teilen das Level-Up-Layout) */
+#overlay-boon { z-index: 11; }
+.overlay-card h1.boon-title {
+  color: var(--pink, #ff6ec7);
+  text-shadow: 0 0 30px rgba(255, 110, 199, 0.45);
+}
+#boon-cards {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 26px;
+  flex-wrap: wrap;
+}
+.boon-card:hover {
+  border-color: var(--pink, #ff6ec7);
+  box-shadow: 0 10px 30px rgba(255, 110, 199, 0.22);
+}
+
 /* Wellen-Banner */
 #banner {
   position: absolute;

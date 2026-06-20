@@ -101,6 +101,9 @@ export class Automation {
     return best;
   }
 
+  // Zusätzliche Drohne ohne Kauf-Stufe (z.B. Boon "Drohnen-Schwarm").
+  spawnExtraDrone() { this._addDrone(); }
+
   // --- Drohnen ---------------------------------------------------------------
   _addDrone() {
     const g = new THREE.Group();

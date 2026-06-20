@@ -78,6 +78,8 @@ export class HUD {
       victoryKills: document.getElementById("victory-kills"),
       victoryContinue: document.getElementById("victory-continue"),
       victoryMenu: document.getElementById("victory-menu"),
+      boonOverlay: document.getElementById("overlay-boon"),
+      boonCards: document.getElementById("boon-cards"),
     };
     this._bannerTimer = null;
   }
@@ -337,6 +339,25 @@ export class HUD {
   hideLevelUp() {
     this.el.levelup.classList.add("hidden");
   }
+
+  // Boon-Auswahl (1 aus 3). choices: [{icon,name,desc}], onPick(index)
+  showBoons(choices, onPick) {
+    const cont = this.el.boonCards;
+    if (!cont) return;
+    cont.innerHTML = "";
+    choices.forEach((b, i) => {
+      const card = document.createElement("div");
+      card.className = "lvl-card boon-card";
+      card.innerHTML =
+        `<div class="icon">${b.icon}</div>` +
+        `<div class="name">${b.name}</div>` +
+        `<div class="desc">${b.desc}</div>`;
+      card.addEventListener("click", () => onPick(i));
+      cont.appendChild(card);
+    });
+    this.el.boonOverlay?.classList.remove("hidden");
+  }
+  hideBoons() { this.el.boonOverlay?.classList.add("hidden"); }
 
   setCoins(n) {
     this.el.coins.textContent = "🪙 " + n;
