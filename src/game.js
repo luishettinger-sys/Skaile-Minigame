@@ -365,6 +365,8 @@ export class Game {
     this.hud.setVignette(0);
     this.hud.setCoins(this.coins);
     this.hud.setBuffs([]);
+    this.hud.setBoonList([]);
+    this._updateObjective(1);
     this.hud.setGadget("");
     this.player.setGadget(null);
     this.hud.hidePrompt();
@@ -1252,8 +1254,20 @@ export class Game {
     this.hud.banner("✨ BOON", c.icon + " " + c.name);
     this.world.addShake(0.2);
     this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.pink, 22, 1.3);
+    this.hud.setBoonList(this.boons.map((id) => BOONS[id]));
     this.boonChoosing = false;
     this.hud.hideBoons();
+  }
+
+  // Ziel-Anzeige: aktueller Sektor + nächste Boss-Welle (oder Endlos nach Sieg).
+  _updateObjective(n) {
+    const be = CONFIG.waves.bossEvery;
+    const sectors = CONFIG.campaign.sectors;
+    if (this.won) { this.hud.setObjective("🏆 Gebäude befreit · Endlos-Modus"); return; }
+    const sector = Math.min(sectors, Math.floor((n - 1) / be) + 1);
+    const name = CONFIG.campaign.sectorNames[sector - 1] || ("Sektor " + sector);
+    const nextBoss = Math.ceil(n / be) * be;
+    this.hud.setObjective(`🎯 Sektor ${sector}/${sectors} · ${name} · Boss Welle ${nextBoss}`);
   }
 
   // Waffe im Armory-Raum kaufen + sofort ausrüsten (Run-Coins).
@@ -1309,6 +1323,7 @@ export class Game {
     this.hud.setWave(n);
     this.audio.waveStart();
     this.runStats.wave = n;
+    this._updateObjective(n);
     this._checkAch();
 
     // Schwierigkeit skaliert mit der Welle.
@@ -1328,6 +1343,10 @@ export class Game {
     } else if (n === 11) {
       this.world.setBackdrop("./assets/textures/office_bg3.png"); // Nacht-Office
       this.world.setMood(0x100a1a); // tiefes Violett
+    } else if (n === 16) {
+      this.world.setMood(0x06121c); // Rechenzentrum: kühles Stahlblau
+    } else if (n === 21) {
+      this.world.setMood(0x1a0510); // Der Kernel: bedrohliches Tiefrot
     }
 
     if (n % CONFIG.waves.bossEvery === 0) {

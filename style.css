@@ -107,6 +107,57 @@ body {
 }
 #prompt.hidden { display: none; }
 
+/* Ziel-Anzeige (aktueller Sektor + nächste Boss-Welle) */
+#objective {
+  position: absolute;
+  top: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  background: rgba(14, 18, 28, 0.7);
+  border: 1px solid rgba(110, 231, 255, 0.35);
+  border-radius: 20px;
+  color: #cfe9ff;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+#objective.hidden { display: none; }
+
+/* Aktive Run-Boons als Chips (linke Seite) */
+#boonbar {
+  position: absolute;
+  top: 76px;
+  left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.boon-chip {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: rgba(20, 14, 26, 0.78);
+  border: 1px solid rgba(255, 110, 199, 0.5);
+  border-radius: 9px;
+  box-shadow: 0 0 10px rgba(255, 110, 199, 0.2);
+}
+.boon-chip .bx {
+  position: absolute;
+  right: -4px;
+  bottom: -5px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--pink, #ff6ec7);
+  border-radius: 7px;
+  padding: 0 4px;
+}
+
 .shop-title { font-size: 38px; color: #ffd23f; }
 
 #buffs {

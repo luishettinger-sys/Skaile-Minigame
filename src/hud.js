@@ -80,6 +80,8 @@ export class HUD {
       victoryMenu: document.getElementById("victory-menu"),
       boonOverlay: document.getElementById("overlay-boon"),
       boonCards: document.getElementById("boon-cards"),
+      objective: document.getElementById("objective"),
+      boonbar: document.getElementById("boonbar"),
     };
     this._bannerTimer = null;
   }
@@ -365,6 +367,32 @@ export class HUD {
 
   setGadget(text) {
     this.el.gadget.textContent = text || "";
+  }
+
+  // Ziel-Anzeige im HUD: aktueller Sektor + nächste Boss-Welle.
+  setObjective(text) {
+    if (!this.el.objective) return;
+    this.el.objective.textContent = text || "";
+    this.el.objective.classList.toggle("hidden", !text);
+  }
+
+  // Erworbene Run-Boons als kleine Chips (zeigt den aktuellen Build).
+  // boons: [{ icon, name }]
+  setBoonList(boons = []) {
+    if (!this.el.boonbar) return;
+    this.el.boonbar.innerHTML = "";
+    const count = {};
+    for (const b of boons) count[b.icon] = (count[b.icon] || 0) + 1;
+    const seen = new Set();
+    for (const b of boons) {
+      if (seen.has(b.icon)) continue;
+      seen.add(b.icon);
+      const d = document.createElement("div");
+      d.className = "boon-chip";
+      d.title = b.name;
+      d.innerHTML = `${b.icon}${count[b.icon] > 1 ? `<span class="bx">×${count[b.icon]}</span>` : ""}`;
+      this.el.boonbar.appendChild(d);
+    }
   }
 
   toast(icon, title, text) {
