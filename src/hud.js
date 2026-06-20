@@ -32,6 +32,8 @@ export class HUD {
       weapon: document.getElementById("weapon"),
       flash: document.getElementById("flash"),
       vignette: document.getElementById("vignette"),
+      bossIntro: document.getElementById("boss-intro"),
+      cwBugName: document.getElementById("cw-bug-name"),
       invOverlay: document.getElementById("overlay-inv"),
       invSlots: document.getElementById("inv-slots"),
       invItems: document.getElementById("inv-items"),
@@ -186,6 +188,12 @@ export class HUD {
 
   showShop() { this.el.shopOverlay.classList.remove("hidden"); }
   hideShop() { this.el.shopOverlay.classList.add("hidden"); }
+
+  showBossIntro(name) {
+    this.el.cwBugName.textContent = name;
+    this.el.bossIntro.classList.remove("hidden");
+  }
+  hideBossIntro() { this.el.bossIntro.classList.add("hidden"); }
 
   // offers: [{icon,name,desc,price}], coins, onBuy(i)
   renderShop(offers, coins, onBuy) {

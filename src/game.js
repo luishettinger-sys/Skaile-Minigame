@@ -109,6 +109,8 @@ export class Game {
     this.shopOpen = false;
     this.shopOffers = [];
     this.coins = 0;
+    this.bossIntro = false;
+    this.intro = null;
     this.inventory.reset();
     this.progression.reset();
     this._initLoadout();
@@ -145,6 +147,7 @@ export class Game {
     this.hud.setVignette(0);
     this.hud.setCoins(0);
     this.hud.hidePrompt();
+    this.hud.hideBossIntro();
     this.world.resetCamera();
     this.state = STATE.PLAYING;
   }
@@ -264,6 +267,7 @@ export class Game {
         (this.shopOpen || this.stations.shopNear(this.player.pos))) {
       this.toggleShop();
     }
+    if (this.bossIntro) { this._updateIntro(dt); return; }
     if (this.paused || this.levelingUp || this.invOpen || this.shopOpen) return;
 
     // Hit-Stop: kurzes Einfrieren für spürbaren Impact.
@@ -738,13 +742,43 @@ export class Game {
     this.player.arenaHalf = half;
 
     if (n % CONFIG.waves.bossEvery === 0) {
-      this.boss = this.enemies.spawn("boss", 0, -(half - 3));
-      this.hud.banner("⚠ BOSS: KERNEL PANIC", "Welle " + n);
-      this.hud.flash("#ff8c1a", 0.35);
-      this.world.setCamera({ x: 0, y: 13, z: 20 }); // dramatischer Boss-Blick
+      this._startBossIntro(n); // Cinematic: Zoom auf Monitor → Bug springt raus
     } else {
       this.hud.banner("WELLE " + n, "Bugs eingehend…");
     }
+  }
+
+  _startBossIntro(n) {
+    this.bossIntro = true;
+    this.intro = { t: 0, n, shown: false, spawned: false };
+    this.world.setCamera({ x: 0, y: 6, z: 14 }); // Blick Richtung Monitor
+    this.audio.waveStart();
+  }
+
+  // Boss-Intro: kurz auf den Monitor zoomen, Claude-Fenster zeigen,
+  // dann springt der Bug aus dem Rechner und erscheint als Gegner.
+  _updateIntro(dt) {
+    const I = this.intro;
+    I.t += dt;
+    const monitorPos = { x: 0, y: 6, z: -(CONFIG.arena.half + 9) };
+    this.world.updateCamera(monitorPos, dt);
+
+    if (!I.shown) { I.shown = true; this.hud.showBossIntro("KERNEL PANIC"); }
+
+    if (I.t > 2.6 && !I.spawned) {
+      I.spawned = true;
+      this.hud.hideBossIntro();
+      this.hud.flash("#ff8c1a", 0.5);
+      const half = this.world.arenaHalf;
+      this.boss = this.enemies.spawn("boss", 0, -(half - 3));
+      this.world.addShake(1.0);
+      this._freeze(0.1);
+      this.effects.shockwave(0, -(half - 3), CONFIG.colors.red, 18, 26);
+      this.effects.burst(0, -(half - 3), CONFIG.colors.red, 30, 1.6);
+      this.hud.banner("⚠ KERNEL PANIC", "springt aus dem Rechner!");
+      this.world.setCamera({ x: 0, y: 13, z: 20 });
+    }
+    if (I.t > 3.3) { this.bossIntro = false; this.intro = null; }
   }
 
   _onWaveClear(n) {
