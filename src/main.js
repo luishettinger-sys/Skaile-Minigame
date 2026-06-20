@@ -6,6 +6,7 @@ import { HUD } from "./hud.js";
 import { Audio } from "./audio.js";
 import { Game } from "./game.js";
 import { loadModel } from "./assets.js";
+import { loadWeaponModels } from "./weaponmodels.js";
 
 const canvas = document.getElementById("game");
 const world = createWorld(canvas);
@@ -84,6 +85,12 @@ for (const type of BUG_TYPES) {
 // Verkäufer-Ente am Shop-Stand (AI-Modell, optional).
 loadModel("./assets/shopkeeper.glb", { targetHeight: 2.6 }).then((obj) => {
   if (obj) game.stations.setKeeperModel(obj);
+});
+
+// In Blender gebaute Waffenmodelle: an Armory-Podeste + getragene Waffe hängen.
+loadWeaponModels().then(() => {
+  game.armory.populateModels();
+  game._refreshHeldWeapon();
 });
 
 // --- Game-Loop -------------------------------------------------------------

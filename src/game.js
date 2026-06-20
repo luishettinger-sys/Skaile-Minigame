@@ -12,6 +12,7 @@ import { Progression } from "./progression.js";
 import { PickupSystem } from "./pickups.js";
 import { WEAPONS, WEAPON_IDS } from "./weapons.js";
 import { Armory } from "./armory.js";
+import { cloneWeaponModel } from "./weaponmodels.js";
 import { Automation } from "./automation.js";
 import { Inventory } from "./inventory.js";
 import { Stations } from "./stations.js";
@@ -209,6 +210,7 @@ export class Game {
     this.upgradeMods = defaultMods(); // aus Level-Up-Upgrades
     this.equipMods = defaultMods(); // aus ausgerüsteten Items
     this._recomputeMods();
+    this._refreshHeldWeapon();
   }
 
   // Effektive Mods = Upgrades kombiniert mit Ausrüstung.
@@ -1229,6 +1231,13 @@ export class Game {
     this.weapon = WEAPONS[id];
     this.fireTimer = 0;
     this.hud.setWeapon(this.weapon.name, this.weapon.icon);
+    this._refreshHeldWeapon();
+  }
+
+  // Getragenes Waffenmodell an die aktuelle Waffe anpassen (no-op falls Modelle
+  // noch nicht geladen → wird nach dem Laden via main.js nachgeholt).
+  _refreshHeldWeapon() {
+    this.player.setWeaponModel(cloneWeaponModel(this.weaponId));
   }
 
   // ----------------------------------------------------------------- Boons --

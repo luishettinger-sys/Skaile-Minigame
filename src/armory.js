@@ -2,6 +2,7 @@
 // Ost-Raum. Nah herangehen + [E] kauft & rüstet die Waffe aus (Run-Coins).
 import * as THREE from "three";
 import { WEAPONS, WEAPON_PRICE } from "./weapons.js";
+import { cloneWeaponModel } from "./weaponmodels.js";
 
 // Welche Waffen ausgestellt werden (Basis-Blaster bleibt gratis am Start).
 const DISPLAY = [
@@ -92,6 +93,21 @@ export class Armory {
     this.pads.push({ x, z, y, r: 2.2, id, price, display, ring });
   }
 
+  // Echte GLB-Waffenmodelle auf die Podeste setzen (sobald geladen).
+  // Ersetzt das leuchtende Icosaeder-Display durch das gedrehte Modell.
+  populateModels() {
+    for (const p of this.pads) {
+      if (p.model) continue;
+      const m = cloneWeaponModel(p.id);
+      if (!m) continue;
+      m.scale.setScalar(1.25); // schwebende Schaugröße (native Proportionen bleiben)
+      m.position.set(p.x, p.y + 2.25, p.z);
+      this.group.add(m);
+      p.model = m;
+      p.display.visible = false; // Platzhalter-Kristall ausblenden
+    }
+  }
+
   // Nächstes Podest in Reichweite (oder null).
   nearest(pos, range = 2.4) {
     let best = null, bd = range;
@@ -105,8 +121,13 @@ export class Armory {
   update(dt) {
     this._t += dt;
     for (const p of this.pads) {
-      p.display.rotation.y += dt * 1.4;
-      p.display.position.y = 2.2 + Math.sin(this._t * 2 + p.z) * 0.18;
+      if (p.model) {
+        p.model.rotation.y += dt * 0.9;
+        p.model.position.y = p.y + 2.25 + Math.sin(this._t * 2 + p.z) * 0.16;
+      } else {
+        p.display.rotation.y += dt * 1.4;
+        p.display.position.y = 2.2 + Math.sin(this._t * 2 + p.z) * 0.18;
+      }
       p.ring.rotation.z += dt * 0.8;
     }
   }

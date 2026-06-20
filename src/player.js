@@ -181,6 +181,25 @@ export class Player {
     }
   }
 
+  // Getragene Waffe: hängt ein normalisiertes GLB (Länge ~1) an die Ente.
+  // obj === Klon aus cloneWeaponModel() oder null (entfernt die Waffe).
+  setWeaponModel(obj) {
+    if (!this.weaponAnchor) {
+      // Anker an der rechten Seite, leicht vorn & auf Hüfthöhe; Lauf zeigt +Z.
+      this.weaponAnchor = new THREE.Group();
+      this.weaponAnchor.position.set(0.46, 0.92, 0.5);
+      this.root.add(this.weaponAnchor);
+    }
+    if (this.weaponModel) {
+      this.weaponAnchor.remove(this.weaponModel);
+      this.weaponModel = null;
+    }
+    if (!obj) return;
+    obj.scale.setScalar(0.8); // einheitlicher Faktor; relative Waffengrößen bleiben
+    this.weaponModel = obj;
+    this.weaponAnchor.add(obj);
+  }
+
   // Muzzle-Position für Projektile (leicht vor der Ente).
   muzzle() {
     return new THREE.Vector3(this.pos.x, 1.0, this.pos.z);
