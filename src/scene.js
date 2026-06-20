@@ -90,10 +90,26 @@ export function createWorld(canvas) {
   let zoom = 1, targetZoom = 1;
   const ZOOM_MIN = 0.45, ZOOM_MAX = 5.5; // großes Gebäude: weit rauszoombar
 
+  // Vorausschau (Flow): Kamera blickt leicht in Bewegungsrichtung.
+  const lastTarget = new THREE.Vector3();
+  let leadX = 0, leadZ = 0, initialized = false;
+  const baseFov = CONFIG.camera.fov;
+  let curFov = baseFov;
+
   function updateCamera(targetPos, dt) {
     camT += dt;
-    focus.x = damp(focus.x, targetPos.x, CONFIG.camera.followLerp, dt);
-    focus.z = damp(focus.z, targetPos.z, CONFIG.camera.followLerp, dt);
+
+    // Bewegungs-Vorausschau aus der Spielerbewegung schätzen.
+    if (!initialized) { lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z); initialized = true; }
+    const vx = (targetPos.x - lastTarget.x) / Math.max(dt, 1e-3);
+    const vz = (targetPos.z - lastTarget.z) / Math.max(dt, 1e-3);
+    lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z);
+    const speed = Math.hypot(vx, vz);
+    leadX = damp(leadX, vx * 0.32, 3.5, dt); // ~0.3s vorausblicken
+    leadZ = damp(leadZ, vz * 0.32, 3.5, dt);
+
+    focus.x = damp(focus.x, targetPos.x + leadX, CONFIG.camera.followLerp, dt);
+    focus.z = damp(focus.z, targetPos.z + leadZ, CONFIG.camera.followLerp, dt);
     focus.y = damp(focus.y, targetPos.y || 0, CONFIG.camera.followLerp, dt);
 
     // Perspektive sanft überblenden.
@@ -102,12 +118,23 @@ export function createWorld(canvas) {
     curOffset.z = damp(curOffset.z, targetOffset.z, 2.6, dt);
     zoom = damp(zoom, targetZoom, 6, dt);
 
+    // Höhenabhängiger Abstand: in oberen Etagen etwas weiter weg → Ebene sichtbar.
+    const heightZoom = 1 + Math.max(0, focus.y) * 0.05;
+    const eff = zoom * heightZoom;
+
+    // Dezentes Speed-FOV für mehr Tempo-Gefühl (Flow).
+    curFov = damp(curFov, baseFov + Math.min(7, speed * 0.45), 3, dt);
+    if (Math.abs(camera.fov - curFov) > 0.01) {
+      camera.fov = curFov;
+      camera.updateProjectionMatrix();
+    }
+
     const o = curOffset;
     const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
     camera.position.set(
-      focus.x + o.x * zoom,
-      (o.y * zoom) + focus.y + hover,
-      focus.z + o.z * zoom
+      focus.x + o.x * eff,
+      (o.y * eff) + focus.y + hover,
+      focus.z + o.z * eff
     );
 
     if (shake > 0.0001) {
