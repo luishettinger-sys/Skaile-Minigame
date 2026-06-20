@@ -732,21 +732,13 @@ export class Game {
     this.world.updateCamera(this.player.pos, dt);
   }
 
-  // Automatischer Perspektivwechsel (Boss/Ultimate haben Vorrang).
+  // Kamera bleibt im CotL-Stil ruhig „gelockt" auf der Basis-Perspektive.
+  // Nur Boss/Ultimate setzen bewusst eigene, dramatische Blickwinkel.
   _autoCamera(dt) {
     if (this.ultActive || this.boss) return;
     if (this.camRevert > 0) {
       this.camRevert -= dt;
       if (this.camRevert <= 0) this.world.resetCamera();
-      return;
-    }
-    this.autoCamT += dt;
-    if (this.autoCamT > CONFIG.juice.autoCamInterval) {
-      this.autoCamT = 0;
-      // Dezente Seiten-Schwenks rund um die Basis-Perspektive (kein harter Sprung).
-      const v = [{ x: 9, y: 13, z: 16 }, { x: -9, y: 13, z: 16 }, { x: 0, y: 16, z: 14 }];
-      this.world.setCamera(v[Math.floor(Math.random() * v.length)]);
-      this.camRevert = 3.2;
     }
   }
 
@@ -1346,17 +1338,17 @@ export class Game {
     this.world.setArena(half);
     this.player.arenaHalf = half;
 
-    // Hintergrund + Stimmungs-Tint wechseln zwischen den Level-Tiers.
+    // Stimmungs-Tint vertieft sich pro Sektor – okkulte CotL-Progression.
     if (n === 6) {
-      this.world.setBackdrop("./assets/textures/office_bg2.png"); // Server-Room
-      this.world.setMood(0x081410); // kühles Grün
+      this.world.setBackdrop("./assets/textures/office_bg2.png");
+      this.world.setMood(0x130a1c); // Sektor 2: sattes Violett
     } else if (n === 11) {
-      this.world.setBackdrop("./assets/textures/office_bg3.png"); // Nacht-Office
-      this.world.setMood(0x100a1a); // tiefes Violett
+      this.world.setBackdrop("./assets/textures/office_bg3.png");
+      this.world.setMood(0x1a0a16); // Sektor 3: Maroon-Dämmer
     } else if (n === 16) {
-      this.world.setMood(0x06121c); // Rechenzentrum: kühles Stahlblau
+      this.world.setMood(0x0c0820); // Sektor 4: Mitternachts-Indigo
     } else if (n === 21) {
-      this.world.setMood(0x1a0510); // Der Kernel: bedrohliches Tiefrot
+      this.world.setMood(0x20060f); // Sektor 5: Blutrot-Finale
     }
 
     if (n % CONFIG.waves.bossEvery === 0) {

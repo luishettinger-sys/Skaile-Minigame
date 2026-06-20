@@ -40,12 +40,14 @@ export function createWorld(canvas) {
   camera.position.set(0, CONFIG.camera.offset.y, CONFIG.camera.offset.z);
   camera.lookAt(0, 0, 0);
 
-  // --- Licht -----------------------------------------------------------------
-  const hemi = new THREE.HemisphereLight(0x8aa0ff, 0x05060a, 0.75);
+  // --- Licht (Cult-of-the-Lamb-Stimmung: düster, kerzenwarm, okkulte Rims) ----
+  // Schwaches violettes Umgebungslicht von oben, fast schwarz von unten.
+  const hemi = new THREE.HemisphereLight(0x6a4a72, 0x080406, 0.55);
   scene.add(hemi);
 
-  const key = new THREE.DirectionalLight(0xffffff, 1.35);
-  key.position.set(14, 38, 16);
+  // Warmes „Kerzen"-Key-Light statt neutralem Weiß.
+  const key = new THREE.DirectionalLight(0xffd2a1, 1.2);
+  key.position.set(14, 40, 16);
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024); // 1024 statt 2048: deutlich weniger Stutter
   key.shadow.camera.near = 1;
@@ -57,9 +59,15 @@ export function createWorld(canvas) {
   key.shadow.bias = -0.0004;
   scene.add(key);
 
-  const rim = new THREE.DirectionalLight(0x6ee7ff, 0.5);
-  rim.position.set(-18, 12, -14);
+  // Okkulter Magenta-Rim aus dem Rücken → ritueller Kontursaum.
+  const rim = new THREE.DirectionalLight(0xc2487a, 0.7);
+  rim.position.set(-18, 12, -16);
   scene.add(rim);
+
+  // Zweiter, kühl-violetter Fülllichtschein von der Seite (Tiefe + Vibe).
+  const fill = new THREE.DirectionalLight(0x7a4ad6, 0.35);
+  fill.position.set(20, 10, -6);
+  scene.add(fill);
 
   // --- Gebäude (mehrere Räume, Wände, Treppe ins Obergeschoss) ---------------
   const half = CONFIG.arena.half;

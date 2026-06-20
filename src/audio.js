@@ -6,6 +6,7 @@ export class Audio {
     this.ctx = null;
     this.master = null;
     this.muted = false;
+    this.buffers = {}; // dekodierte Waffen-Samples (sound-id -> AudioBuffer)
   }
 
   // Erst nach erster User-Geste erlaubt (Autoplay-Policy).
@@ -29,6 +30,42 @@ export class Audio {
     this.musicGain.connect(this.master);
     this.musicOn = false;
     this._mstep = 0;
+
+    this._loadSamples(); // optionale echte Waffen-Sounds laden (falls vorhanden)
+  }
+
+  // Lädt optionale CC0-Samples aus assets/sounds/weapons/<sound>.{mp3,wav,ogg}.
+  // Fehlt eine Datei, bleibt automatisch der synthetische Sound aktiv.
+  _loadSamples() {
+    if (this._samplesRequested || !this.ctx) return;
+    this._samplesRequested = true;
+    const ids = ["blaster", "shotgun", "smg", "rail", "cannon", "minigun", "sniper", "pulse"];
+    for (const id of ids) this._tryLoadSample(id, ["mp3", "wav", "ogg"], 0);
+  }
+
+  _tryLoadSample(id, exts, i) {
+    if (i >= exts.length) return;
+    fetch(`./assets/sounds/weapons/${id}.${exts[i]}`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+      .then((b) => this.ctx.decodeAudioData(b))
+      .then((ab) => { this.buffers[id] = ab; })
+      .catch(() => this._tryLoadSample(id, exts, i + 1));
+  }
+
+  // Spielt ein geladenes Sample mit leichter Tonhöhen-Variation (kein Dauer-Loop-
+  // Gefühl). Gibt false zurück, wenn kein Sample da ist → Synthese übernimmt.
+  _playSample(id) {
+    const buf = this.buffers[id];
+    if (!buf || !this.ctx || this.muted) return false;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = 0.94 + Math.random() * 0.12;
+    const g = this.ctx.createGain();
+    g.gain.value = 0.95;
+    src.connect(g);
+    g.connect(this.master);
+    src.start();
+    return true;
   }
 
   resume() {
@@ -145,7 +182,9 @@ export class Audio {
   }
 
   // Dispatcher: spielt den Sound der aktuellen Waffe.
+  // Echtes Sample bevorzugt; fehlt es, synthetischer Fallback.
   weapon(id) {
+    if (this._playSample(id)) return;
     switch (id) {
       case "shotgun": return this.shotgun();
       case "smg": return this.smg();

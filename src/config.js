@@ -161,17 +161,18 @@ export const CONFIG = {
   },
 
   camera: {
-    // Cinematischer 3/4-Blick: flacher + weiter hinten → mehr räumliche Tiefe.
-    offset: { x: 0, y: 13, z: 17 },
-    followLerp: 6, // etwas träger → ruhiger, kein Zittern
-    fov: 50, // kleineres FOV: weniger Weitwinkel-Verzerrung, „echter"
-    hover: 0.18, // dezentes Schweben (vorher zu stark → wirkte unruhig)
-    hoverSpeed: 1.2,
+    // Cult-of-the-Lamb-Blick: steil & ruhig von oben, flaches FOV → storybook-haft,
+    // wenig Perspektiv-Verzerrung, Fokus klar auf der Ente.
+    offset: { x: 0, y: 22, z: 14 }, // steiler (≈58° von der Waagerechten) + weiter weg
+    followLerp: 6, // träge → ruhig, kein Zittern
+    fov: 42, // flacher Blick, fast „2.5D" – CotL-Look
+    hover: 0.08, // kaum Schweben → ruhige, gesetzte Kamera
+    hoverSpeed: 1.0,
   },
 
   colors: {
-    bg: 0x0b0d12,
-    fog: 0x0b0d12,
+    bg: 0x140b18, // okkultes Dunkel-Violett (Cult-of-the-Lamb-Stimmung)
+    fog: 0x140b18,
     floor: 0x12151d,
     gridMain: 0x2b3550,
     gridSub: 0x191d2b,
