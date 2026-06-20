@@ -149,6 +149,7 @@ export class Game {
     this.hud.hidePrompt();
     this.hud.hideBossIntro();
     this.world.resetCamera();
+    this.world.setBackdrop("./assets/textures/office_bg.png");
     this.state = STATE.PLAYING;
   }
 
@@ -740,6 +741,10 @@ export class Game {
     const half = Math.min(d.arenaMax, CONFIG.arena.half + (n - 1) * d.arenaGrowth);
     this.world.setArena(half);
     this.player.arenaHalf = half;
+
+    // Hintergrund wechselt zwischen den Level-Tiers.
+    if (n === 6) this.world.setBackdrop("./assets/textures/office_bg2.png");
+    else if (n === 11) this.world.setBackdrop("./assets/textures/office_bg.png");
 
     if (n % CONFIG.waves.bossEvery === 0) {
       this._startBossIntro(n); // Cinematic: Zoom auf Monitor → Bug springt raus

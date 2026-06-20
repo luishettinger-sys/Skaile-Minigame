@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
-import { buildOffice, applyDeskTexture, buildBackdrop } from "./environment.js";
+import { buildOffice, applyDeskTexture, buildBackdrop, setBackdropTexture } from "./environment.js";
 import { Terrain } from "./terrain.js";
 
 export function createWorld(canvas) {
@@ -12,6 +12,8 @@ export function createWorld(canvas) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(CONFIG.colors.bg);
@@ -31,7 +33,16 @@ export function createWorld(canvas) {
   scene.add(hemi);
 
   const key = new THREE.DirectionalLight(0xffffff, 1.25);
-  key.position.set(14, 34, 16);
+  key.position.set(14, 38, 16);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.near = 1;
+  key.shadow.camera.far = 130;
+  key.shadow.camera.left = -55;
+  key.shadow.camera.right = 55;
+  key.shadow.camera.top = 55;
+  key.shadow.camera.bottom = -55;
+  key.shadow.bias = -0.0004;
   scene.add(key);
 
   const rim = new THREE.DirectionalLight(0x6ee7ff, 0.5);
@@ -56,7 +67,7 @@ export function createWorld(canvas) {
 
   // Office-Kulisse rund um die Arena + umlaufender Hintergrund.
   buildOffice(scene);
-  buildBackdrop(scene);
+  const backdrop = buildBackdrop(scene);
 
   // Begehbare Plattformen / Stufen.
   const terrain = new Terrain(scene);
@@ -136,6 +147,7 @@ export function createWorld(canvas) {
     };
   };
   api.resetCamera = () => { targetOffset = { ...baseOffset }; };
+  api.setBackdrop = (url) => setBackdropTexture(backdrop, url);
 
   // Arena wächst: Boden, Grid und Rahmen mitskalieren.
   api.setArena = (h) => {

@@ -10,6 +10,8 @@ const ROSTER = [
   { type: "memoryleak", cost: 2, unlock: 3, weight: 5 },
   { type: "stackoverflow", cost: 3, unlock: 4, weight: 4 },
   { type: "heisenbug", cost: 3, unlock: 5, weight: 4 },
+  { type: "infinite", cost: 2, unlock: 6, weight: 5 },
+  { type: "nullptr", cost: 2, unlock: 7, weight: 5 },
 ];
 
 export class WaveManager {

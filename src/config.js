@@ -5,8 +5,8 @@
 
 export const CONFIG = {
   arena: {
-    half: 18, // halbe Kantenlänge → Spielfeld 36 x 36 Einheiten
-    grid: 36, // Anzahl Grid-Linien (Code-Grid-Optik)
+    half: 22, // halbe Kantenlänge → größeres Spielfeld
+    grid: 44, // Anzahl Grid-Linien (Code-Grid-Optik)
   },
 
   player: {
@@ -84,6 +84,16 @@ export const CONFIG = {
       hp: 1, speed: 5.6, radius: 0.85, damage: 14, score: 50,
       color: 0xff6ec7, glow: 0xffc2ec, scale: 1.0, flickers: true, fly: true,
     },
+    infinite: {
+      label: "Infinite Loop",
+      hp: 2, speed: 4.6, radius: 0.9, damage: 10, score: 30,
+      color: 0x9b5de5, glow: 0xc8a2ff, scale: 1.0,
+    },
+    nullptr: {
+      label: "Null Pointer",
+      hp: 2, speed: 5.0, radius: 0.85, damage: 12, score: 35,
+      color: 0x4a5bff, glow: 0x9bb0ff, scale: 1.0, fly: true,
+    },
     boss: {
       label: "Kernel Panic",
       hp: 120, speed: 2.3, radius: 2.6, damage: 26, score: 500,
@@ -105,8 +115,8 @@ export const CONFIG = {
     hpPerWave: 0.16, // +16 % Gegner-HP pro Welle
     speedPerWave: 0.03, // +3 % Gegner-Tempo pro Welle
     speedMax: 1.7, // Tempo-Deckel
-    arenaGrowth: 1.7, // +Einheiten Arena-Halbkante pro Welle
-    arenaMax: 46, // maximale Halbkante
+    arenaGrowth: 2.2, // +Einheiten Arena-Halbkante pro Welle
+    arenaMax: 60, // maximale Halbkante
   },
 
   progression: {

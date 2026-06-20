@@ -42,7 +42,7 @@ loadModel("./assets/duck.glb", { targetHeight: 2.4 }).then((obj) => {
   }
 });
 
-const BUG_TYPES = ["syntax", "stackoverflow", "racecondition", "memoryleak", "heisenbug", "boss"];
+const BUG_TYPES = ["syntax", "stackoverflow", "racecondition", "memoryleak", "heisenbug", "infinite", "nullptr", "boss"];
 for (const type of BUG_TYPES) {
   loadModel(`./assets/bug_${type}.glb`, { targetHeight: 2 }).then((obj) => {
     if (obj) {

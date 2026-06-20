@@ -19,21 +19,28 @@ export function buildOffice(scene) {
   return group;
 }
 
-// Umlaufender Office-Hintergrund (Fenster, Regale …) als großer Zylinder.
+// Umlaufender Hintergrund als großer Zylinder (Textur austauschbar).
 export function buildBackdrop(scene, url = "./assets/textures/office_bg.png") {
+  const geo = new THREE.CylinderGeometry(95, 95, 56, 48, 1, true);
+  const mat = new THREE.MeshBasicMaterial({
+    side: THREE.BackSide, fog: false, depthWrite: false, color: 0x0b0d12,
+  });
+  const cyl = new THREE.Mesh(geo, mat);
+  cyl.position.y = 16;
+  scene.add(cyl);
+  setBackdropTexture(cyl, url);
+  return cyl;
+}
+
+export function setBackdropTexture(cyl, url) {
   const loader = new THREE.TextureLoader();
   loader.load(url, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = THREE.RepeatWrapping;
-    tex.repeat.set(3, 1); // Panorama mehrfach um den Zylinder
-    const geo = new THREE.CylinderGeometry(85, 85, 52, 48, 1, true);
-    const mat = new THREE.MeshBasicMaterial({
-      map: tex, side: THREE.BackSide, fog: false, depthWrite: false,
-    });
-    const cyl = new THREE.Mesh(geo, mat);
-    cyl.position.y = 16;
-    scene.add(cyl);
-    console.info("[env] Office-Backdrop geladen.");
+    tex.repeat.set(3, 1);
+    cyl.material.map = tex;
+    cyl.material.color.setHex(0xffffff);
+    cyl.material.needsUpdate = true;
   });
 }
 

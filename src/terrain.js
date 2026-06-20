@@ -16,22 +16,29 @@ export class Terrain {
     });
     const edgeColor = 0x6ee7ff;
 
-    // Treppe (steigende Stufen) hoch zu einem Plateau.
+    // Rechte Treppe hoch zu einem Plateau.
     const steps = [
-      { cx: 9, cz: -2, w: 5, d: 11, top: 1.0 },
-      { cx: 12.5, cz: -2, w: 3, d: 11, top: 2.0 },
-      { cx: 16, cz: -2, w: 5, d: 13, top: 3.0 }, // Plateau
+      { cx: 10, cz: -2, w: 5, d: 12, top: 1.0 },
+      { cx: 13.5, cz: -2, w: 3, d: 12, top: 2.2 },
+      { cx: 17, cz: -2, w: 6, d: 14, top: 3.4 }, // Plateau rechts
     ];
     for (const s of steps) this._add(s.cx, s.cz, s.w, s.d, s.top, mat, edgeColor);
 
-    // Zweiter erhöhter Block auf der anderen Seite.
-    this._add(-11, 9, 8, 8, 1.7, mat, edgeColor);
-    this._add(-9, -10, 7, 6, 1.2, mat, edgeColor);
+    // Linke Treppe zu einem hohen Plateau.
+    this._add(-10, 8, 6, 5, 1.2, mat, edgeColor);
+    this._add(-14, 8, 4, 5, 2.4, mat, edgeColor);
+    this._add(-18, 8, 6, 8, 3.8, mat, edgeColor); // höchste Etage
+
+    // Weitere Blöcke.
+    this._add(-8, -13, 8, 6, 1.6, mat, edgeColor);
+    this._add(5, 17, 7, 5, 1.0, mat, edgeColor);
   }
 
   _add(cx, cz, w, d, top, mat, edgeColor) {
     const box = new THREE.Mesh(new THREE.BoxGeometry(w, top, d), mat);
     box.position.set(cx, top / 2, cz);
+    box.castShadow = true;
+    box.receiveShadow = true;
     this.group.add(box);
 
     // Leuchtende Oberkante (Stufe gut erkennbar).
