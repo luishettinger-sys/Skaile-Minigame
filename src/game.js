@@ -160,7 +160,9 @@ export class Game {
   _pierce() { return this.weapon.pierce + this.mods.pierceAdd; }
   _projScale() { return this.weapon.projScale * this.mods.projScaleMult; }
   _moveSpeed() { return CONFIG.player.speed * this.mods.moveSpeedMult; }
-  _magnet() { return CONFIG.pickups.magnet * this.mods.magnetMult; }
+  _magnet() {
+    return CONFIG.pickups.magnet * this.mods.magnetMult * (this.magnetBoost > 0 ? 8 : 1);
+  }
   _maxHp() { return CONFIG.player.maxHp + this.mods.maxHpAdd; }
   _dashCd() { return CONFIG.player.dash.cooldown * this.mods.dashCdMult; }
 
@@ -195,6 +197,7 @@ export class Game {
     this.carrying = null; // aktuell getragenes Wurfobjekt
     this.bonusT = 22; // Timer bis zum nächsten Bonus-Bug
     this.tipT = 14; // Timer bis zum nächsten Rubber-Duck-Tipp
+    this.magnetBoost = 0; // Sekunden Riesen-Magnet (nach Level-Up)
     this.runStats = { kills: 0, bossKills: 0, bonus: 0, maxCombo: 0, wave: 1 };
     this.inventory.reset();
     this.progression.reset();
@@ -242,6 +245,7 @@ export class Game {
     this.hud.hideBossIntro();
     this.world.resetCamera();
     this.world.setBackdrop("./assets/textures/office_bg.png");
+    this.world.setMood(CONFIG.colors.fog); // Tint auf Default zurück
     this.state = STATE.PLAYING;
   }
 
@@ -435,6 +439,9 @@ export class Game {
       this.enemies.spawn("bonus", x, z);
       this.hud.banner("💰 BONUS BUG", "Schnapp ihn dir!");
     }
+
+    // Riesen-Magnet nach Level-Up läuft ab.
+    if (this.magnetBoost > 0) this.magnetBoost = Math.max(0, this.magnetBoost - dt);
 
     // Gelegentlicher Rubber-Duck-Tipp.
     this.tipT -= dt;
@@ -922,6 +929,7 @@ export class Game {
   _queueLevelUp(n) {
     this.pendingLevels += n;
     this.audio.levelUp();
+    this.magnetBoost = 3; // 3s Riesen-Magnet: zieht alle Drops zum Spieler
     // Kosmetik nach Level-Meilensteinen freischalten.
     if (this.progression.level >= 5) this._unlock(() => this.player.addShades(), "SHADES");
     if (this.progression.level >= 10) this._unlock(() => this.player.addCape(), "CAPE");
@@ -1010,9 +1018,14 @@ export class Game {
     this.world.setArena(half);
     this.player.arenaHalf = half;
 
-    // Hintergrund wechselt zwischen den Level-Tiers.
-    if (n === 6) this.world.setBackdrop("./assets/textures/office_bg2.png"); // Server-Room
-    else if (n === 11) this.world.setBackdrop("./assets/textures/office_bg3.png"); // Nacht-Office
+    // Hintergrund + Stimmungs-Tint wechseln zwischen den Level-Tiers.
+    if (n === 6) {
+      this.world.setBackdrop("./assets/textures/office_bg2.png"); // Server-Room
+      this.world.setMood(0x081410); // kühles Grün
+    } else if (n === 11) {
+      this.world.setBackdrop("./assets/textures/office_bg3.png"); // Nacht-Office
+      this.world.setMood(0x100a1a); // tiefes Violett
+    }
 
     if (n % CONFIG.waves.bossEvery === 0) {
       this._startBossIntro(n); // Cinematic: Zoom auf Monitor → Bug springt raus

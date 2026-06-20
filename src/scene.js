@@ -170,6 +170,11 @@ export function createWorld(canvas) {
   api.resetCamera = () => { targetOffset = { ...baseOffset }; };
   api.setBackdrop = (url) => setBackdropTexture(backdrop, url);
   api.render = () => composer.render();
+  // Stimmungs-Tint (Fog + Hintergrundfarbe) je Map-Tier.
+  api.setMood = (hex) => {
+    scene.fog.color.setHex(hex);
+    scene.background.setHex(hex);
+  };
 
   // Arena wächst: Boden, Grid und Rahmen mitskalieren.
   api.setArena = (h) => {
