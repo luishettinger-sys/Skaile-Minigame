@@ -14,6 +14,7 @@ import { WEAPONS, WEAPON_IDS } from "./weapons.js";
 import { Inventory } from "./inventory.js";
 import { Stations } from "./stations.js";
 import { EnemyShots } from "./enemyshots.js";
+import { Throwables } from "./throwables.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
@@ -39,6 +40,7 @@ export class Game {
     this.inventory = new Inventory();
     this.stations = new Stations(world.scene);
     this.enemyShots = new EnemyShots(world.scene);
+    this.throwables = new Throwables(world.scene);
 
     // Höhen-Sampling (Plattformen) an Spieler & Gegner geben.
     this.player.terrain = world.terrain;
@@ -158,6 +160,7 @@ export class Game {
     this.buffs = { rapid: 0, double: 0, shield: 0, slow: 0 };
     this.gadgets = {}; // id -> Stufe
     this.activeGadget = null;
+    this.carrying = null; // aktuell getragenes Wurfobjekt
     this.inventory.reset();
     this.progression.reset();
     this._initLoadout();
@@ -176,6 +179,8 @@ export class Game {
     this.pickups.reset();
     this.stations.reset();
     this.enemyShots.reset();
+    this.throwables.reset();
+    this.carrying = null;
     this.waves.reset();
     this.audio.init();
     this.audio.resume();
@@ -394,8 +399,28 @@ export class Game {
       this.energy = Math.min(CONFIG.energy.max, this.energy + 55 * dt);
       this.hud.setEnergy(this.energy / CONFIG.energy.max);
     }
-    // Shop-Hinweis, wenn man am Stand steht.
+
+    // Wurfobjekte: aufheben / werfen mit F.
+    this.throwables.update(dt, (x, z) => this._throwImpact(x, z));
+    if (this.carrying) {
+      this.carrying.mesh.position.set(this.player.pos.x, this.player.pos.y + 2.6, this.player.pos.z);
+    }
+    if (this.input.wasPressed("KeyF")) {
+      if (this.carrying) {
+        this.throwables.throwItem(this.carrying, Math.sin(this.player.facing), Math.cos(this.player.facing));
+        this.carrying = null;
+        this.audio.shoot();
+        this.world.addShake(0.1);
+      } else {
+        const it = this.throwables.nearestIdle(this.player.pos, 2.8);
+        if (it) { it.state = "carried"; this.carrying = it; this.audio.pickup(); }
+      }
+    }
+
+    // Kontext-Hinweis: Shop hat Vorrang, sonst Wurfobjekt.
     if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] SHOP");
+    else if (this.carrying) this.hud.showPrompt("[F] werfen");
+    else if (this.throwables.nearestIdle(this.player.pos, 2.8)) this.hud.showPrompt("[F] aufheben");
     else this.hud.hidePrompt();
 
     this._fireWeapon(dt);
@@ -559,6 +584,18 @@ export class Game {
         const len = Math.hypot(dx, dz) || 1;
         e.mesh.position.x += (dx / len) * CONFIG.player.contactKnockback * 0.2;
         e.mesh.position.z += (dz / len) * CONFIG.player.contactKnockback * 0.2;
+      }
+    }
+  }
+
+  _throwImpact(x, z) {
+    this.world.addShake(0.4);
+    this.effects.shockwave(x, z, CONFIG.colors.cyan, 8, 18);
+    this.effects.burst(x, z, 0xffd23f, 18, 1.2);
+    this.audio.bugDeath();
+    for (const e of [...this.enemies.enemies]) {
+      if (e.alive && distXZ({ x, z }, e.mesh.position) <= 4.5) {
+        if (this.enemies.damage(e, 6)) this._killEnemy(e);
       }
     }
   }
