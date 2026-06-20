@@ -4,6 +4,7 @@ import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { createOutline } from "./outline.js";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
 import { buildOffice, buildBackdrop, setBackdropTexture } from "./environment.js";
@@ -162,6 +163,11 @@ export function createWorld(canvas) {
   // --- Post-Processing: Bloom für leuchtende Geschosse/Neon/Monitor ---------
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
+
+  // Comic-Outline (Cult-of-the-Lamb-Look) zwischen Render und Bloom.
+  const outline = createOutline(renderer, window.innerWidth, window.innerHeight);
+  composer.addPass(outline.pass);
+
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
     0.6, // strength: kräftiger Neon-Schein, aber nicht überstrahlt
@@ -175,6 +181,7 @@ export function createWorld(canvas) {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
     composer.setSize(window.innerWidth, window.innerHeight);
+    outline.setSize(window.innerWidth, window.innerHeight);
   }
   window.addEventListener("resize", resize);
 
@@ -200,7 +207,10 @@ export function createWorld(canvas) {
   };
   api.resetCamera = () => { targetOffset = { ...baseOffset }; };
   api.setBackdrop = (url) => setBackdropTexture(backdrop, url);
-  api.render = () => composer.render();
+  api.render = () => {
+    outline.renderNormals(scene, camera); // Normalen-Prepass für die Kantenerkennung
+    composer.render();
+  };
   // Stimmungs-Tint (Fog + Hintergrundfarbe) je Map-Tier.
   api.setMood = (hex) => {
     scene.fog.color.setHex(hex);
