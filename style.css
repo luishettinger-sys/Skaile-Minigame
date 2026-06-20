@@ -571,6 +571,7 @@ kbd {
 .btn.small { padding: 10px 22px; font-size: 14px; }
 
 /* Skin-Shop */
+#overlay-skins { z-index: 12; } /* über Shop/Pause/Game-Over (z-index 10) */
 .skins-title { font-size: 40px; color: var(--yellow); }
 .skin-grid {
   display: grid;

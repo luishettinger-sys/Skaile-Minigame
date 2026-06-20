@@ -95,18 +95,35 @@ export class Game {
     localStorage.setItem("duckdebug_meta", JSON.stringify(this.meta));
   }
 
-  // --- Skin-Shop (dauerhafte Kosmetik, bezahlt aus der Bank) -----------------
-  openSkins() {
-    this.hud.renderSkins(this.meta, (k) => this.buySkin(k), (k) => this.equipSkin(k));
+  // --- Skin-Shop (dauerhafte Kosmetik) ---------------------------------------
+  // mode "bank" = aus der Bank (meta.coins, Menü/Pause/Game-Over),
+  // mode "run"  = aus den Run-Coins (Bug-Markt am Stand).
+  openSkins(mode = "bank") {
+    this._skinMode = mode === "run" ? "run" : "bank";
+    this._renderSkins();
     this.hud.showSkins();
   }
   closeSkins() { this.hud.hideSkins(); }
 
+  _renderSkins() {
+    const mode = this._skinMode || "bank";
+    const balance = mode === "run" ? this.coins : this.meta.coins;
+    this.hud.renderSkins(this.meta, balance, mode, (k) => this.buySkin(k), (k) => this.equipSkin(k));
+  }
+
   buySkin(key) {
     const def = SKINS[key];
     if (!def || this.meta.ownedSkins.includes(key)) return;
-    if (this.meta.coins < def.price) { this.hud.toast?.("Nicht genug Bank 🪙"); return; }
-    this.meta.coins -= def.price;
+    const mode = this._skinMode || "bank";
+    if (mode === "run") {
+      if (this.coins < def.price) { this.hud.toast?.("Nicht genug Coins 🪙"); return; }
+      this.coins -= def.price;
+      this.hud.setCoins(this.coins);
+      if (this.shopOpen) this._renderShop();
+    } else {
+      if (this.meta.coins < def.price) { this.hud.toast?.("Nicht genug Bank 🪙"); return; }
+      this.meta.coins -= def.price;
+    }
     this.meta.ownedSkins.push(key);
     this._saveMeta();
     this.equipSkin(key); // direkt anlegen
@@ -118,7 +135,7 @@ export class Game {
     this._saveMeta();
     this.applyEquippedSkin();
     this._showMetaLine();
-    this.hud.renderSkins(this.meta, (k) => this.buySkin(k), (k) => this.equipSkin(k));
+    this._renderSkins();
   }
 
   applyEquippedSkin() {

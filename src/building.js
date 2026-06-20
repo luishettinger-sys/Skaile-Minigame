@@ -18,7 +18,7 @@ export class Building {
     scene.add(this.group);
 
     this.slabs = []; // {minX,maxX,minZ,maxZ, y}            (waagerechte Böden)
-    this.ramps = []; // {minX,maxX,minZ,maxZ, yLow,yHigh, axis,dir}
+    this.ramps = []; // {minX,maxX,minZ,maxZ, yMinZ,yMaxZ}  (Rampen entlang z)
     this.walls = []; // {minX,maxX,minZ,maxZ}               (Kollisions-AABBs)
     this.rooms = {}; // name -> {minX,maxX,minZ,maxZ, y}
 
@@ -26,58 +26,83 @@ export class Building {
   }
 
   // ----------------------------------------------------------------- Layout --
+  // Großes, mehrstöckiges Gebäude (Ebenen y0 / y8 / y14), x/z ca. -95..130.
   _build() {
-    // Raum-Rechtecke (x: links..rechts, z: vorne(+)..hinten(-)).
-    const A = this.rooms.arena = { minX: -22, maxX: 22, minZ: -22, maxZ: 22, y: 0 };
-    const SHOP = this.rooms.shop = { minX: -13, maxX: 13, minZ: -46, maxZ: -24, y: 0 };
-    const PUZZLE = this.rooms.puzzle = { minX: 24, maxX: 50, minZ: -13, maxZ: 13, y: 0 };
-    const LOUNGE = this.rooms.lounge = { minX: -50, maxX: -24, minZ: -13, maxZ: 13, y: 0 };
-    const HALL = this.rooms.hall = { minX: -9, maxX: 9, minZ: 24, maxZ: 40, y: 0 };
-    const VAULT = this.rooms.vault = { minX: -14, maxX: 14, minZ: 40, maxZ: 66, y: 7 };
+    const D = 5; // halbe Türbreite (Standard)
+    const R = this.rooms;
 
-    // --- Böden je Raum (eigene Optik) ---
-    this._floor(A, 0x12151d, true); // Arena: Code-Grid
-    this._floor(SHOP, 0x1a1410, false); // Shop: warmes Holz-Braun
-    this._floor(PUZZLE, 0x101a18, false); // Rätsel: kühles Cyan-Grün
-    this._floor(LOUNGE, 0x16101c, false); // Lounge: Violett
-    this._floor(HALL, 0x14171f, false);
-    this._floor(VAULT, 0x1d1a10, false); // Vault: golden
+    // === Erdgeschoss (y0) ===
+    const ARENA = R.arena = { minX: -28, maxX: 28, minZ: -28, maxZ: 28, y: 0 };
+    // Nord-Flügel: Shop -> Labor
+    const SHOP = R.shop = { minX: -16, maxX: 16, minZ: -56, maxZ: -32, y: 0 };
+    const LAB = R.lab = { minX: -22, maxX: 22, minZ: -86, maxZ: -60, y: 0 };
+    // Ost-Flügel: Rätselraum -> Waffenkammer
+    const PUZZLE = R.puzzle = { minX: 32, maxX: 60, minZ: -16, maxZ: 16, y: 0 };
+    const ARMORY = R.armory = { minX: 64, maxX: 92, minZ: -16, maxZ: 16, y: 0 };
+    // West-Flügel: Lounge -> Serverraum
+    const LOUNGE = R.lounge = { minX: -60, maxX: -32, minZ: -16, maxZ: 16, y: 0 };
+    const SERVER = R.server = { minX: -92, maxX: -64, minZ: -16, maxZ: 16, y: 0 };
 
-    // Korridore zwischen den Räumen (kurze Verbinder durch die Wände).
-    this._connector(-4, 4, -24, -22, 0); // Arena -> Shop (Norden)
-    this._connector(22, 24, -4, 4, 0); // Arena -> Puzzle (Osten)
-    this._connector(-24, -22, -4, 4, 0); // Arena -> Lounge (Westen)
-    this._connector(-4, 4, 22, 24, 0); // Arena -> Hall (Süden)
+    // === 1. Obergeschoss (y8) – über Süd-Rampe erreichbar ===
+    const VAULT = R.vault = { minX: -18, maxX: 18, minZ: 50, maxZ: 84, y: 8 };
+    // === 2. Obergeschoss (y14) – über zweite Rampe vom Vault ===
+    const ROOF = R.roof = { minX: -16, maxX: 16, minZ: 98, maxZ: 124, y: 14 };
+    // Nord-Galerie (y6) – über Rampe hinter dem Labor
+    const GALLERY = R.gallery = { minX: -20, maxX: 20, minZ: -128, maxZ: -104, y: 6 };
 
-    // --- Treppe: Rampe in der Halle steigt von y0 auf y7 ---
-    this.ramps.push({
-      minX: -9, maxX: 9, minZ: 24, maxZ: 40, yLow: 0, yHigh: 7, axis: "z", dir: 1,
-    });
-    this._rampMesh(-9, 9, 24, 40, 0, 7);
+    // --- Böden je Raum (eigene Optik/Themen) ---
+    this._floor(ARENA, 0x12151d, true); // Arena: Code-Grid
+    this._floor(SHOP, 0x1f1710, false); // Shop: warmes Braun
+    this._floor(LAB, 0x101a1c, false); // Labor: Petrol
+    this._floor(PUZZLE, 0x0f1a14, false); // Rätsel: Grün
+    this._floor(ARMORY, 0x1c1414, false); // Waffenkammer: Rot
+    this._floor(LOUNGE, 0x17101c, false); // Lounge: Violett
+    this._floor(SERVER, 0x0c1320, false); // Server: Blau
+    this._floor(VAULT, 0x1d1a10, false); // Vault: Gold
+    this._floor(ROOF, 0x0a1018, false); // Dach: Nacht
+    this._floor(GALLERY, 0x141622, false);
 
-    // --- Wände mit Türöffnungen ---
-    this._roomWalls(A, [
-      { side: "north", from: -4, to: 4 }, // Tür zum Shop
-      { side: "south", from: -4, to: 4 }, // Tür zur Halle/Treppe
-      { side: "east", from: -4, to: 4 }, // Tür zum Rätselraum
-      { side: "west", from: -4, to: 4 }, // Tür zur Lounge
+    // --- Korridore (Verbinder durch die Türöffnungen) ---
+    this._connector(-D, D, -32, -28, 0); // Arena -> Shop
+    this._connector(-D, D, -60, -56, 0); // Shop -> Labor
+    this._connector(28, 32, -D, D, 0); // Arena -> Puzzle
+    this._connector(60, 64, -D, D, 0); // Puzzle -> Armory
+    this._connector(-32, -28, -D, D, 0); // Arena -> Lounge
+    this._connector(-64, -60, -D, D, 0); // Lounge -> Server
+    this._connector(-D, D, 28, 34, 0); // Arena -> Süd-Rampe
+
+    // --- Rampen (Etagenwechsel) ---
+    // Süd: y0 -> y8 (z 34..50) hoch zum Vault.
+    this._ramp(-9, 9, 34, 50, 0, 8);
+    // Vault -> Dach: y8 -> y14 (z 84..98).
+    this._ramp(-9, 9, 84, 98, 8, 14);
+    // Nord: hinter dem Labor y0 -> y6 (z -104..-86, steigt Richtung -z).
+    this._ramp(-9, 9, -104, -86, 6, 0);
+
+    // --- Wände + Türöffnungen ---
+    this._roomWalls(ARENA, [
+      { side: "north", from: -D, to: D }, // -> Shop
+      { side: "south", from: -D, to: D }, // -> Süd-Rampe
+      { side: "east", from: -D, to: D }, // -> Puzzle
+      { side: "west", from: -D, to: D }, // -> Lounge
     ]);
-    this._roomWalls(SHOP, [{ side: "south", from: -4, to: 4 }]);
-    this._roomWalls(PUZZLE, [{ side: "west", from: -4, to: 4 }]);
-    this._roomWalls(LOUNGE, [{ side: "east", from: -4, to: 4 }]);
-    // Halle: nur Seitenwände (Nord offen zur Arena-Tür, Süd offen zur Treppe).
-    this._sideWall(HALL, "east", []);
-    this._sideWall(HALL, "west", []);
-    // Vault oben: niedrige Brüstung ringsum, offen nach Norden (Rampen-Ankunft).
-    this._roomWalls(VAULT, [{ side: "north", from: -9, to: 9 }], 1.1);
+    this._roomWalls(SHOP, [{ side: "south", from: -D, to: D }, { side: "north", from: -D, to: D }]);
+    this._roomWalls(LAB, [{ side: "south", from: -D, to: D }, { side: "north", from: -9, to: 9 }]);
+    this._roomWalls(PUZZLE, [{ side: "west", from: -D, to: D }, { side: "east", from: -D, to: D }]);
+    this._roomWalls(ARMORY, [{ side: "west", from: -D, to: D }]);
+    this._roomWalls(LOUNGE, [{ side: "east", from: -D, to: D }, { side: "west", from: -D, to: D }]);
+    this._roomWalls(SERVER, [{ side: "east", from: -D, to: D }]);
+    this._roomWalls(VAULT, [{ side: "north", from: -9, to: 9 }, { side: "south", from: -9, to: 9 }], 1.2);
+    this._roomWalls(ROOF, [{ side: "north", from: -9, to: 9 }], 1.2);
+    this._roomWalls(GALLERY, [{ side: "south", from: -9, to: 9 }], 1.2);
 
     // Sammel-Bodenplatte ganz unten als optischer Untergrund (dunkel, groß).
     const base = new THREE.Mesh(
-      new THREE.PlaneGeometry(180, 200),
+      new THREE.PlaneGeometry(320, 360),
       new THREE.MeshStandardMaterial({ color: 0x06070b, roughness: 0.95, metalness: 0.1 })
     );
     base.rotation.x = -Math.PI / 2;
-    base.position.set(0, -0.05, 0);
+    base.position.set(0, -0.06, 0);
     base.receiveShadow = true;
     this.group.add(base);
   }

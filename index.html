@@ -116,7 +116,7 @@
       <div class="overlay hidden" id="overlay-skins">
         <div class="overlay-card">
           <h1 class="skins-title">🦆 DUCK SKINS</h1>
-          <p class="tagline">Bank: <span id="skin-bank">0</span> 🪙</p>
+          <p class="tagline" id="skin-balance-line">Bank: <span id="skin-bank">0</span> 🪙</p>
           <div id="skin-grid" class="skin-grid"></div>
           <button class="btn small" id="skins-close">SCHLIESSEN</button>
           <p class="hint">Gekaufte Skins gehören dir dauerhaft &middot; werden direkt angelegt</p>
@@ -130,9 +130,10 @@
           <p class="tagline">Coins: <span id="shop-coins">0</span> 🪙</p>
           <div id="shop-offers" class="inv-grid"></div>
           <div class="inv-actions">
+            <button class="btn small" id="skins-btn-shop">🦆 SKINS</button>
             <button class="btn small" id="shop-close">SCHLIESSEN [E]</button>
           </div>
-          <p class="hint">Klick ein Angebot zum Kaufen</p>
+          <p class="hint">Klick ein Angebot zum Kaufen · Skins hier mit Run-Coins</p>
         </div>
       </div>
 
@@ -167,6 +168,7 @@
           <h1 class="paused">PAUSE</h1>
           <p class="tagline">Die Bugs warten geduldig.</p>
           <button class="btn" id="resume-btn">WEITER</button>
+          <button class="btn small" id="skins-btn-pause">🦆 SKINS</button>
           <p class="hint"><kbd>P</kbd> oder <kbd>ESC</kbd> zum Fortsetzen</p>
         </div>
       </div>
@@ -183,6 +185,7 @@
             <div><span id="final-hi">0</span><small>BESTE</small></div>
           </div>
           <button class="btn" id="restart-btn">NOCHMAL</button>
+          <button class="btn small" id="skins-btn-over">🦆 SKINS</button>
         </div>
       </div>
     </div>

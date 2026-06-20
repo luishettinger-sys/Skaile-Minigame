@@ -29,7 +29,10 @@ hud.el.resumeBtn.addEventListener("click", () => game.resume());
 hud.el.invClose.addEventListener("click", () => game.toggleInventory());
 hud.el.invSort.addEventListener("click", () => game.sortInventory());
 hud.el.shopClose.addEventListener("click", () => game.toggleShop());
-hud.el.skinsBtn?.addEventListener("click", () => game.openSkins());
+hud.el.skinsBtn?.addEventListener("click", () => game.openSkins("bank"));
+hud.el.skinsBtnOver?.addEventListener("click", () => game.openSkins("bank"));
+hud.el.skinsBtnPause?.addEventListener("click", () => game.openSkins("bank"));
+hud.el.skinsBtnShop?.addEventListener("click", () => game.openSkins("run"));
 hud.el.skinsClose?.addEventListener("click", () => game.closeSkins());
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space" && game.state !== "playing") beginGame();
