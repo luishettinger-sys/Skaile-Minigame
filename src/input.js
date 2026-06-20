@@ -12,6 +12,8 @@ export class Input {
   constructor() {
     this.down = new Set();
     this.justPressed = new Set();
+    this.mouse = { ndcX: 0, ndcY: 0 }; // normalisierte Bildschirmkoordinaten (-1..1)
+    this.mouseDown = false; // linke Maustaste gehalten (= schießen)
 
     window.addEventListener("keydown", (e) => {
       if (e.code in MOVE_KEYS || e.code === "Space") e.preventDefault();
@@ -19,7 +21,21 @@ export class Input {
       this.down.add(e.code);
     });
     window.addEventListener("keyup", (e) => this.down.delete(e.code));
-    window.addEventListener("blur", () => this.down.clear());
+    window.addEventListener("blur", () => {
+      this.down.clear();
+      this.mouseDown = false;
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      this.mouse.ndcX = (e.clientX / window.innerWidth) * 2 - 1;
+      this.mouse.ndcY = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+    window.addEventListener("mousedown", (e) => {
+      if (e.button === 0) this.mouseDown = true;
+    });
+    window.addEventListener("mouseup", (e) => {
+      if (e.button === 0) this.mouseDown = false;
+    });
   }
 
   // Bewegungsrichtung als {x, z}, normalisiert (Diagonale nicht schneller).

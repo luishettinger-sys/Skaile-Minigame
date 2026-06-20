@@ -61,12 +61,8 @@ export class Player {
     this.pos.x = clamp(this.pos.x, -lim, lim);
     this.pos.z = clamp(this.pos.z, -lim, lim);
 
-    // In Laufrichtung drehen (weich).
+    // Blickrichtung wird extern via Maus-Zielen gesetzt (this.facing).
     const moving = move.x !== 0 || move.z !== 0;
-    if (moving) {
-      const target = Math.atan2(move.x, move.z);
-      this.facing = dampAngle(this.facing, target, CONFIG.player.turnLerp, dt);
-    }
     this.root.rotation.y = this.facing;
 
     // Waddle + Bob beim Laufen.
@@ -123,13 +119,6 @@ export class Player {
   _setVisible(v) {
     this.root.visible = v;
   }
-}
-
-// Winkel-Interpolation über die kürzeste Distanz (kein 359°→0°-Sprung).
-function dampAngle(a, b, lambda, dt) {
-  let diff = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;
-  if (diff < -Math.PI) diff += Math.PI * 2;
-  return a + diff * (1 - Math.exp(-lambda * dt));
 }
 
 // Platzhalter-Ente aus Primitiven (klassischer Quietsche-Enten-Look).

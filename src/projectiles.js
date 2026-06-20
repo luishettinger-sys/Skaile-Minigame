@@ -1,6 +1,9 @@
-// Quak-Projektile: gepooltes System leuchtender Schallwellen-Kugeln.
+// Geschosse: leuchtende, fliegende Munitionskugeln (heller Kern + Glow-Halo).
+// Pro Schuss: Farbe, Größe, Speed, Schaden, Durchschlag.
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
+
+const BOUND = 130; // großzügige Grenze, damit Geschosse irgendwann recyceln
 
 export class ProjectileSystem {
   constructor(scene) {
@@ -10,38 +13,38 @@ export class ProjectileSystem {
     this.pool = [];
     this.active = [];
 
-    // Echtes Geschoss: ein gestreckter Energie-Bolt (Kapsel) + heller Glow-Kern.
     const r = CONFIG.weapon.projRadius;
-    const len = CONFIG.weapon.projLen;
-    this.geo = new THREE.CapsuleGeometry(r, len, 4, 8);
-    this.coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    this.glowMat = new THREE.MeshBasicMaterial({
-      color: CONFIG.colors.projectile, transparent: true, opacity: 0.5,
-    });
-    this.glowGeo = new THREE.CapsuleGeometry(r * 1.9, len, 4, 8);
+    this.coreGeo = new THREE.SphereGeometry(r, 14, 12);
+    this.glowGeo = new THREE.SphereGeometry(r * 2.0, 12, 10);
   }
 
   spawn(origin, dir, opts = {}) {
     let p = this.pool.pop();
     if (!p) {
+      // Eigene Materialien je Geschoss → Farbe pro Schuss/Waffe möglich.
+      const coreMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false,
+      });
       const mesh = new THREE.Group();
-      const core = new THREE.Mesh(this.geo, this.coreMat);
-      const glow = new THREE.Mesh(this.glowGeo, this.glowMat);
-      // Kapsel-Längsachse ist Y → um 90° kippen, damit sie nach vorn (Z) zeigt.
-      core.rotation.x = Math.PI / 2;
-      glow.rotation.x = Math.PI / 2;
-      mesh.add(glow, core);
-      p = { mesh, vel: new THREE.Vector3(), life: 0, hits: new Set() };
+      mesh.add(new THREE.Mesh(this.glowGeo, glowMat), new THREE.Mesh(this.coreGeo, coreMat));
+      p = { mesh, coreMat, glowMat, vel: new THREE.Vector3(), life: 0, hits: new Set() };
       this.group.add(mesh);
     }
+
+    const color = opts.color ?? CONFIG.colors.projectile;
+    p.coreMat.color.setHex(0xffffff);
+    p.glowMat.color.setHex(color);
+
     p.mesh.visible = true;
     p.mesh.scale.setScalar(opts.scale ?? 1);
     p.mesh.position.set(origin.x, 1.0, origin.z);
-    p.vel.set(dir.x, 0, dir.z).normalize().multiplyScalar(CONFIG.weapon.projSpeed);
-    p.mesh.rotation.y = Math.atan2(p.vel.x, p.vel.z); // Bolt zeigt in Flugrichtung
+
+    const speed = opts.speed ?? CONFIG.weapon.projSpeed;
+    p.vel.set(dir.x, 0, dir.z).normalize().multiplyScalar(speed);
     p.life = CONFIG.weapon.projLife;
     p.damage = opts.damage ?? CONFIG.weapon.damage;
-    p.pierce = opts.pierce ?? 0; // verbleibende Durchschläge
+    p.pierce = opts.pierce ?? 0;
     p.hits.clear();
     this.active.push(p);
     return p;
@@ -53,20 +56,16 @@ export class ProjectileSystem {
       p.life -= dt;
       p.mesh.position.x += p.vel.x * dt;
       p.mesh.position.z += p.vel.z * dt;
-
-      // Außerhalb der Arena oder Lebenszeit vorbei → recyceln.
-      const half = CONFIG.arena.half + 2;
       if (
         p.life <= 0 ||
-        Math.abs(p.mesh.position.x) > half ||
-        Math.abs(p.mesh.position.z) > half
+        Math.abs(p.mesh.position.x) > BOUND ||
+        Math.abs(p.mesh.position.z) > BOUND
       ) {
         this.retire(i);
       }
     }
   }
 
-  // Projektil i aus active entfernen und in den Pool zurücklegen.
   retire(i) {
     const p = this.active[i];
     p.mesh.visible = false;

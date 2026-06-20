@@ -1,5 +1,6 @@
 // Game-Orchestrator: verbindet alle Systeme und hält den Spielzustand.
-// Roguelite-Survivor: Wellen, Combo, Ultimate, XP/Level-Ups, Pickups, Boss.
+// Roguelite-Survivor: Maus-Zielen, Waffen, Wellen, Combo, Ultimate,
+// XP/Level-Ups (Fähigkeiten ODER Waffenwechsel), Pickups, Boss.
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { Player } from "./player.js";
@@ -9,6 +10,7 @@ import { Effects } from "./effects.js";
 import { WaveManager } from "./waves.js";
 import { Progression } from "./progression.js";
 import { PickupSystem } from "./pickups.js";
+import { WEAPONS, WEAPON_IDS } from "./weapons.js";
 import { distXZ, clamp } from "./utils.js";
 
 const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over" };
@@ -34,25 +36,37 @@ export class Game {
       onWaveClear: (n) => this._onWaveClear(n),
     });
 
+    // Maus-Zielen: Strahl von der Kamera auf die Bodenebene (y = 1).
+    this._ray = new THREE.Raycaster();
+    this._groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1);
+    this._aim = new THREE.Vector3();
+
     this.highscore = Number(localStorage.getItem(HISCORE_KEY)) || 0;
     this.state = STATE.MENU;
     this._resetRun();
   }
 
-  _initStats() {
-    this.stats = {
-      fireInterval: CONFIG.weapon.fireInterval,
-      damage: CONFIG.weapon.damage,
-      projCount: CONFIG.weapon.projCount,
-      pierce: CONFIG.weapon.pierce,
-      projScale: 1,
-      moveSpeed: CONFIG.player.speed,
-      maxHp: CONFIG.player.maxHp,
-      magnet: CONFIG.pickups.magnet,
-      regen: CONFIG.player.regen,
-      dashCooldown: CONFIG.player.dash.cooldown,
+  // Waffe + additive/multiplikative Upgrade-Modifikatoren.
+  _initLoadout() {
+    this.weaponId = "blaster";
+    this.weapon = WEAPONS.blaster;
+    this.mods = {
+      fireMult: 1, dmgAdd: 0, dmgMult: 1, projAdd: 0, pierceAdd: 0,
+      projScaleMult: 1, moveSpeedMult: 1, magnetMult: 1, regen: 0,
+      dashCdMult: 1, maxHpAdd: 0,
     };
   }
+
+  // Effektive Kampfwerte aus Waffe + Mods.
+  _fireInterval() { return this.weapon.fireInterval * this.mods.fireMult; }
+  _damage() { return (this.weapon.damage + this.mods.dmgAdd) * this.mods.dmgMult; }
+  _projCount() { return this.weapon.projCount + this.mods.projAdd; }
+  _pierce() { return this.weapon.pierce + this.mods.pierceAdd; }
+  _projScale() { return this.weapon.projScale * this.mods.projScaleMult; }
+  _moveSpeed() { return CONFIG.player.speed * this.mods.moveSpeedMult; }
+  _magnet() { return CONFIG.pickups.magnet * this.mods.magnetMult; }
+  _maxHp() { return CONFIG.player.maxHp + this.mods.maxHpAdd; }
+  _dashCd() { return CONFIG.player.dash.cooldown * this.mods.dashCdMult; }
 
   _resetRun() {
     this.score = 0;
@@ -69,7 +83,7 @@ export class Game {
     this.pendingLevels = 0;
     this.boss = null;
     this.progression.reset();
-    this._initStats();
+    this._initLoadout();
   }
 
   start() {
@@ -82,6 +96,7 @@ export class Game {
     this.waves.reset();
     this.audio.init();
     this.audio.resume();
+    this._syncStats();
 
     this.hud.hideOverlays();
     this.hud.hidePause();
@@ -92,7 +107,14 @@ export class Game {
     this.hud.setUltimate(0, false);
     this.hud.setCombo(1);
     this.hud.setXp(0, 1);
+    this.hud.setWeapon(this.weapon.name, this.weapon.icon);
     this.state = STATE.PLAYING;
+  }
+
+  // maxHp aus Mods übernehmen (z.B. nach Upgrade).
+  _syncStats() {
+    this.player.maxHp = this._maxHp();
+    this.player.hp = Math.min(this.player.hp, this.player.maxHp);
   }
 
   togglePause() {
@@ -129,25 +151,23 @@ export class Game {
     }
     if (this.paused || this.levelingUp) return;
 
+    this._updateAim();
     const move = this.input.moveVector();
 
-    // Dash (Shift) – Ausweich-Skill.
     if (this.input.wasPressed("ShiftLeft") || this.input.wasPressed("ShiftRight")) {
-      if (this.player.tryDash(this.stats.dashCooldown)) {
+      if (this.player.tryDash(this._dashCd())) {
         this.audio.dash();
         this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.cyan, 10, 0.9);
       }
     }
 
-    this.player.update(dt, move, this.stats.moveSpeed);
+    this.player.update(dt, move, this._moveSpeed());
 
-    // Passive Regeneration.
-    if (this.stats.regen > 0 && this.player.alive) {
-      this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.stats.regen * dt);
+    if (this.mods.regen > 0 && this.player.alive) {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.mods.regen * dt);
       this.hud.setHp(this.player.hp, this.player.maxHp);
     }
 
-    // Ultimate (Q).
     if (this.input.wasPressed("KeyQ") && this.ultReady && !this.ultActive) {
       this._activateUltimate();
     }
@@ -161,7 +181,7 @@ export class Game {
     this.enemies.update(worldDt, this.player.pos, this.ultActive);
     this.projectiles.update(dt);
     this.effects.update(dt);
-    this.pickups.update(dt, this.player.pos, this.stats.magnet, (kind, value) =>
+    this.pickups.update(dt, this.player.pos, this._magnet(), (kind, value) =>
       this._collect(kind, value)
     );
 
@@ -170,7 +190,6 @@ export class Game {
     this._handleEnemyContact();
     this._updateCombo(dt);
 
-    // Boss-Lebensbalken.
     if (this.boss && this.boss.alive) {
       this.hud.setBoss(this.boss.hp / this.boss.maxHp, this.boss.def.label);
     }
@@ -178,20 +197,43 @@ export class Game {
     this.world.updateCamera(this.player.pos, dt);
   }
 
+  // Maus → Bodenpunkt → Blickrichtung der Ente.
+  _updateAim() {
+    this._ray.setFromCamera(
+      { x: this.input.mouse.ndcX, y: this.input.mouse.ndcY },
+      this.world.camera
+    );
+    const hit = this._ray.ray.intersectPlane(this._groundPlane, this._aim);
+    if (!hit) return;
+    const dx = this._aim.x - this.player.pos.x;
+    const dz = this._aim.z - this.player.pos.z;
+    if (dx * dx + dz * dz > 0.3) {
+      this.player.facing = Math.atan2(dx, dz);
+    }
+  }
+
   // -------------------------------------------------------------- Combat --
   _fireWeapon(dt) {
     this.fireTimer -= dt;
     const firing =
+      this.input.mouseDown ||
       this.input.isDown("Space") ||
       this.input.isDown("Enter") ||
       this.input.isDown("NumpadEnter");
     if (!firing || this.fireTimer > 0) return;
 
-    this.fireTimer = this.stats.fireInterval * (this.ultActive ? 0.5 : 1);
+    this.fireTimer = this._fireInterval() * (this.ultActive ? 0.5 : 1);
 
-    const n = this.stats.projCount;
-    const spread = CONFIG.weapon.spread;
+    const n = this._projCount();
+    const spread = this.weapon.spread;
     const fwd = CONFIG.weapon.muzzleForward;
+    const opts = {
+      damage: this._damage(),
+      pierce: this._pierce(),
+      scale: this._projScale(),
+      color: this.weapon.color,
+      speed: this.weapon.speed,
+    };
     for (let i = 0; i < n; i++) {
       const off = n === 1 ? 0 : (i - (n - 1) / 2) * spread;
       const ang = this.player.facing + off;
@@ -200,17 +242,13 @@ export class Game {
         x: this.player.pos.x + dir.x * fwd,
         z: this.player.pos.z + dir.z * fwd,
       };
-      this.projectiles.spawn(origin, dir, {
-        damage: this.stats.damage,
-        pierce: this.stats.pierce,
-        scale: this.stats.projScale,
-      });
+      this.projectiles.spawn(origin, dir, opts);
     }
-    this.audio.shoot();
+    this.audio.weapon(this.weapon.sound);
     this.effects.burst(
       this.player.pos.x + Math.sin(this.player.facing) * fwd,
       this.player.pos.z + Math.cos(this.player.facing) * fwd,
-      CONFIG.colors.projectile, 4, 0.5
+      this.weapon.color, 4, 0.5
     );
     this.world.addShake(0.05);
   }
@@ -271,7 +309,6 @@ export class Game {
     this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.color, 16, 1.1);
     this.world.addShake(e.def.isBoss ? 0.8 : 0.18);
 
-    // Combo + Score.
     this.combo++;
     this.comboTimer = CONFIG.combo.decayTime;
     this.comboMult = 1 + Math.floor(this.combo / 5);
@@ -281,7 +318,6 @@ export class Game {
     this.hud.setCombo(this.comboMult);
     this._popup(e.mesh.position, "+" + gained, "#ffd23f");
 
-    // Ultimate aufladen.
     if (!this.ultActive) {
       this.ultCharge += CONFIG.combo.ultPerKill;
       const ratio = this.ultCharge / CONFIG.combo.ultThreshold;
@@ -292,18 +328,16 @@ export class Game {
       this.hud.setUltimate(ratio, this.ultReady);
     }
 
-    // Loot.
     this.pickups.spawnGem(e.mesh.position.x, e.mesh.position.z, CONFIG.pickups.gemValue);
     if (Math.random() < CONFIG.pickups.healthDropChance) {
       this.pickups.spawnHealth(e.mesh.position.x, e.mesh.position.z);
     }
 
-    // Boss-Belohnung.
     if (e.def.isBoss) {
       this.boss = null;
       this.hud.hideBoss();
       this.hud.banner("BOSS BESIEGT", "Kernel restored");
-      this.effects.shockwave(e.mesh.position.x, e.mesh.position.z, e.def.glow, 16, 24);
+      this.effects.shockwave(e.mesh.position.x, e.mesh.position.z, e.def.glow, 18, 24);
       this.pickups.spawnHealth(e.mesh.position.x, e.mesh.position.z);
       for (let i = 0; i < 8; i++) {
         this.pickups.spawnGem(
@@ -313,7 +347,6 @@ export class Game {
       }
     }
 
-    // Race Condition splittet sich in zwei kleinere Bugs.
     if (e.def.splits) {
       for (let i = 0; i < e.def.splits; i++) {
         const off = (i - 0.5) * 1.6;
@@ -386,24 +419,43 @@ export class Game {
   _openLevelUp() {
     this.levelingUp = true;
     const choices = this.progression.roll(3);
+
+    // Mit Wahrscheinlichkeit eine Waffe statt einer Fähigkeit anbieten.
+    const others = WEAPON_IDS.filter((id) => id !== this.weaponId);
+    if (others.length && Math.random() < 0.45) {
+      const w = WEAPONS[others[Math.floor(Math.random() * others.length)]];
+      choices[choices.length - 1] = {
+        icon: w.icon, name: "Waffe: " + w.name, desc: w.desc, weaponId: w.id,
+      };
+    }
+
     this.hud.showLevelUp(this.progression.level, choices, (i) =>
-      this._pickUpgrade(choices, i)
+      this._pickChoice(choices, i)
     );
   }
 
-  _pickUpgrade(choices, i) {
-    const up = choices[i];
-    up.apply(this.stats, this.player, this);
+  _pickChoice(choices, i) {
+    const c = choices[i];
+    if (c.weaponId) {
+      this._setWeapon(c.weaponId);
+      this.hud.banner("NEUE WAFFE", WEAPONS[c.weaponId].name);
+    } else {
+      c.apply(this.mods, this.player, this);
+      this._syncStats();
+      this.hud.banner("UPGRADE", c.name);
+    }
     this.hud.setHp(this.player.hp, this.player.maxHp);
-    this.hud.banner("UPGRADE", up.name);
 
     this.pendingLevels--;
-    if (this.pendingLevels > 0) {
-      this._openLevelUp();
-    } else {
-      this.levelingUp = false;
-      this.hud.hideLevelUp();
-    }
+    if (this.pendingLevels > 0) this._openLevelUp();
+    else { this.levelingUp = false; this.hud.hideLevelUp(); }
+  }
+
+  _setWeapon(id) {
+    this.weaponId = id;
+    this.weapon = WEAPONS[id];
+    this.fireTimer = 0;
+    this.hud.setWeapon(this.weapon.name, this.weapon.icon);
   }
 
   // ----------------------------------------------------------------- Waves --
@@ -431,7 +483,6 @@ export class Game {
     this.hud.banner("WELLE " + n + " CLEAR", "+15 Build Health");
   }
 
-  // Welt-Position → Bildschirm-Koordinaten für DOM-Popups.
   _popup(worldPos, text, color) {
     const v = new THREE.Vector3(worldPos.x, 1.5, worldPos.z).project(this.world.camera);
     const x = (v.x * 0.5 + 0.5) * window.innerWidth;

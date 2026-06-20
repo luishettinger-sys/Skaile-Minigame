@@ -52,6 +52,36 @@ export class Audio {
     this._tone({ type: "sawtooth", from: 680, to: 320, dur: 0.06, gain: 0.07 });
   }
 
+  // Dispatcher: spielt den Sound der aktuellen Waffe.
+  weapon(id) {
+    switch (id) {
+      case "shotgun": return this.shotgun();
+      case "smg": return this.smg();
+      case "rail": return this.rail();
+      case "cannon": return this.cannon();
+      default: return this.shoot();
+    }
+  }
+
+  shotgun() {
+    this._tone({ type: "square", from: 320, to: 80, dur: 0.18, gain: 0.22 });
+    this._tone({ type: "sawtooth", from: 620, to: 120, dur: 0.14, gain: 0.12, delay: 0.005 });
+  }
+
+  smg() {
+    this._tone({ type: "square", from: 840, to: 260, dur: 0.05, gain: 0.1 });
+  }
+
+  rail() {
+    this._tone({ type: "sawtooth", from: 1500, to: 200, dur: 0.3, gain: 0.18 });
+    this._tone({ type: "sine", from: 400, to: 1700, dur: 0.26, gain: 0.12, delay: 0.02 });
+  }
+
+  cannon() {
+    this._tone({ type: "square", from: 150, to: 46, dur: 0.34, gain: 0.3 });
+    this._tone({ type: "sawtooth", from: 300, to: 70, dur: 0.22, gain: 0.16, delay: 0.02 });
+  }
+
   hit() {
     this._tone({ type: "square", from: 420, to: 220, dur: 0.06, gain: 0.12 });
   }

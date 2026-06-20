@@ -84,6 +84,15 @@ body {
   margin-bottom: 4px;
 }
 
+#weapon {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--yellow);
+  margin-bottom: 4px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
 .bar-track {
   height: 12px;
   border-radius: 8px;

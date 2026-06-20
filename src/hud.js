@@ -28,6 +28,7 @@ export class HUD {
       bossbar: document.getElementById("bossbar"),
       bossFill: document.getElementById("boss-fill"),
       bossLabel: document.getElementById("boss-label"),
+      weapon: document.getElementById("weapon"),
     };
     this._bannerTimer = null;
   }
@@ -94,6 +95,10 @@ export class HUD {
 
   hidePause() {
     this.el.pause.classList.add("hidden");
+  }
+
+  setWeapon(name, icon) {
+    this.el.weapon.textContent = icon + " " + name.toUpperCase();
   }
 
   setXp(ratio, level) {
