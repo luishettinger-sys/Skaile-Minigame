@@ -14,9 +14,9 @@ export function buildOffice(scene) {
   group.add(monitor);
 
   // Deko-Props in der Lounge (Westen) – stimmungsvolles Set-Dressing.
-  group.add(makePlant(-46, 9));
-  group.add(makeMug(-44, -9));
-  group.add(makePenHolder(-30, 9));
+  group.add(makePlant(-50, 10));
+  group.add(makeMug(-50, -10));
+  group.add(makePenHolder(-40, 11));
 
   scene.add(group);
   return group;

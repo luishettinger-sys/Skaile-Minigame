@@ -83,7 +83,7 @@ export function createWorld(canvas) {
   // Zoom (Tasten N/M): skaliert den Kamera-Abstand. <1 = näher an der Ente,
   // >1 = mehr von der Map sichtbar.
   let zoom = 1, targetZoom = 1;
-  const ZOOM_MIN = 0.5, ZOOM_MAX = 2.6;
+  const ZOOM_MIN = 0.45, ZOOM_MAX = 5.5; // großes Gebäude: weit rauszoombar
 
   function updateCamera(targetPos, dt) {
     camT += dt;

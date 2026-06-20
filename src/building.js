@@ -155,6 +155,13 @@ export class Building {
     this.slabs.push({ minX, maxX, minZ, maxZ, y });
   }
 
+  // Rampe entlang z: Höhe yMinZ (bei minZ) bis yMaxZ (bei maxZ). Registriert
+  // sie für heightAt und baut Mesh + Stufen-Optik.
+  _ramp(minX, maxX, minZ, maxZ, yMinZ, yMaxZ) {
+    this.ramps.push({ minX, maxX, minZ, maxZ, yMinZ, yMaxZ });
+    this._rampMesh(minX, maxX, minZ, maxZ, yMinZ, yMaxZ);
+  }
+
   _rampMesh(minX, maxX, zLow, zHigh, yLow, yHigh) {
     const w = maxX - minX, len = zHigh - zLow;
     const cx = (minX + maxX) / 2, cz = (zLow + zHigh) / 2;
@@ -247,7 +254,7 @@ export class Building {
     for (const r of this.ramps) {
       if (x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) {
         const t = (z - r.minZ) / (r.maxZ - r.minZ);
-        const y = r.yLow + (r.yHigh - r.yLow) * t;
+        const y = r.yMinZ + (r.yMaxZ - r.yMinZ) * t;
         if (!found || y > h) { h = y; found = true; }
       }
     }
