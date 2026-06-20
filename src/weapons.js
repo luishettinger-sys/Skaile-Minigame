@@ -73,6 +73,49 @@ export const WEAPONS = {
     projScale: 0.5, speed: 82, color: 0x80ed99, sound: "minigun", energyCost: 2.6,
     style: "star", desc: "Schnelle Präzisionsnadeln",
   },
+  arc: {
+    id: "arc", name: "Lightning-Arc", icon: "⚡️",
+    fireInterval: 0.09, damage: 1, projCount: 2, spread: 0.08, pierce: 1,
+    projScale: 0.8, speed: 90, color: 0x6ef0ff, sound: "smg", energyCost: 4,
+    style: "tracer", desc: "Schnelle Doppel-Blitze, durchschlagend",
+  },
+  photon: {
+    id: "photon", name: "Photon-Beam", icon: "🔆",
+    fireInterval: 0.7, damage: 4, projCount: 1, spread: 0, pierce: 6,
+    projScale: 1.2, speed: 150, color: 0xfff3b0, sound: "sniper", energyCost: 30,
+    style: "laser", desc: "Hyperschneller Strahl, durchschlägt alles",
+  },
+  voidlober: {
+    id: "voidlober", name: "Void-Lober", icon: "🕳️",
+    fireInterval: 1.1, damage: 3, projCount: 1, spread: 0, pierce: 4,
+    projScale: 2.0, speed: 32, color: 0x9b5de5, sound: "cannon", energyCost: 34,
+    style: "plasma", desc: "Riesige, langsame Singularität",
+  },
+  recursion: {
+    id: "recursion", name: "Recursion-Disc", icon: "♻️",
+    fireInterval: 0.45, damage: 2, projCount: 2, spread: 0.5, pierce: 7,
+    projScale: 1.5, speed: 38, color: 0x80ed99, sound: "cannon", energyCost: 18,
+    style: "saw", desc: "Zwei Sägen, durchschlagen viele Bugs",
+  },
+  nova: {
+    id: "nova", name: "Supernova-Scatter", icon: "✴️",
+    fireInterval: 0.8, damage: 1, projCount: 12, spread: 0.95, pierce: 0,
+    projScale: 0.8, speed: 56, color: 0xff8c1a, sound: "shotgun", energyCost: 34,
+    style: "star", desc: "12 Sterne im Rundumschlag",
+  },
+  glitch: {
+    id: "glitch", name: "Glitch-Cannon", icon: "👾",
+    fireInterval: 0.5, damage: 2, projCount: 3, spread: 0.3, pierce: 2,
+    projScale: 1.1, speed: 60, color: 0xff6ec7, sound: "pulse", energyCost: 20,
+    style: "ball", desc: "Dreifacher Glitch-Schub",
+  },
+};
+
+// Preise für den Waffenshop (Armory). Run-Coins.
+export const WEAPON_PRICE = {
+  shotgun: 40, smg: 50, railgun: 90, cannon: 80, minigun: 70, sniper: 95,
+  trishot: 55, flak: 75, pulse: 70, sawblade: 85, needler: 60,
+  arc: 80, photon: 130, voidlober: 120, recursion: 110, nova: 115, glitch: 100,
 };
 
 export const WEAPON_IDS = Object.keys(WEAPONS);

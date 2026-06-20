@@ -11,6 +11,7 @@ import { WaveManager } from "./waves.js";
 import { Progression } from "./progression.js";
 import { PickupSystem } from "./pickups.js";
 import { WEAPONS, WEAPON_IDS } from "./weapons.js";
+import { Armory } from "./armory.js";
 import { Inventory } from "./inventory.js";
 import { Stations } from "./stations.js";
 import { EnemyShots } from "./enemyshots.js";
@@ -61,6 +62,7 @@ export class Game {
     this.stations = new Stations(world.scene);
     this.enemyShots = new EnemyShots(world.scene);
     this.throwables = new Throwables(world.scene);
+    this.armory = new Armory(world.scene, world.building?.rooms?.armory);
 
     // Höhen-Sampling (Plattformen) an Spieler & Gegner geben.
     this.player.terrain = world.terrain;
@@ -436,9 +438,10 @@ export class Game {
     if (this.input.wasPressed("KeyI") || this.input.wasPressed("Tab")) {
       this.toggleInventory();
     }
-    if (this.input.wasPressed("KeyE") &&
-        (this.shopOpen || this.stations.shopNear(this.player.pos))) {
-      this.toggleShop();
+    if (this.input.wasPressed("KeyE")) {
+      const pad = this.armory.nearest(this.player.pos);
+      if (pad && !this.shopOpen) this._buyWeapon(pad);
+      else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
     }
     if (this.input.wasPressed("KeyG")) this.cycleGadget();
     if (this.input.wasPressed("KeyB")) this.audio.toggleMute(); // Mute (war M)
@@ -549,8 +552,15 @@ export class Game {
       }
     }
 
-    // Kontext-Hinweis: Shop hat Vorrang, sonst Wurfobjekt.
-    if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] SHOP");
+    this.armory.update(dt);
+
+    // Kontext-Hinweis: Armory/Shop haben Vorrang, sonst Wurfobjekt.
+    const pad = this.armory.nearest(this.player.pos);
+    if (pad && !this.shopOpen) {
+      const owned = this.weaponId === pad.id;
+      this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)` : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙`);
+    }
+    else if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] SHOP");
     else if (this.carrying) this.hud.showPrompt("[F] werfen");
     else if (this.throwables.nearestIdle(this.player.pos, 2.8)) this.hud.showPrompt("[F] aufheben");
     else this.hud.hidePrompt();
@@ -1059,6 +1069,23 @@ export class Game {
     this.weapon = WEAPONS[id];
     this.fireTimer = 0;
     this.hud.setWeapon(this.weapon.name, this.weapon.icon);
+  }
+
+  // Waffe im Armory-Raum kaufen + sofort ausrüsten (Run-Coins).
+  _buyWeapon(pad) {
+    if (this.weaponId === pad.id) return;
+    if (this.coins < pad.price) {
+      this.hud.toast("🪙", "Nicht genug Coins", `${WEAPONS[pad.id].name} kostet ${pad.price}`);
+      this.audio.error?.();
+      return;
+    }
+    this.coins -= pad.price;
+    this.hud.setCoins(this.coins);
+    this._setWeapon(pad.id);
+    this.hud.banner("WAFFE GEKAUFT", WEAPONS[pad.id].name);
+    this.audio.levelUp();
+    this.effects.burst(this.player.pos.x, this.player.pos.z, this.weapon.color, 20, 1.2);
+    this.world.addShake(0.2);
   }
 
   // ----------------------------------------------------------------- Waves --

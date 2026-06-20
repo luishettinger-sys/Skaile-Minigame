@@ -14,7 +14,7 @@ export class Stations {
   }
 
   _buildShop() {
-    const x = 16, z = -16; // hinten am Rand
+    const x = 0, z = -50; // im Shop-Raum (Norden), unter dem Build-Monitor
     const counter = new THREE.Mesh(
       new THREE.BoxGeometry(5, 1.6, 2.2),
       new THREE.MeshStandardMaterial({ color: 0x6b3f1d, roughness: 0.7 })
