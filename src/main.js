@@ -31,13 +31,23 @@ window.addEventListener("keydown", (e) => {
 
 hud.showStart();
 
-// --- AI-Assets nachladen (optional, Fallback = Platzhalter) ----------------
+// --- AI-Assets nachladen (optional, Fallback = Platzhalter/prozedural) -----
 loadModel("./assets/duck.glb", { targetHeight: 2.4 }).then((obj) => {
   if (obj) {
     game.player.setModel(obj);
     console.info("[assets] Helden-Ente (GLB) geladen.");
   }
 });
+
+const BUG_TYPES = ["syntax", "stackoverflow", "racecondition", "memoryleak", "heisenbug"];
+for (const type of BUG_TYPES) {
+  loadModel(`./assets/bug_${type}.glb`, { targetHeight: 2 }).then((obj) => {
+    if (obj) {
+      game.enemies.setModel(type, obj);
+      console.info("[assets] Bug-Modell geladen:", type);
+    }
+  });
+}
 
 // --- Game-Loop -------------------------------------------------------------
 const clock = new THREE.Clock();

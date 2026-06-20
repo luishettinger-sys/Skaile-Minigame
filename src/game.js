@@ -229,7 +229,7 @@ export class Game {
       for (let i = 0; i < e.def.splits; i++) {
         const off = (i - 0.5) * 1.6;
         const child = this.enemies.spawn("syntax", e.mesh.position.x + off, e.mesh.position.z + off);
-        child.mesh.scale.multiplyScalar(0.7);
+        child.baseScale *= 0.7; // wird vom Update angewandt (Treffer-Punch-System)
         child.radius *= 0.7;
       }
     }
