@@ -185,6 +185,7 @@ export class Game {
     this.waves.reset();
     this.audio.init();
     this.audio.resume();
+    this.audio.startMusic();
     this._syncStats();
 
     this.hud.hideOverlays();
@@ -335,6 +336,7 @@ export class Game {
       this.toggleShop();
     }
     if (this.input.wasPressed("KeyG")) this.cycleGadget();
+    if (this.input.wasPressed("KeyM")) this.audio.toggleMute();
     if (this.bossIntro) { this._updateIntro(dt); return; }
     if (this.paused || this.levelingUp || this.invOpen || this.shopOpen) return;
 
@@ -630,7 +632,7 @@ export class Game {
 
   _killEnemy(e) {
     this.enemies.kill(e);
-    this.audio.bugDeath();
+    this.audio.killSound(this.combo);
     this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.color, e.def.isBoss ? 40 : 16, e.def.isBoss ? 1.8 : 1.1);
     this.world.addShake(e.def.isBoss ? 1.0 : 0.26);
 

@@ -22,10 +22,76 @@ export class Audio {
     comp.ratio.value = 3;
     this.master.connect(comp);
     comp.connect(this.ctx.destination);
+
+    // Eigener Bus für die Musik (leiser als SFX).
+    this.musicGain = this.ctx.createGain();
+    this.musicGain.gain.value = 0.5;
+    this.musicGain.connect(this.master);
+    this.musicOn = false;
+    this._mstep = 0;
   }
 
   resume() {
     if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+  }
+
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this.master) this.master.gain.value = this.muted ? 0 : 0.42;
+    return this.muted;
+  }
+
+  // --- Generative Lo-Fi-Musik (Pad + Bass + sparsame Melodie) ---------------
+  _musicNote(freq, dur, gain, type = "sine", attack = 0.04) {
+    if (!this.ctx || this.muted) return;
+    const t0 = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(gain, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g);
+    g.connect(this.musicGain);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
+  }
+
+  startMusic() {
+    if (!this.ctx || this.musicOn) return;
+    this.musicOn = true;
+    this._musicTimer = setInterval(() => this._musicStep(), 195); // ~16tel @ ~77 BPM
+  }
+
+  stopMusic() {
+    this.musicOn = false;
+    clearInterval(this._musicTimer);
+  }
+
+  _musicStep() {
+    if (!this.musicOn || !this.ctx || this.muted) return;
+    const s = this._mstep++;
+    const prog = [110.0, 87.31, 130.81, 98.0]; // Am – F – C – G (Bass-Hz)
+    const root = prog[Math.floor(s / 16) % prog.length];
+    if (s % 16 === 0) {
+      this._musicNote(root * 2, 1.9, 0.05, "triangle", 0.25);
+      this._musicNote(root * 3, 1.9, 0.035, "sine", 0.3);
+      this._musicNote(root * 4, 1.9, 0.022, "sine", 0.35);
+    }
+    if (s % 4 === 0) this._musicNote(root, 0.5, 0.06, "sine", 0.02); // Bass
+    if (s % 2 === 1) this._noise({ dur: 0.03, gain: 0.012, type: "highpass", freq: 7000 }); // Hi-Hat
+    if (Math.random() < 0.16) {
+      const pent = [1, 1.2, 1.5, 1.8, 2, 2.4];
+      this._musicNote(root * 3 * pent[Math.floor(Math.random() * pent.length)], 0.4, 0.03, "triangle", 0.02);
+    }
+  }
+
+  // Kill-Sound: steigt mit der Combo (befriedigender Streak).
+  killSound(combo = 0) {
+    const base = 200 + Math.min(combo, 24) * 28;
+    this._tone({ type: "triangle", from: base, to: base * 0.4, dur: 0.16, gain: 0.16 });
+    this._tone({ type: "square", from: base * 2.2, to: base * 0.6, dur: 0.1, gain: 0.06 });
   }
 
   _tone({ type = "sine", from, to, dur, gain = 0.3, delay = 0 }) {
