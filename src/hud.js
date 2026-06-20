@@ -32,6 +32,11 @@ export class HUD {
       weapon: document.getElementById("weapon"),
       flash: document.getElementById("flash"),
       vignette: document.getElementById("vignette"),
+      invOverlay: document.getElementById("overlay-inv"),
+      invSlots: document.getElementById("inv-slots"),
+      invItems: document.getElementById("inv-items"),
+      invSort: document.getElementById("inv-sort"),
+      invClose: document.getElementById("inv-close"),
     };
     this._bannerTimer = null;
   }
@@ -158,6 +163,47 @@ export class HUD {
 
   hideLevelUp() {
     this.el.levelup.classList.add("hidden");
+  }
+
+  showInventory() {
+    this.el.invOverlay.classList.remove("hidden");
+  }
+
+  hideInventory() {
+    this.el.invOverlay.classList.add("hidden");
+  }
+
+  // inv: Inventory-Instanz, cbs: { onEquip(i), onUnequip(i) }
+  renderInventory(inv, cbs) {
+    const cell = (it, cls, onClick) => {
+      const d = document.createElement("div");
+      d.className = "inv-cell" + (cls ? " " + cls : "");
+      if (it) {
+        d.innerHTML =
+          `<div class="icon">${it.icon}</div><div class="nm">${it.name}</div>` +
+          `<div class="ds">${it.desc}</div>`;
+      } else {
+        d.innerHTML = `<div class="icon">＋</div><div class="nm">leer</div>`;
+      }
+      if (onClick) d.addEventListener("click", onClick);
+      return d;
+    };
+
+    this.el.invSlots.innerHTML = "";
+    inv.slots.forEach((it, i) => {
+      this.el.invSlots.appendChild(
+        it ? cell(it, "", () => cbs.onUnequip(i)) : cell(null, "empty", null)
+      );
+    });
+
+    this.el.invItems.innerHTML = "";
+    if (inv.items.length === 0) {
+      this.el.invItems.appendChild(cell(null, "empty", null));
+    } else {
+      inv.items.forEach((it, i) => {
+        this.el.invItems.appendChild(cell(it, "", () => cbs.onEquip(i)));
+      });
+    }
   }
 
   showGameOver(score, wave, highscore = 0) {

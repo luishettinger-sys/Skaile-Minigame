@@ -11,6 +11,9 @@ import { WaveManager } from "./waves.js";
 import { Progression } from "./progression.js";
 import { PickupSystem } from "./pickups.js";
 import { WEAPONS, WEAPON_IDS } from "./weapons.js";
+import { Inventory } from "./inventory.js";
+import { Stations } from "./stations.js";
+import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
 const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over" };
@@ -29,6 +32,9 @@ export class Game {
     this.effects = new Effects(world.scene);
     this.pickups = new PickupSystem(world.scene);
     this.progression = new Progression();
+
+    this.inventory = new Inventory();
+    this.stations = new Stations(world.scene);
 
     // Höhen-Sampling (Plattformen) an Spieler & Gegner geben.
     this.player.terrain = world.terrain;
@@ -49,11 +55,24 @@ export class Game {
   _initLoadout() {
     this.weaponId = "blaster";
     this.weapon = WEAPONS.blaster;
-    this.mods = {
-      fireMult: 1, dmgAdd: 0, dmgMult: 1, projAdd: 0, pierceAdd: 0,
-      projScaleMult: 1, moveSpeedMult: 1, magnetMult: 1, regen: 0,
-      dashCdMult: 1, maxHpAdd: 0,
-    };
+    this.upgradeMods = defaultMods(); // aus Level-Up-Upgrades
+    this.equipMods = defaultMods(); // aus ausgerüsteten Items
+    this._recomputeMods();
+  }
+
+  // Effektive Mods = Upgrades kombiniert mit Ausrüstung.
+  _recomputeMods() {
+    const m = defaultMods();
+    mergeMods(m, this.upgradeMods);
+    mergeMods(m, this.equipMods);
+    this.mods = m;
+  }
+
+  // Ausrüstung neu berechnen und anwenden (nach Equip/Unequip).
+  _applyEquipment() {
+    this.equipMods = this.inventory.computeMods();
+    this._recomputeMods();
+    this._syncStats();
   }
 
   // Effektive Kampfwerte aus Waffe + Mods.
@@ -86,6 +105,8 @@ export class Game {
     this.hitStop = 0; // kurzes Einfrieren (Impact)
     this.autoCamT = 0; // Timer für automatische Perspektivwechsel
     this.camRevert = 0; // verbleibende Zeit bis Kamera zurücksetzt
+    this.invOpen = false;
+    this.inventory.reset();
     this.progression.reset();
     this._initLoadout();
   }
@@ -139,6 +160,24 @@ export class Game {
     this.hud.hidePause();
   }
 
+  toggleInventory() {
+    this.invOpen = !this.invOpen;
+    if (this.invOpen) { this._renderInv(); this.hud.showInventory(); }
+    else this.hud.hideInventory();
+  }
+
+  _renderInv() {
+    this.hud.renderInventory(this.inventory, {
+      onEquip: (i) => { if (this.inventory.equip(i)) { this._applyEquipment(); this._renderInv(); } },
+      onUnequip: (i) => { if (this.inventory.unequip(i)) { this._applyEquipment(); this._renderInv(); } },
+    });
+  }
+
+  sortInventory() {
+    this.inventory.sort();
+    this._renderInv();
+  }
+
   gameOver() {
     this.state = STATE.OVER;
     this.audio.gameOver();
@@ -160,7 +199,10 @@ export class Game {
     if (this.input.wasPressed("KeyP") || this.input.wasPressed("Escape")) {
       this.togglePause();
     }
-    if (this.paused || this.levelingUp) return;
+    if (this.input.wasPressed("KeyI") || this.input.wasPressed("Tab")) {
+      this.toggleInventory();
+    }
+    if (this.paused || this.levelingUp || this.invOpen) return;
 
     // Hit-Stop: kurzes Einfrieren für spürbaren Impact.
     if (this.hitStop > 0) {
@@ -209,6 +251,17 @@ export class Game {
     this.pickups.update(dt, this.player.pos, this._magnet(), (kind, value) =>
       this._collect(kind, value)
     );
+
+    // Stationen: auf Feld stehen → Energie/Heilung.
+    this.stations.update(dt);
+    const st = this.stations.activeAt(this.player.pos);
+    if (st === "recharge") {
+      this.energy = Math.min(CONFIG.energy.max, this.energy + 90 * dt);
+      this.hud.setEnergy(this.energy / CONFIG.energy.max);
+    } else if (st === "repair") {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + 12 * dt);
+      this.hud.setHp(this.player.hp, this.player.maxHp);
+    }
 
     this._fireWeapon(dt);
     this._handleProjectileHits();
@@ -404,6 +457,9 @@ export class Game {
     if (Math.random() < CONFIG.pickups.healthDropChance) {
       this.pickups.spawnHealth(e.mesh.position.x, e.mesh.position.z);
     }
+    if (Math.random() < 0.05) {
+      this.pickups.spawnLoot(e.mesh.position.x, e.mesh.position.z, rollItem());
+    }
 
     if (e.def.isBoss) {
       this.boss = null;
@@ -420,6 +476,8 @@ export class Game {
           e.mesh.position.z + (Math.random() - 0.5) * 4, 2
         );
       }
+      this.pickups.spawnLoot(e.mesh.position.x + 2, e.mesh.position.z, rollItem());
+      this.pickups.spawnLoot(e.mesh.position.x - 2, e.mesh.position.z, rollItem());
     }
 
     if (e.def.splits) {
@@ -444,6 +502,11 @@ export class Game {
       this.player.hp = clamp(this.player.hp + value, 0, this.player.maxHp);
       this.hud.setHp(this.player.hp, this.player.maxHp);
       this._popup(this.player.pos, "+" + value + " HP", "#80ed99");
+    } else if (kind === "loot") {
+      this.inventory.add(value);
+      this.audio.levelUp();
+      this.hud.banner("LOOT", value.icon + " " + value.name);
+      if (this.invOpen) this._renderInv();
     }
   }
 
@@ -531,7 +594,8 @@ export class Game {
       this._setWeapon(c.weaponId);
       this.hud.banner("NEUE WAFFE", WEAPONS[c.weaponId].name);
     } else {
-      c.apply(this.mods, this.player, this);
+      c.apply(this.upgradeMods, this.player, this);
+      this._recomputeMods();
       this._syncStats();
       this.hud.banner("UPGRADE", c.name);
       if (c.id === "maxhp") this._unlock(() => this.player.addHelmet(), "HELM");

@@ -16,7 +16,9 @@ export class Input {
     this.mouseDown = false; // linke Maustaste gehalten (= schießen)
 
     window.addEventListener("keydown", (e) => {
-      if (e.code in MOVE_KEYS || e.code === "Space") e.preventDefault();
+      if (e.code in MOVE_KEYS || e.code === "Space" || e.code === "Tab") {
+        e.preventDefault();
+      }
       if (!this.down.has(e.code)) this.justPressed.add(e.code);
       this.down.add(e.code);
     });

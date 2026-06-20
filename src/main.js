@@ -25,6 +25,8 @@ function beginGame() {
 hud.el.startBtn.addEventListener("click", beginGame);
 hud.el.restartBtn.addEventListener("click", beginGame);
 hud.el.resumeBtn.addEventListener("click", () => game.resume());
+hud.el.invClose.addEventListener("click", () => game.toggleInventory());
+hud.el.invSort.addEventListener("click", () => game.sortInventory());
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space" && game.state !== "playing") beginGame();
 });

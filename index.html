@@ -70,10 +70,26 @@
             <li><kbd>Space</kbd> / <kbd>Enter</kbd> &nbsp;schießen</li>
             <li><kbd>Shift</kbd> &nbsp;Dash (Ausweichen, mit i-Frames)</li>
             <li><kbd>Q</kbd> &nbsp;<b>Rubber Duck Moment</b> (wenn geladen)</li>
-            <li><kbd>P</kbd> / <kbd>ESC</kbd> &nbsp;Pause</li>
+            <li><kbd>I</kbd> &nbsp;Inventar · <kbd>P</kbd> / <kbd>ESC</kbd> &nbsp;Pause</li>
           </ul>
           <button class="btn" id="start-btn">START</button>
           <p class="hint">SKAILE Building Challenge · Thema: Gummiente</p>
+        </div>
+      </div>
+
+      <!-- Inventar / Ausrüstung -->
+      <div class="overlay hidden" id="overlay-inv">
+        <div class="overlay-card inv-card">
+          <h1 class="inv-title">INVENTAR</h1>
+          <div class="inv-label">AUSRÜSTUNG</div>
+          <div id="inv-slots" class="inv-grid"></div>
+          <div class="inv-label">TASCHE</div>
+          <div id="inv-items" class="inv-grid"></div>
+          <div class="inv-actions">
+            <button class="btn small" id="inv-sort">SORTIEREN</button>
+            <button class="btn small" id="inv-close">SCHLIESSEN [I]</button>
+          </div>
+          <p class="hint">Tasche anklicken = ausrüsten · Slot anklicken = ablegen</p>
         </div>
       </div>
 

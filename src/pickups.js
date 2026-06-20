@@ -15,6 +15,12 @@ export class PickupSystem {
     this.gemMat = new THREE.MeshBasicMaterial({ color: 0x6ee7ff });
     this.healGeo = new THREE.BoxGeometry(0.55, 0.55, 0.55);
     this.healMat = new THREE.MeshBasicMaterial({ color: 0x80ed99 });
+    this.lootGeo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+    this.lootMat = new THREE.MeshBasicMaterial({ color: 0xffd23f });
+  }
+
+  spawnLoot(x, z, item) {
+    this._spawn("loot", x, z, item);
   }
 
   spawnGem(x, z, value = CONFIG.pickups.gemValue) {
@@ -26,10 +32,10 @@ export class PickupSystem {
   }
 
   _spawn(kind, x, z, value) {
-    const mesh =
-      kind === "gem"
-        ? new THREE.Mesh(this.gemGeo, this.gemMat)
-        : new THREE.Mesh(this.healGeo, this.healMat);
+    let mesh;
+    if (kind === "gem") mesh = new THREE.Mesh(this.gemGeo, this.gemMat);
+    else if (kind === "loot") mesh = new THREE.Mesh(this.lootGeo, this.lootMat);
+    else mesh = new THREE.Mesh(this.healGeo, this.healMat);
     mesh.position.set(x, 0.6, z);
     mesh.scale.setScalar(0.01); // Pop-in
     this.group.add(mesh);
