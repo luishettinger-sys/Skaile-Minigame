@@ -43,6 +43,7 @@ export class Game {
     this.ultReady = false;
     this.ultActive = false;
     this.ultTimer = 0;
+    this.paused = false;
   }
 
   start() {
@@ -56,11 +57,23 @@ export class Game {
     this.audio.resume();
 
     this.hud.hideOverlays();
+    this.hud.hidePause();
     this.hud.setScore(0);
     this.hud.setHp(this.player.hp, this.player.maxHp);
     this.hud.setUltimate(0, false);
     this.hud.setCombo(1);
     this.state = STATE.PLAYING;
+  }
+
+  togglePause() {
+    this.paused = !this.paused;
+    if (this.paused) this.hud.showPause();
+    else this.hud.hidePause();
+  }
+
+  resume() {
+    this.paused = false;
+    this.hud.hidePause();
   }
 
   gameOver() {
@@ -74,6 +87,12 @@ export class Game {
   // ----------------------------------------------------------------- Loop --
   update(dt) {
     if (this.state !== STATE.PLAYING) return;
+
+    // Pause umschalten (P oder ESC).
+    if (this.input.wasPressed("KeyP") || this.input.wasPressed("Escape")) {
+      this.togglePause();
+    }
+    if (this.paused) return;
 
     const move = this.input.moveVector();
     this.player.update(dt, move);

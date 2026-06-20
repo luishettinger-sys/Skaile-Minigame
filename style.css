@@ -197,6 +197,10 @@ body {
   color: var(--red);
   text-shadow: 0 0 30px rgba(255, 84, 112, 0.4);
 }
+.overlay-card h1.paused {
+  color: var(--cyan);
+  text-shadow: 0 0 30px rgba(110, 231, 255, 0.35);
+}
 
 .tagline {
   margin-top: 12px;

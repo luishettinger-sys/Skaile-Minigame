@@ -13,6 +13,8 @@ export class HUD {
       popups: document.getElementById("popups"),
       start: document.getElementById("overlay-start"),
       over: document.getElementById("overlay-over"),
+      pause: document.getElementById("overlay-pause"),
+      resumeBtn: document.getElementById("resume-btn"),
       finalScore: document.getElementById("final-score"),
       finalWave: document.getElementById("final-wave"),
       startBtn: document.getElementById("start-btn"),
@@ -75,6 +77,14 @@ export class HUD {
   hideOverlays() {
     this.el.start.classList.add("hidden");
     this.el.over.classList.add("hidden");
+  }
+
+  showPause() {
+    this.el.pause.classList.remove("hidden");
+  }
+
+  hidePause() {
+    this.el.pause.classList.add("hidden");
   }
 
   showGameOver(score, wave) {
