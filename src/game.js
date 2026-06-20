@@ -662,11 +662,11 @@ export class Game {
       this.projectiles.spawn(origin, dir, opts);
     }
     this.audio.weapon(this.weapon.sound);
-    // Realistischer Mündungsblitz: kleiner, warmer Funke (kein Neon).
+    // Mündungsblitz in Waffenfarbe (glühender Funke).
     this.effects.burst(
       this.player.pos.x + Math.sin(this.player.facing) * fwd,
       this.player.pos.z + Math.cos(this.player.facing) * fwd,
-      0xffd9a0, 4, 0.45
+      this.weapon.color, 6, 0.55
     );
     this.player.recoil?.(); // Waffe zurückstoßen + Aim-Pose
     this.world.addShake(0.05);
