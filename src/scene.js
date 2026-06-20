@@ -6,8 +6,9 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
-import { buildOffice, applyDeskTexture, buildBackdrop, setBackdropTexture } from "./environment.js";
-import { Terrain } from "./terrain.js";
+import { buildOffice, buildBackdrop, setBackdropTexture } from "./environment.js";
+import { Building } from "./building.js";
+import { clamp } from "./utils.js";
 
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -59,42 +60,15 @@ export function createWorld(canvas) {
   rim.position.set(-18, 12, -14);
   scene.add(rim);
 
-  // --- Arena -----------------------------------------------------------------
+  // --- Gebäude (mehrere Räume, Wände, Treppe ins Obergeschoss) ---------------
   const half = CONFIG.arena.half;
 
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(half * 2, half * 2),
-    new THREE.MeshStandardMaterial({
-      color: CONFIG.colors.floor,
-      metalness: 0.25,
-      roughness: 0.82,
-    })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
-  applyDeskTexture(floor.material); // AI-Desk-Mat, sobald vorhanden
-
-  // Office-Kulisse rund um die Arena + umlaufender Hintergrund.
+  // Office-Kulisse + umlaufender Hintergrund (Atmosphäre).
   buildOffice(scene);
   const backdrop = buildBackdrop(scene);
 
-  // Begehbare Plattformen / Stufen.
-  const terrain = new Terrain(scene);
-
-  const grid = new THREE.GridHelper(
-    half * 2,
-    CONFIG.arena.grid,
-    CONFIG.colors.gridMain,
-    CONFIG.colors.gridSub
-  );
-  grid.position.y = 0.02;
-  grid.material.transparent = true;
-  grid.material.opacity = 0.55;
-  scene.add(grid);
-
-  const border = makeBorder(half);
-  scene.add(border);
+  // Das begehbare Gebäude: Böden, Wände, Rampe, Räume.
+  const building = new Building(scene);
 
   // --- Kamera-Rig (Follow + Screenshake) -------------------------------------
   const focus = new THREE.Vector3(0, 0, 0); // worauf die Kamera schaut
@@ -106,6 +80,11 @@ export function createWorld(canvas) {
   const curOffset = { ...baseOffset };
   let targetOffset = { ...baseOffset };
 
+  // Zoom (Tasten N/M): skaliert den Kamera-Abstand. <1 = näher an der Ente,
+  // >1 = mehr von der Map sichtbar.
+  let zoom = 1, targetZoom = 1;
+  const ZOOM_MIN = 0.5, ZOOM_MAX = 2.6;
+
   function updateCamera(targetPos, dt) {
     camT += dt;
     focus.x = damp(focus.x, targetPos.x, CONFIG.camera.followLerp, dt);
@@ -116,10 +95,15 @@ export function createWorld(canvas) {
     curOffset.x = damp(curOffset.x, targetOffset.x, 2.6, dt);
     curOffset.y = damp(curOffset.y, targetOffset.y, 2.6, dt);
     curOffset.z = damp(curOffset.z, targetOffset.z, 2.6, dt);
+    zoom = damp(zoom, targetZoom, 6, dt);
 
     const o = curOffset;
     const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
-    camera.position.set(focus.x + o.x, o.y + focus.y + hover, focus.z + o.z);
+    camera.position.set(
+      focus.x + o.x * zoom,
+      (o.y * zoom) + focus.y + hover,
+      focus.z + o.z * zoom
+    );
 
     if (shake > 0.0001) {
       shake = Math.max(0, shake - dt * 1.6);
@@ -157,8 +141,14 @@ export function createWorld(canvas) {
   const api = {
     renderer, scene, camera, updateCamera, addShake, resize,
     arenaHalf: half,
-    terrain,
+    terrain: building, // building liefert heightAt() wie früher das Terrain
+    building,
   };
+
+  // Zoom-Steuerung (N = näher → negativer Delta, M = weiter → positiver Delta).
+  // delta wird direkt aufaddiert; der Aufrufer skaliert mit dt für sanften Flow.
+  api.zoom = (delta) => { targetZoom = clamp(targetZoom + delta, ZOOM_MIN, ZOOM_MAX); };
+  api.resetZoom = () => { targetZoom = 1; };
 
   // Kamera-Perspektive setzen / zurücksetzen (sanfte Überblendung).
   api.setCamera = (off) => {
@@ -177,41 +167,9 @@ export function createWorld(canvas) {
     scene.background.setHex(hex);
   };
 
-  // Arena wächst: Boden, Grid und Rahmen mitskalieren.
-  api.setArena = (h) => {
-    const s = h / half;
-    floor.scale.set(s, s, 1); // Plane ist gedreht → x,y ⇒ Welt-x,z
-    grid.scale.set(s, 1, s);
-    border.scale.set(s, 1, s);
-    api.arenaHalf = h;
-  };
+  // Das Gebäude ist fest; die Arena „wächst" nicht mehr. Bleibt als No-op,
+  // damit bestehende Aufrufe (WaveManager) gültig sind.
+  api.setArena = () => { api.arenaHalf = half; };
 
   return api;
-}
-
-// Leuchtender Neon-Rahmen rund um die Arena.
-function makeBorder(half) {
-  const group = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({ color: CONFIG.colors.border });
-  const t = 0.35; // Dicke
-  const h = 0.6; // Höhe
-  const len = half * 2 + t;
-  const sides = [
-    [0, half, 0], // hinten
-    [0, -half, 0], // vorne
-  ];
-  for (const [x, z] of sides) {
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(len, h, t), mat);
-    bar.position.set(x, h / 2, z);
-    group.add(bar);
-  }
-  for (const z of [0]) {
-    const left = new THREE.Mesh(new THREE.BoxGeometry(t, h, len), mat);
-    left.position.set(-half, h / 2, z);
-    group.add(left);
-    const right = new THREE.Mesh(new THREE.BoxGeometry(t, h, len), mat);
-    right.position.set(half, h / 2, z);
-    group.add(right);
-  }
-  return group;
 }

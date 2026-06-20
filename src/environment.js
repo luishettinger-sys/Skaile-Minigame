@@ -6,14 +6,17 @@ import { CONFIG } from "./config.js";
 
 export function buildOffice(scene) {
   const group = new THREE.Group();
-  const half = CONFIG.arena.half;
 
-  group.add(makeMonitor(0, -(half + 9)));
-  group.add(makeKeyboard(0, -(half + 2.5)));
-  group.add(makeMug(half + 4, half - 4));
-  group.add(makePlant(-(half + 4), -(half - 6)));
-  group.add(makePenHolder(half + 4, -(half - 3)));
-  group.add(makeNotebook(-(half + 3.5), half - 5));
+  // Großer Build-Monitor als Feature-Wand im Shop-Raum (Norden, z≈-45).
+  // Auch Ziel des Boss-Intros ("der Bug springt aus dem Rechner").
+  const monitor = makeMonitor(0, -44.5);
+  monitor.scale.setScalar(0.62); // passt in den Shop-Raum (Breite ~20)
+  group.add(monitor);
+
+  // Deko-Props in der Lounge (Westen) – stimmungsvolles Set-Dressing.
+  group.add(makePlant(-46, 9));
+  group.add(makeMug(-44, -9));
+  group.add(makePenHolder(-30, 9));
 
   scene.add(group);
   return group;

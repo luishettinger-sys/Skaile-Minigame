@@ -2,7 +2,7 @@
 // Platzhalter-Mesh aus Primitiven; setModel() tauscht später das AI-GLB rein.
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
-import { clamp, damp } from "./utils.js";
+import { damp } from "./utils.js";
 import { loadSkinTexture } from "./skins.js";
 
 export class Player {
@@ -60,10 +60,12 @@ export class Player {
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
 
-    // In der (wachsenden) Arena halten.
-    const lim = this.arenaHalf - CONFIG.player.radius;
-    this.pos.x = clamp(this.pos.x, -lim, lim);
-    this.pos.z = clamp(this.pos.z, -lim, lim);
+    // Kollision mit den Gebäudewänden (Kreis vs. Wand-AABBs).
+    if (this.terrain && this.terrain.resolveMove) {
+      const r = this.terrain.resolveMove(this.pos.x, this.pos.z, CONFIG.player.radius);
+      this.pos.x = r.x;
+      this.pos.z = r.z;
+    }
 
     // Blickrichtung wird extern via Maus-Zielen gesetzt (this.facing).
     const moving = move.x !== 0 || move.z !== 0;

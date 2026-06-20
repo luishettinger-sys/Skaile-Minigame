@@ -424,7 +424,12 @@ export class Game {
       this.toggleShop();
     }
     if (this.input.wasPressed("KeyG")) this.cycleGadget();
-    if (this.input.wasPressed("KeyM")) this.audio.toggleMute();
+    if (this.input.wasPressed("KeyB")) this.audio.toggleMute(); // Mute (war M)
+
+    // Kamera-Zoom: N = näher ran (mehr Ente/Detail), M = weiter raus (mehr Map).
+    if (this.input.isDown("KeyN")) this.world.zoom(-dt * 0.9);
+    if (this.input.isDown("KeyM")) this.world.zoom(dt * 0.9);
+
     if (this.bossIntro) { this._updateIntro(dt); return; }
     if (this.paused || this.levelingUp || this.invOpen || this.shopOpen) return;
 
@@ -1095,7 +1100,7 @@ export class Game {
   _updateIntro(dt) {
     const I = this.intro;
     I.t += dt;
-    const monitorPos = { x: 0, y: 6, z: -(CONFIG.arena.half + 9) };
+    const monitorPos = { x: 0, y: 5, z: -44.5 }; // Monitor im Shop-Raum
     this.world.updateCamera(monitorPos, dt);
 
     if (!I.shown) { I.shown = true; this.hud.showBossIntro("KERNEL PANIC"); }
