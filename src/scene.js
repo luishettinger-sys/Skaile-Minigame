@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
 import { buildOffice, applyDeskTexture, buildBackdrop, setBackdropTexture } from "./environment.js";
@@ -21,6 +22,11 @@ export function createWorld(canvas) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(CONFIG.colors.bg);
   scene.fog = new THREE.Fog(CONFIG.colors.fog, 38, 95);
+
+  // Image-Based-Lighting: gibt allen PBR-Materialien Reflexionen → „echt"
+  // statt flach. Erzeugt aus einer prozeduralen Raum-Umgebung.
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
   const camera = new THREE.PerspectiveCamera(
     CONFIG.camera.fov,
