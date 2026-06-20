@@ -34,21 +34,34 @@ window.addEventListener("keydown", (e) => {
 
 hud.showStart();
 
-// --- AI-Assets nachladen (optional, Fallback = Platzhalter/prozedural) -----
-loadModel("./assets/duck.glb", { targetHeight: 2.4 }).then((obj) => {
-  if (obj) {
-    game.player.setModel(obj);
-    console.info("[assets] Helden-Ente (GLB) geladen.");
-  }
-});
-
+// --- AI-Assets vorladen mit Ladescreen -------------------------------------
 const BUG_TYPES = ["syntax", "stackoverflow", "racecondition", "memoryleak", "heisenbug", "infinite", "nullptr", "boss"];
+const loaderEl = document.getElementById("loading");
+const loadFill = document.getElementById("load-fill");
+const totalJobs = 1 + BUG_TYPES.length;
+let doneJobs = 0;
+let loaderHidden = false;
+
+function hideLoader() {
+  if (loaderHidden) return;
+  loaderHidden = true;
+  loaderEl.classList.add("hidden");
+}
+function assetTick() {
+  doneJobs++;
+  if (loadFill) loadFill.style.width = Math.round((doneJobs / totalJobs) * 100) + "%";
+  if (doneJobs >= totalJobs) hideLoader();
+}
+setTimeout(hideLoader, 9000); // Fallback, falls etwas hängt
+
+loadModel("./assets/duck.glb", { targetHeight: 2.4 }).then((obj) => {
+  if (obj) game.player.setModel(obj);
+  assetTick();
+});
 for (const type of BUG_TYPES) {
   loadModel(`./assets/bug_${type}.glb`, { targetHeight: 2 }).then((obj) => {
-    if (obj) {
-      game.enemies.setModel(type, obj);
-      console.info("[assets] Bug-Modell geladen:", type);
-    }
+    if (obj) game.enemies.setModel(type, obj);
+    assetTick();
   });
 }
 
