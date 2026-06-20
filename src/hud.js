@@ -21,7 +21,11 @@ export class HUD {
       resumeBtn: document.getElementById("resume-btn"),
       finalScore: document.getElementById("final-score"),
       finalWave: document.getElementById("final-wave"),
+      finalKills: document.getElementById("final-kills"),
       finalHi: document.getElementById("final-hi"),
+      remaining: document.getElementById("remaining"),
+      minimap: document.getElementById("minimap"),
+      metaLine: document.getElementById("meta-line"),
       startBtn: document.getElementById("start-btn"),
       restartBtn: document.getElementById("restart-btn"),
       xpFill: document.getElementById("xp-fill"),
@@ -58,6 +62,40 @@ export class HUD {
 
   setWave(n) {
     this.el.wave.textContent = "WAVE " + n;
+  }
+
+  setRemaining(n) {
+    this.el.remaining.textContent = n > 0 ? "🐛 " + n : "";
+  }
+
+  setMeta(text) {
+    this.el.metaLine.textContent = text || "";
+  }
+
+  // data: { px, pz, half, enemies:[{x,z,boss,bonus}], shop:{x,z} }
+  renderMinimap(d) {
+    const c = this.el.minimap;
+    const ctx = c.getContext("2d");
+    const W = c.width, R = W / 2;
+    ctx.clearRect(0, 0, W, W);
+    ctx.fillStyle = "rgba(14,18,28,0.7)";
+    ctx.beginPath(); ctx.arc(R, R, R - 2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#2c3550"; ctx.lineWidth = 2; ctx.stroke();
+
+    const scale = (R - 8) / Math.max(d.half, 1);
+    const plot = (x, z, color, size) => {
+      let dx = (x - d.px) * scale, dz = (z - d.pz) * scale;
+      const dist = Math.hypot(dx, dz), max = R - 6;
+      if (dist > max) { dx *= max / dist; dz *= max / dist; }
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(R + dx, R + dz, size, 0, Math.PI * 2); ctx.fill();
+    };
+    if (d.shop) plot(d.shop.x, d.shop.z, "#6ee7ff", 3);
+    for (const e of d.enemies) {
+      plot(e.x, e.z, e.boss ? "#ff8c1a" : e.bonus ? "#ffd23f" : "#ff5470", e.boss ? 4 : 2);
+    }
+    ctx.fillStyle = "#ffe27a";
+    ctx.beginPath(); ctx.arc(R, R, 3.5, 0, Math.PI * 2); ctx.fill();
   }
 
   setCombo(mult) {
@@ -282,9 +320,10 @@ export class HUD {
     }
   }
 
-  showGameOver(score, wave, highscore = 0) {
+  showGameOver(score, wave, highscore = 0, kills = 0) {
     this.el.finalScore.textContent = score.toLocaleString("de-DE");
     this.el.finalWave.textContent = wave;
+    this.el.finalKills.textContent = kills;
     this.el.finalHi.textContent = highscore.toLocaleString("de-DE");
     this.el.over.classList.remove("hidden");
   }

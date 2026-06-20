@@ -28,7 +28,10 @@
           <span id="gadget"></span>
           <span id="combo"></span>
           <span id="wave">WAVE 1</span>
+          <span id="remaining"></span>
         </div>
+
+        <canvas id="minimap" width="150" height="150"></canvas>
 
         <div id="prompt" class="hidden">[E] SHOP</div>
         <div id="buffs"></div>
@@ -80,6 +83,7 @@
             <li><kbd>I</kbd> Inventar · <kbd>E</kbd> Shop · <kbd>M</kbd> Stumm · <kbd>P</kbd>/<kbd>ESC</kbd> Pause</li>
           </ul>
           <button class="btn" id="start-btn">START</button>
+          <p class="hint" id="meta-line"></p>
           <p class="hint">SKAILE Building Challenge · Thema: Gummiente</p>
         </div>
       </div>
@@ -156,6 +160,7 @@
           <div class="stats">
             <div><span id="final-score">0</span><small>SCORE</small></div>
             <div><span id="final-wave">1</span><small>WELLE</small></div>
+            <div><span id="final-kills">0</span><small>KILLS</small></div>
             <div><span id="final-hi">0</span><small>BESTE</small></div>
           </div>
           <button class="btn" id="restart-btn">NOCHMAL</button>

@@ -73,8 +73,20 @@ export class Game {
 
     this.achievements = new Achievements();
     this.highscore = Number(localStorage.getItem(HISCORE_KEY)) || 0;
+    this.meta = this._loadMeta();
+    this._showMetaLine();
     this.state = STATE.MENU;
     this._resetRun();
+  }
+
+  _loadMeta() {
+    try { return JSON.parse(localStorage.getItem("duckdebug_meta")) || { coins: 0, bestWave: 1, kills: 0 }; }
+    catch (e) { return { coins: 0, bestWave: 1, kills: 0 }; }
+  }
+
+  _showMetaLine() {
+    const m = this.meta;
+    this.hud.setMeta(`Bank: ${m.coins.toLocaleString("de-DE")} 🪙 · Beste Welle ${m.bestWave} · ${m.kills.toLocaleString("de-DE")} Bugs gekillt`);
   }
 
   // Waffe + additive/multiplikative Upgrade-Modifikatoren.
@@ -340,7 +352,16 @@ export class Game {
       this.highscore = score;
       localStorage.setItem(HISCORE_KEY, String(score));
     }
-    this.hud.showGameOver(score, this.waves.wave, this.highscore);
+
+    // Persistente Bank-/Meta-Statistik.
+    this.meta.coins += this.coins;
+    this.meta.bestWave = Math.max(this.meta.bestWave, this.waves.wave);
+    this.meta.kills += this.runStats.kills;
+    localStorage.setItem("duckdebug_meta", JSON.stringify(this.meta));
+    this._showMetaLine();
+
+    this.audio.stopMusic();
+    this.hud.showGameOver(score, this.waves.wave, this.highscore, this.runStats.kills);
   }
 
   // ----------------------------------------------------------------- Loop --
@@ -476,6 +497,16 @@ export class Game {
     if (this.boss && this.boss.alive) {
       this.hud.setBoss(this.boss.hp / this.boss.maxHp, this.boss.def.label);
     }
+
+    // Minimap + verbleibende Gegner.
+    this.hud.setRemaining(this.enemies.aliveCount());
+    this.hud.renderMinimap({
+      px: this.player.pos.x, pz: this.player.pos.z, half: this.world.arenaHalf,
+      enemies: this.enemies.enemies
+        .filter((e) => e.alive)
+        .map((e) => ({ x: e.mesh.position.x, z: e.mesh.position.z, boss: e.def.isBoss, bonus: e.type === "bonus" })),
+      shop: this.stations.shop,
+    });
 
     this.world.updateCamera(this.player.pos, dt);
   }

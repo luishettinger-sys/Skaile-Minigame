@@ -61,6 +61,16 @@ body {
 #wave { color: var(--cyan); }
 #coins { color: #ffd23f; }
 #gadget { color: #6ee7ff; }
+#remaining { color: #ff5470; }
+
+#minimap {
+  position: absolute;
+  top: 56px;
+  right: 22px;
+  width: 130px;
+  height: 130px;
+  opacity: 0.92;
+}
 
 #prompt {
   position: absolute;
