@@ -12,6 +12,7 @@ import { Progression } from "./progression.js";
 import { PickupSystem } from "./pickups.js";
 import { WEAPONS, WEAPON_IDS } from "./weapons.js";
 import { Armory } from "./armory.js";
+import { Automation } from "./automation.js";
 import { Inventory } from "./inventory.js";
 import { Stations } from "./stations.js";
 import { EnemyShots } from "./enemyshots.js";
@@ -63,6 +64,7 @@ export class Game {
     this.enemyShots = new EnemyShots(world.scene);
     this.throwables = new Throwables(world.scene);
     this.armory = new Armory(world.scene, world.building?.rooms?.armory);
+    this.automation = new Automation(world.scene, world.building?.rooms?.lab);
 
     // Höhen-Sampling (Plattformen) an Spieler & Gegner geben.
     this.player.terrain = world.terrain;
@@ -221,7 +223,8 @@ export class Game {
   _projScale() { return this.weapon.projScale * this.mods.projScaleMult; }
   _moveSpeed() { return CONFIG.player.speed * this.mods.moveSpeedMult; }
   _magnet() {
-    return CONFIG.pickups.magnet * this.mods.magnetMult * (this.magnetBoost > 0 ? 8 : 1);
+    const collector = 1 + (this.automation?.levels.collector || 0) * 0.6;
+    return CONFIG.pickups.magnet * this.mods.magnetMult * collector * (this.magnetBoost > 0 ? 8 : 1);
   }
   _maxHp() { return CONFIG.player.maxHp + this.mods.maxHpAdd; }
   _dashCd() { return CONFIG.player.dash.cooldown * this.mods.dashCdMult; }
@@ -281,6 +284,7 @@ export class Game {
     this.throwables.reset();
     this.carrying = null;
     this.waves.reset();
+    this.automation.reset();
     this.audio.init();
     this.audio.resume();
     this.audio.startMusic();
@@ -440,8 +444,10 @@ export class Game {
       this.toggleInventory();
     }
     if (this.input.wasPressed("KeyE")) {
+      const autoPad = this.automation.nearest(this.player.pos);
       const pad = this.armory.nearest(this.player.pos);
-      if (pad && !this.shopOpen) this._buyWeapon(pad);
+      if (autoPad && !this.shopOpen) this._buyAutomation(autoPad);
+      else if (pad && !this.shopOpen) this._buyWeapon(pad);
       else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
     }
     if (this.input.wasPressed("KeyG")) this.cycleGadget();
@@ -539,6 +545,16 @@ export class Game {
     // Wurfobjekte: aufheben / werfen mit F.
     this.throwables.update(dt, (x, z) => this._throwImpact(x, z));
 
+    // Idle-Helfer: Drohnen schießen selbstständig, Auto-Reparatur heilt.
+    this.automation.update(dt, this.player.pos, (r) => this._nearestEnemy(r),
+      (origin, dir) => this.projectiles.spawn(origin, dir, {
+        damage: 1, pierce: 0, scale: 0.7, color: 0x6ee7ff, speed: 74, style: "ball",
+      }));
+    if (this.automation.levels.repair > 0 && this.player.hp < this.player.maxHp) {
+      this.player.hp = Math.min(this.player.maxHp, this.player.hp + this.automation.levels.repair * 2.2 * dt);
+      this.hud.setHp(this.player.hp, this.player.maxHp);
+    }
+
     // Automatischer TNT-Wurf auf die nächste Gegnergruppe.
     this.autoTntT -= dt;
     if (this.autoTntT <= 0) {
@@ -569,9 +585,13 @@ export class Game {
 
     this.armory.update(dt);
 
-    // Kontext-Hinweis: Armory/Shop haben Vorrang, sonst Wurfobjekt.
+    // Kontext-Hinweis: Automation/Armory/Shop haben Vorrang, sonst Wurfobjekt.
+    const autoPad = this.automation.nearest(this.player.pos);
     const pad = this.armory.nearest(this.player.pos);
-    if (pad && !this.shopOpen) {
+    if (autoPad && !this.shopOpen) {
+      this.hud.showPrompt(this.automation.labelFor(autoPad.id));
+    }
+    else if (pad && !this.shopOpen) {
       const owned = this.weaponId === pad.id;
       this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)` : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙`);
     }
@@ -1101,6 +1121,24 @@ export class Game {
     this.audio.levelUp();
     this.effects.burst(this.player.pos.x, this.player.pos.z, this.weapon.color, 20, 1.2);
     this.world.addShake(0.2);
+  }
+
+  // Idle-Helfer im Labor kaufen (Drohne/Reparatur/Sammler).
+  _buyAutomation(pad) {
+    const id = pad.id;
+    if (this.automation.isMax(id)) { this.hud.toast("✅", "Maximal ausgebaut", this.automation.nameFor(id)); return; }
+    const price = this.automation.priceFor(id);
+    if (this.coins < price) {
+      this.hud.toast("🪙", "Nicht genug Coins", `${this.automation.nameFor(id)} kostet ${price}`);
+      this.audio.error?.();
+      return;
+    }
+    this.coins -= price;
+    this.hud.setCoins(this.coins);
+    this.automation.apply(id);
+    this.hud.banner("AUTOMATION", this.automation.nameFor(id) + " Lv" + this.automation.levels[id]);
+    this.audio.levelUp();
+    this.effects.burst(this.player.pos.x, this.player.pos.z, 0x80ed99, 18, 1.0);
   }
 
   // ----------------------------------------------------------------- Waves --
