@@ -1,5 +1,8 @@
 // 3D-Welt: Renderer, Szene, Kamera, Licht, Arena (Code-Grid), Kamera-Rig.
 import * as THREE from "three";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
 import { buildOffice, applyDeskTexture, buildBackdrop, setBackdropTexture } from "./environment.js";
@@ -125,10 +128,22 @@ export function createWorld(canvas) {
     shake = Math.min(1, shake + amount);
   }
 
+  // --- Post-Processing: Bloom für leuchtende Geschosse/Neon/Monitor ---------
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    0.75, // strength
+    0.5, // radius
+    0.82 // threshold (nur Helles glüht)
+  );
+  composer.addPass(bloom);
+
   function resize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
   }
   window.addEventListener("resize", resize);
 
@@ -148,6 +163,7 @@ export function createWorld(canvas) {
   };
   api.resetCamera = () => { targetOffset = { ...baseOffset }; };
   api.setBackdrop = (url) => setBackdropTexture(backdrop, url);
+  api.render = () => composer.render();
 
   // Arena wächst: Boden, Grid und Rahmen mitskalieren.
   api.setArena = (h) => {

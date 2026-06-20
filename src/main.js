@@ -58,7 +58,7 @@ const clock = new THREE.Clock();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05); // Spikes kappen
   game.update(dt);
-  world.renderer.render(world.scene, world.camera);
+  world.render();
   input.endFrame();
   requestAnimationFrame(frame);
 }
