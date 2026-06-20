@@ -11,7 +11,7 @@ import { WaveManager } from "./waves.js";
 import { Progression } from "./progression.js";
 import { PickupSystem } from "./pickups.js";
 import { WEAPONS, WEAPON_IDS } from "./weapons.js";
-import { distXZ, clamp } from "./utils.js";
+import { distXZ, clamp, angleLerp } from "./utils.js";
 
 const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over" };
 const HISCORE_KEY = "duckdebug_highscore";
@@ -39,11 +39,6 @@ export class Game {
       onWaveStart: (n) => this._onWaveStart(n),
       onWaveClear: (n) => this._onWaveClear(n),
     });
-
-    // Maus-Zielen: Strahl von der Kamera auf die Bodenebene (y = 1).
-    this._ray = new THREE.Raycaster();
-    this._groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1);
-    this._aim = new THREE.Vector3();
 
     this.highscore = Number(localStorage.getItem(HISCORE_KEY)) || 0;
     this.state = STATE.MENU;
@@ -86,6 +81,8 @@ export class Game {
     this.levelingUp = false;
     this.pendingLevels = 0;
     this.boss = null;
+    this.energy = CONFIG.energy.max;
+    this.sinceShot = 99; // Sekunden seit letztem Schuss (für Regen-Delay)
     this.progression.reset();
     this._initLoadout();
   }
@@ -112,6 +109,7 @@ export class Game {
     this.hud.setCombo(1);
     this.hud.setXp(0, 1);
     this.hud.setWeapon(this.weapon.name, this.weapon.icon);
+    this.hud.setEnergy(1);
     this.state = STATE.PLAYING;
   }
 
@@ -155,8 +153,15 @@ export class Game {
     }
     if (this.paused || this.levelingUp) return;
 
-    this._updateAim();
+    this._autoAim(dt);
     const move = this.input.moveVector();
+
+    // Energie regeneriert nach kurzer Verzögerung seit dem letzten Schuss.
+    this.sinceShot += dt;
+    if (this.sinceShot > CONFIG.energy.regenDelay && this.energy < CONFIG.energy.max) {
+      this.energy = Math.min(CONFIG.energy.max, this.energy + CONFIG.energy.regen * dt);
+      this.hud.setEnergy(this.energy / CONFIG.energy.max);
+    }
 
     if (this.input.wasPressed("ShiftLeft") || this.input.wasPressed("ShiftRight")) {
       if (this.player.tryDash(this._dashCd())) {
@@ -201,19 +206,26 @@ export class Game {
     this.world.updateCamera(this.player.pos, dt);
   }
 
-  // Maus → Bodenpunkt → Blickrichtung der Ente.
-  _updateAim() {
-    this._ray.setFromCamera(
-      { x: this.input.mouse.ndcX, y: this.input.mouse.ndcY },
-      this.world.camera
-    );
-    const hit = this._ray.ray.intersectPlane(this._groundPlane, this._aim);
-    if (!hit) return;
-    const dx = this._aim.x - this.player.pos.x;
-    const dz = this._aim.z - this.player.pos.z;
-    if (dx * dx + dz * dz > 0.3) {
-      this.player.facing = Math.atan2(dx, dz);
+  // Auto-Ausrichten: Ente schwenkt sanft auf den nächsten Gegner.
+  _autoAim(dt) {
+    const target = this._nearestEnemy(CONFIG.energy.aimRange);
+    this.aimTarget = target;
+    if (!target) return;
+    const dx = target.mesh.position.x - this.player.pos.x;
+    const dz = target.mesh.position.z - this.player.pos.z;
+    const want = Math.atan2(dx, dz);
+    this.player.facing = angleLerp(this.player.facing, want, CONFIG.energy.aimTurn, dt);
+  }
+
+  _nearestEnemy(range) {
+    let best = null;
+    let bestD = range;
+    for (const e of this.enemies.enemies) {
+      if (!e.alive || !e.visible) continue;
+      const d = distXZ(this.player.pos, e.mesh.position);
+      if (d < bestD) { bestD = d; best = e; }
     }
+    return best;
   }
 
   // -------------------------------------------------------------- Combat --
@@ -225,6 +237,13 @@ export class Game {
       this.input.isDown("Enter") ||
       this.input.isDown("NumpadEnter");
     if (!firing || this.fireTimer > 0) return;
+
+    // Energie-Gating: leer ⇒ kein Dauerfeuer, muss nachladen.
+    const cost = this.weapon.energyCost;
+    if (this.energy < cost) return;
+    this.energy -= cost;
+    this.sinceShot = 0;
+    this.hud.setEnergy(this.energy / CONFIG.energy.max);
 
     this.fireTimer = this._fireInterval() * (this.ultActive ? 0.5 : 1);
 
@@ -364,6 +383,8 @@ export class Game {
 
   _collect(kind, value) {
     if (kind === "gem") {
+      this.audio.pickup();
+      this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.cyan, 4, 0.4);
       const leveled = this.progression.addXp(value);
       this.hud.setXp(this.progression.ratio(), this.progression.level);
       if (leveled > 0) this._queueLevelUp(leveled);

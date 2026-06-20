@@ -117,6 +117,10 @@ body {
   width: 0%;
 }
 
+#en-fill {
+  background: linear-gradient(90deg, #ffb02e, #fff3b0);
+}
+
 #ult.ready .bar-track {
   box-shadow: 0 0 14px var(--cyan), inset 0 0 0 1px var(--cyan);
 }

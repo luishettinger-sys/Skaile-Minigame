@@ -101,6 +101,10 @@ export class Audio {
     this._tone({ type: "triangle", from: 150, to: 600, dur: 0.6, gain: 0.18, delay: 0.05 });
   }
 
+  pickup() {
+    this._tone({ type: "sine", from: 880, to: 1320, dur: 0.08, gain: 0.1 });
+  }
+
   dash() {
     this._tone({ type: "sine", from: 700, to: 1400, dur: 0.12, gain: 0.12 });
   }

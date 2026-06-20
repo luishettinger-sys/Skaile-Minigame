@@ -26,3 +26,10 @@ export function pickWeighted(entries) {
 
 // 2D-Distanz auf der XZ-Ebene (Boden).
 export const distXZ = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+
+// Winkel weich annähern (kürzester Weg, framerate-unabhängig).
+export function angleLerp(cur, target, lambda, dt) {
+  let d = ((target - cur + Math.PI) % (Math.PI * 2)) - Math.PI;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return cur + d * (1 - Math.exp(-lambda * dt));
+}

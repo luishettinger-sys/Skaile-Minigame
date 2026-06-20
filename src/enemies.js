@@ -73,10 +73,13 @@ export class EnemySystem {
 
       e.mesh.rotation.y = Math.atan2(dx, dz);
 
-      // Lauf-Bob + Höhe (Gegner klettern Stufen mit).
+      // Lebendige Bewegung: Hüpfen, Wackeln, Stufen-Klettern, Flieger schweben.
       e.phase += dt * (6 + e.speed);
       const gy = this.terrain ? this.terrain.heightAt(p.x, p.z) : 0;
-      p.y = gy + e.def.radius + Math.abs(Math.sin(e.phase)) * 0.25;
+      const bounce = Math.abs(Math.sin(e.phase)) * 0.4;
+      const fly = e.def.fly ? 1.5 + Math.sin(e.phase * 0.6) * 0.85 : 0;
+      p.y = gy + e.def.radius + bounce + fly;
+      e.mesh.rotation.z = Math.sin(e.phase * 0.7) * 0.16; // seitliches Wackeln
 
       // Treffer-Punch (per Instanz, daher Skalierung statt Material).
       if (e.flash > 0) e.flash = Math.max(0, e.flash - dt * 6);

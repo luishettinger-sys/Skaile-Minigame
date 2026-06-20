@@ -8,6 +8,7 @@ export class HUD {
       combo: document.getElementById("combo"),
       hpFill: document.getElementById("hp-fill"),
       ultFill: document.getElementById("ult-fill"),
+      enFill: document.getElementById("en-fill"),
       ult: document.getElementById("ult"),
       banner: document.getElementById("banner"),
       popups: document.getElementById("popups"),
@@ -99,6 +100,10 @@ export class HUD {
 
   setWeapon(name, icon) {
     this.el.weapon.textContent = icon + " " + name.toUpperCase();
+  }
+
+  setEnergy(ratio) {
+    this.el.enFill.style.width = Math.max(0, Math.min(100, ratio * 100)) + "%";
   }
 
   setXp(ratio, level) {

@@ -68,11 +68,18 @@ export class Player {
     const moving = move.x !== 0 || move.z !== 0;
     this.root.rotation.y = this.facing;
 
-    // Waddle + Bob beim Laufen.
-    this.phase += dt * (moving ? 14 : 4);
-    const waddle = moving ? Math.sin(this.phase) * 0.18 : 0;
-    const bob = moving ? Math.abs(Math.sin(this.phase)) * 0.12 : 0;
+    // Lebendige Bewegung: Waddle, Bob, Lean, Squash & Stretch, Idle-Atmen.
+    this.phase += dt * (moving ? 16 : 3);
+    const swing = Math.sin(this.phase);
+    const waddle = moving ? swing * 0.22 : swing * 0.03;
+    const bob = moving ? Math.abs(swing) * 0.18 : Math.abs(swing) * 0.04;
     this.root.rotation.z = waddle;
+    this.root.rotation.x = moving ? 0.14 : 0; // beim Laufen leicht nach vorn
+
+    // Squash & Stretch (volumen-erhaltend) – der Footfall „staucht" die Ente.
+    const squash = 1 - Math.abs(swing) * (moving ? 0.09 : 0.02);
+    const stretch = 1 / Math.sqrt(squash);
+    this.root.scale.set(stretch, squash, stretch);
 
     // Höhe: auf Plattformen/Stufen steigen (weich nachziehen).
     const groundY = this.terrain ? this.terrain.heightAt(this.pos.x, this.pos.z) : 0;

@@ -38,6 +38,15 @@ export const CONFIG = {
     pierce: 0, // wie viele zusätzliche Gegner ein Geschoss durchschlägt
   },
 
+  // Energie statt Dauerfeuer: Schießen kostet Energie, die nachlädt.
+  energy: {
+    max: 100,
+    regen: 44, // Energie/Sekunde
+    regenDelay: 0.35, // Sekunden nach letztem Schuss bis Regeneration startet
+    aimRange: 42, // Reichweite der automatischen Ausrichtung
+    aimTurn: 16, // wie schnell die Ente auf das Ziel schwenkt
+  },
+
   // Bug-Monster — jedes verkörpert einen Dev-Schmerz
   enemies: {
     syntax: {
@@ -63,7 +72,7 @@ export const CONFIG = {
     heisenbug: {
       label: "Heisenbug",
       hp: 1, speed: 5.6, radius: 0.85, damage: 14, score: 50,
-      color: 0xff6ec7, glow: 0xffc2ec, scale: 1.0, flickers: true,
+      color: 0xff6ec7, glow: 0xffc2ec, scale: 1.0, flickers: true, fly: true,
     },
     boss: {
       label: "Kernel Panic",
