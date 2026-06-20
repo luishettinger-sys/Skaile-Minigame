@@ -27,6 +27,8 @@ export class Player {
     this.dashTimer = 0; // verbleibende Dash-Dauer
     this.dashCD = 0; // verbleibender Cooldown
     this.lastDir = { x: 0, z: 1 }; // Richtung für Dash im Stand
+    this.arenaHalf = CONFIG.arena.half; // wächst mit der Arena
+    this.cosmetics = { helmet: null, shades: null, cape: null };
   }
 
   // Dash auslösen (Ausweichen mit i-Frames). Gibt true zurück, wenn erfolgreich.
@@ -56,8 +58,8 @@ export class Player {
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
 
-    // In der Arena halten.
-    const lim = CONFIG.arena.half - CONFIG.player.radius;
+    // In der (wachsenden) Arena halten.
+    const lim = this.arenaHalf - CONFIG.player.radius;
     this.pos.x = clamp(this.pos.x, -lim, lim);
     this.pos.z = clamp(this.pos.z, -lim, lim);
 
@@ -90,6 +92,56 @@ export class Player {
     return true;
   }
 
+  // --- Kosmetik (freischaltbar) --------------------------------------------
+  addHelmet() {
+    if (this.cosmetics.helmet) return false;
+    const mat = new THREE.MeshStandardMaterial({ color: 0x3a86ff, roughness: 0.35, metalness: 0.4 });
+    const g = new THREE.Group();
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.56, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat
+    );
+    dome.position.y = 2.05;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.09, 8, 20), mat);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 2.0;
+    g.add(dome, rim);
+    this.cosmetics.helmet = g;
+    this.root.add(g);
+    return true;
+  }
+
+  addShades() {
+    if (this.cosmetics.shades) return false;
+    const mat = new THREE.MeshBasicMaterial({ color: 0x10131a });
+    const g = new THREE.Group();
+    for (const sx of [-0.22, 0.22]) {
+      const lens = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.06), mat);
+      lens.position.set(sx, 1.6, 0.92);
+      g.add(lens);
+    }
+    this.cosmetics.shades = g;
+    this.root.add(g);
+    return true;
+  }
+
+  addCape() {
+    if (this.cosmetics.cape) return false;
+    const mat = new THREE.MeshStandardMaterial({ color: 0xff5470, roughness: 0.6, side: THREE.DoubleSide });
+    const cape = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.6), mat);
+    cape.position.set(0, 1.0, -0.9);
+    cape.rotation.x = 0.25;
+    this.cosmetics.cape = cape;
+    this.root.add(cape);
+    return true;
+  }
+
+  _clearCosmetics() {
+    for (const k of Object.keys(this.cosmetics)) {
+      if (this.cosmetics[k]) this.root.remove(this.cosmetics[k]);
+      this.cosmetics[k] = null;
+    }
+  }
+
   // Muzzle-Position für Projektile (leicht vor der Ente).
   muzzle() {
     return new THREE.Vector3(this.pos.x, 1.0, this.pos.z);
@@ -105,6 +157,8 @@ export class Player {
     this.alive = true;
     this.dashTimer = 0;
     this.dashCD = 0;
+    this.arenaHalf = CONFIG.arena.half;
+    this._clearCosmetics();
     this._setVisible(true);
   }
 

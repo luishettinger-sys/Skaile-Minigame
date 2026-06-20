@@ -74,11 +74,20 @@ export const CONFIG = {
 
   waves: {
     startBudget: 6, // "Punkte" Gegner-Wert in Welle 1
-    budgetGrowth: 4, // +Budget pro Welle
-    spawnInterval: 1.1, // Sekunden zwischen Spawns innerhalb einer Welle
-    breakTime: 3.0, // Pause zwischen Wellen
-    maxAlive: 60, // harte Obergrenze gleichzeitiger Gegner (Performance)
+    budgetGrowth: 6, // +Budget pro Welle (steiler → schwerer)
+    spawnInterval: 1.0, // Sekunden zwischen Spawns innerhalb einer Welle
+    breakTime: 2.5, // Pause zwischen Wellen
+    maxAlive: 85, // harte Obergrenze gleichzeitiger Gegner (Performance)
     bossEvery: 5, // alle N Wellen erscheint ein Boss
+  },
+
+  // Skalierung pro Welle – das Spiel wird spürbar schwerer und größer.
+  difficulty: {
+    hpPerWave: 0.16, // +16 % Gegner-HP pro Welle
+    speedPerWave: 0.03, // +3 % Gegner-Tempo pro Welle
+    speedMax: 1.7, // Tempo-Deckel
+    arenaGrowth: 1.7, // +Einheiten Arena-Halbkante pro Welle
+    arenaMax: 46, // maximale Halbkante
   },
 
   progression: {

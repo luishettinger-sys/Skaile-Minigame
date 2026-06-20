@@ -413,7 +413,18 @@ export class Game {
   _queueLevelUp(n) {
     this.pendingLevels += n;
     this.audio.levelUp();
+    // Kosmetik nach Level-Meilensteinen freischalten.
+    if (this.progression.level >= 5) this._unlock(() => this.player.addShades(), "SHADES");
+    if (this.progression.level >= 10) this._unlock(() => this.player.addCape(), "CAPE");
     if (!this.levelingUp) this._openLevelUp();
+  }
+
+  // Kosmetik freischalten: fn() gibt true zurück, wenn neu → Effekt + Banner.
+  _unlock(fn, label) {
+    if (fn()) {
+      this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.cyan, 24, 1.4);
+      this.hud.banner("KOSMETIK FREI", label);
+    }
   }
 
   _openLevelUp() {
@@ -443,6 +454,7 @@ export class Game {
       c.apply(this.mods, this.player, this);
       this._syncStats();
       this.hud.banner("UPGRADE", c.name);
+      if (c.id === "maxhp") this._unlock(() => this.player.addHelmet(), "HELM");
     }
     this.hud.setHp(this.player.hp, this.player.maxHp);
 
@@ -460,7 +472,7 @@ export class Game {
 
   // ----------------------------------------------------------------- Waves --
   _spawnEnemy(type) {
-    const { x, z } = edgeSpawn();
+    const { x, z } = edgeSpawn(this.world.arenaHalf);
     this.enemies.spawn(type, x, z);
   }
 
@@ -468,8 +480,17 @@ export class Game {
     this.hud.setWave(n);
     this.audio.waveStart();
 
+    // Schwierigkeit skaliert mit der Welle.
+    const d = CONFIG.difficulty;
+    this.enemies.hpScale = 1 + (n - 1) * d.hpPerWave;
+    this.enemies.speedScale = Math.min(d.speedMax, 1 + (n - 1) * d.speedPerWave);
+
+    // Arena wächst.
+    const half = Math.min(d.arenaMax, CONFIG.arena.half + (n - 1) * d.arenaGrowth);
+    this.world.setArena(half);
+    this.player.arenaHalf = half;
+
     if (n % CONFIG.waves.bossEvery === 0) {
-      const half = CONFIG.arena.half;
       this.boss = this.enemies.spawn("boss", 0, -(half - 3));
       this.hud.banner("⚠ BOSS: KERNEL PANIC", "Welle " + n);
     } else {

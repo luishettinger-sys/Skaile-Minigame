@@ -67,7 +67,8 @@ export function createWorld(canvas) {
   grid.material.opacity = 0.55;
   scene.add(grid);
 
-  scene.add(makeBorder(half));
+  const border = makeBorder(half);
+  scene.add(border);
 
   // --- Kamera-Rig (Follow + Screenshake) -------------------------------------
   const focus = new THREE.Vector3(0, 0, 0); // worauf die Kamera schaut
@@ -104,7 +105,21 @@ export function createWorld(canvas) {
   }
   window.addEventListener("resize", resize);
 
-  return { renderer, scene, camera, updateCamera, addShake, resize };
+  const api = {
+    renderer, scene, camera, updateCamera, addShake, resize,
+    arenaHalf: half,
+  };
+
+  // Arena wächst: Boden, Grid und Rahmen mitskalieren.
+  api.setArena = (h) => {
+    const s = h / half;
+    floor.scale.set(s, s, 1); // Plane ist gedreht → x,y ⇒ Welt-x,z
+    grid.scale.set(s, 1, s);
+    border.scale.set(s, 1, s);
+    api.arenaHalf = h;
+  };
+
+  return api;
 }
 
 // Leuchtender Neon-Rahmen rund um die Arena.

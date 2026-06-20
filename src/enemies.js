@@ -11,6 +11,9 @@ export class EnemySystem {
     scene.add(this.group);
     this.enemies = [];
     this.models = {}; // typeKey -> Object3D (GLB-Szene zum Klonen)
+    this.hpScale = 1; // pro Welle erhöht (Schwierigkeit)
+    this.speedScale = 1;
+    this._labelMats = {}; // typeKey -> SpriteMaterial (Error-Label)
 
     this._sharedEye = new THREE.SphereGeometry(0.16, 8, 8);
     this._eyeMat = new THREE.MeshStandardMaterial({
@@ -30,12 +33,19 @@ export class EnemySystem {
     mesh.position.set(x, def.radius, z);
     this.group.add(mesh);
 
+    // Error-Label über dem Bug (eigenes Sprite im Group-Space → ohne Skalierung).
+    const label = this._makeLabel(typeKey, def);
+    this.group.add(label);
+
+    const hp = Math.max(1, Math.round(def.hp * this.hpScale));
     const enemy = {
       type: typeKey,
       def,
       mesh,
-      hp: def.hp,
-      maxHp: def.hp,
+      label,
+      hp,
+      maxHp: hp,
+      speed: def.speed * this.speedScale,
       radius: def.radius,
       alive: true,
       phase: Math.random() * Math.PI * 2,
@@ -56,19 +66,22 @@ export class EnemySystem {
       const dx = targetPos.x - p.x;
       const dz = targetPos.z - p.z;
       const len = Math.hypot(dx, dz) || 1;
-      const step = e.def.speed * dt;
+      const step = e.speed * dt;
       p.x += (dx / len) * step;
       p.z += (dz / len) * step;
 
       e.mesh.rotation.y = Math.atan2(dx, dz);
 
       // Lauf-Bob.
-      e.phase += dt * (6 + e.def.speed);
+      e.phase += dt * (6 + e.speed);
       p.y = e.def.radius + Math.abs(Math.sin(e.phase)) * 0.25;
 
       // Treffer-Punch (per Instanz, daher Skalierung statt Material).
       if (e.flash > 0) e.flash = Math.max(0, e.flash - dt * 6);
       e.mesh.scale.setScalar(e.baseScale * (1 + e.flash * 0.35));
+
+      // Error-Label über dem Bug mitführen.
+      e.label.position.set(p.x, p.y + e.def.radius * 2.4 + 0.7, p.z);
 
       // Heisenbug flackert unsichtbar – außer im "Rubber Duck Moment".
       if (e.def.flickers) {
@@ -76,6 +89,7 @@ export class EnemySystem {
         if (vis !== e.visible) {
           e.visible = vis;
           e.mesh.visible = vis;
+          e.label.visible = vis;
         }
       }
     }
@@ -90,6 +104,7 @@ export class EnemySystem {
   kill(enemy) {
     enemy.alive = false;
     this.group.remove(enemy.mesh);
+    this.group.remove(enemy.label);
     disposeMesh(enemy.mesh);
   }
 
@@ -104,9 +119,21 @@ export class EnemySystem {
   reset() {
     for (const e of this.enemies) {
       this.group.remove(e.mesh);
+      this.group.remove(e.label);
       disposeMesh(e.mesh);
     }
     this.enemies = [];
+  }
+
+  // Error-Label-Sprite (Material je Typ gecacht).
+  _makeLabel(typeKey, def) {
+    if (!this._labelMats[typeKey]) {
+      this._labelMats[typeKey] = makeLabelMaterial(def.label, def.color);
+    }
+    const spr = new THREE.Sprite(this._labelMats[typeKey]);
+    const w = def.isBoss ? 7 : 3;
+    spr.scale.set(w, w * 0.26, 1);
+    return spr;
   }
 
   // --- Mesh-Bau ------------------------------------------------------------
@@ -206,9 +233,29 @@ function disposeMesh(obj) {
   });
 }
 
-// Spawn-Position am Arena-Rand.
-export function edgeSpawn() {
-  const half = CONFIG.arena.half - 1;
+// Error-Label als Canvas-Sprite (z.B. "SyntaxError").
+function makeLabelMaterial(text, colorHex) {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 64;
+  const ctx = c.getContext("2d");
+  const col = "#" + colorHex.toString(16).padStart(6, "0");
+  ctx.font = "bold 30px ui-monospace, Menlo, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.strokeText(text, 128, 34);
+  ctx.fillStyle = col;
+  ctx.fillText(text, 128, 34);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+}
+
+// Spawn-Position am Arena-Rand (Arena-Größe wächst pro Welle).
+export function edgeSpawn(half = CONFIG.arena.half) {
+  half -= 1;
   const side = Math.floor(Math.random() * 4);
   const t = (Math.random() * 2 - 1) * half;
   switch (side) {
