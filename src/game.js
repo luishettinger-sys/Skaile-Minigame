@@ -529,7 +529,8 @@ export class Game {
     this.autoCamT += dt;
     if (this.autoCamT > CONFIG.juice.autoCamInterval) {
       this.autoCamT = 0;
-      const v = [{ x: 11, y: 16, z: 10 }, { x: -11, y: 15, z: 12 }, { x: 0, y: 27, z: 6 }];
+      // Dezente Seiten-Schwenks rund um die Basis-Perspektive (kein harter Sprung).
+      const v = [{ x: 9, y: 13, z: 16 }, { x: -9, y: 13, z: 16 }, { x: 0, y: 16, z: 14 }];
       this.world.setCamera(v[Math.floor(Math.random() * v.length)]);
       this.camRevert = 3.2;
     }
@@ -668,9 +669,16 @@ export class Game {
   }
 
   _throwImpact(x, z) {
-    this.world.addShake(0.4);
-    this.effects.shockwave(x, z, CONFIG.colors.cyan, 8, 18);
-    this.effects.burst(x, z, 0xffd23f, 18, 1.2);
+    // Fette TNT-Explosion: Feuerball aus warmen Tönen, doppelte Schockwelle,
+    // greller Screen-Flash, Screenshake und kurzer Hit-Stop für Wucht.
+    this.world.addShake(0.85);
+    this._freeze(CONFIG.juice.hitStopBoss);
+    this.effects.shockwave(x, z, 0xfff3b0, 9, 22); // heller Kern-Ring
+    this.effects.shockwave(x, z, 0xff8c1a, 6.5, 14); // orange Druckwelle
+    this.effects.burst(x, z, 0xff8c1a, 26, 1.6); // Feuer
+    this.effects.burst(x, z, 0xffd23f, 18, 1.2); // Funken
+    this.effects.burst(x, z, 0x6b6b6b, 12, 0.7); // Rauch/Schutt
+    this.hud.flash("#ffb454", 0.35);
     this.audio.bugDeath();
     for (const e of [...this.enemies.enemies]) {
       if (e.alive && distXZ({ x, z }, e.mesh.position) <= 4.5) {

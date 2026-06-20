@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-export function loadModel(url, { targetHeight = 2.2 } = {}) {
+export function loadModel(url, { targetHeight = 2.2, noGlow = false } = {}) {
   return new Promise((resolve) => {
     const loader = new GLTFLoader();
     loader.load(
@@ -25,9 +25,22 @@ export function loadModel(url, { targetHeight = 2.2 } = {}) {
         obj.position.y -= box2.min.y; // Füße auf Bodenhöhe
 
         obj.traverse((o) => {
-          if (o.isMesh) {
+          if (o.isMesh && o.material) {
             o.castShadow = true;
-            o.material && (o.material.needsUpdate = true);
+            o.receiveShadow = true;
+            const mats = Array.isArray(o.material) ? o.material : [o.material];
+            for (const m of mats) {
+              if (noGlow) {
+                // Emissive entfernen → Modell leuchtet nicht (kein Neon-Look).
+                if (m.emissive) m.emissive.setHex(0x000000);
+                if ("emissiveIntensity" in m) m.emissiveIntensity = 0;
+                if ("emissiveMap" in m) m.emissiveMap = null;
+                // matt halten, damit Bloom nichts aufgreift.
+                if ("roughness" in m) m.roughness = Math.max(m.roughness ?? 0.6, 0.6);
+                if ("metalness" in m) m.metalness = Math.min(m.metalness ?? 0, 0.2);
+              }
+              m.needsUpdate = true;
+            }
           }
         });
         // Skelett-Animationen (falls gerigged) mitgeben.

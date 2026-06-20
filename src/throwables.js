@@ -13,14 +13,14 @@ export class Throwables {
   }
 
   _spawnAll() {
-    this._spawn("golf", -19, -12);
+    this._spawn("tnt", -19, -12);
     this._spawn("balls", 19, 11);
-    this._spawn("balls", -20, 17);
+    this._spawn("tnt", -20, 17);
     this._spawn("golf", 12, 19);
   }
 
   _spawn(kind, x, z) {
-    const mesh = kind === "golf" ? makeGolfBag() : makeBallBox();
+    const mesh = kind === "tnt" ? makeTNT() : kind === "golf" ? makeGolfBag() : makeBallBox();
     mesh.position.set(x, 0, z);
     this.group.add(mesh);
     this.items.push({ kind, mesh, state: "idle", home: { x, z }, vel: new THREE.Vector3(), vy: 0 });
@@ -65,6 +65,9 @@ export class Throwables {
         it.mesh.rotation.y += dt * 0.5;
         it.mesh.position.y = Math.sin(this._t * 2 + it.home.x) * 0.05;
       }
+      // TNT-Zündschnur funkelt (pulsierende Größe).
+      const spark = it.mesh.userData.spark;
+      if (spark) spark.scale.setScalar(0.8 + Math.sin(this._t * 12 + it.home.x) * 0.35);
     }
   }
 
@@ -76,6 +79,40 @@ export class Throwables {
       it.mesh.rotation.set(0, 0, 0);
     }
   }
+}
+
+function makeTNT() {
+  const g = new THREE.Group();
+  const stickMat = new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.65 });
+  const bandMat = new THREE.MeshStandardMaterial({ color: 0x2b2b33, roughness: 0.5, metalness: 0.3 });
+  // Drei gebündelte Dynamit-Stangen.
+  for (let i = 0; i < 3; i++) {
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 1.5, 16), stickMat);
+    stick.position.set((i - 1) * 0.46, 0.75, 0);
+    g.add(stick);
+  }
+  // Zwei dunkle Spannbänder um das Bündel.
+  for (const y of [0.45, 1.05]) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.18, 0.58), bandMat);
+    band.position.set(0, y, 0);
+    g.add(band);
+  }
+  // Glühende Zündschnur-Spitze (leuchtet bewusst → Bloom-Funke).
+  const fuse = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8),
+    new THREE.MeshStandardMaterial({ color: 0x7a5a2b, roughness: 0.8 })
+  );
+  fuse.position.set(0.46, 1.65, 0);
+  fuse.rotation.z = 0.4;
+  g.add(fuse);
+  const spark = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0xffe066 })
+  );
+  spark.position.set(0.6, 1.83, 0);
+  g.userData.spark = spark; // für pulsierendes Funkeln
+  g.add(spark);
+  return g;
 }
 
 function makeGolfBag() {

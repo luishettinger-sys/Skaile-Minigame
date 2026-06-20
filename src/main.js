@@ -54,17 +54,10 @@ function assetTick() {
 }
 setTimeout(hideLoader, 9000); // Fallback, falls etwas hängt
 
-// Zuerst gerigte (animierte) Ente, sonst statisches Modell als Fallback.
-loadModel("./assets/duck_rigged.glb", { targetHeight: 2.4 }).then((rigged) => {
-  if (rigged) {
-    game.player.setModel(rigged);
-    assetTick();
-  } else {
-    loadModel("./assets/duck.glb", { targetHeight: 2.4 }).then((obj) => {
-      if (obj) game.player.setModel(obj);
-      assetTick();
-    });
-  }
+// Statisches Enten-Modell: kleiner (1.7) und ohne Eigen-Leuchten (noGlow).
+loadModel("./assets/duck.glb", { targetHeight: 1.7, noGlow: true }).then((obj) => {
+  if (obj) game.player.setModel(obj);
+  assetTick();
 });
 for (const type of BUG_TYPES) {
   loadModel(`./assets/bug_${type}.glb`, { targetHeight: 2 }).then((obj) => {

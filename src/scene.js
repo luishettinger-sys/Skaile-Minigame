@@ -10,12 +10,13 @@ import { buildOffice, applyDeskTexture, buildBackdrop, setBackdropTexture } from
 import { Terrain } from "./terrain.js";
 
 export function createWorld(canvas) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+  // Pixelratio deckeln: auf Retina/4K spart das massiv GPU-Last → flüssiger.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.1;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -41,10 +42,10 @@ export function createWorld(canvas) {
   const hemi = new THREE.HemisphereLight(0x8aa0ff, 0x05060a, 0.75);
   scene.add(hemi);
 
-  const key = new THREE.DirectionalLight(0xffffff, 1.25);
+  const key = new THREE.DirectionalLight(0xffffff, 1.35);
   key.position.set(14, 38, 16);
   key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.mapSize.set(1024, 1024); // 1024 statt 2048: deutlich weniger Stutter
   key.shadow.camera.near = 1;
   key.shadow.camera.far = 130;
   key.shadow.camera.left = -55;
@@ -139,9 +140,9 @@ export function createWorld(canvas) {
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.75, // strength
-    0.5, // radius
-    0.82 // threshold (nur Helles glüht)
+    0.6, // strength: kräftiger Neon-Schein, aber nicht überstrahlt
+    0.45, // radius
+    0.85 // threshold: Neon (Rahmen/Geschosse/Monitor/TNT-Funke) glüht; matte Ente bleibt ruhig
   );
   composer.addPass(bloom);
 

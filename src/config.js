@@ -150,12 +150,12 @@ export const CONFIG = {
   },
 
   camera: {
-    // Drohnen-Blick: schwebt nah über/hinter der Ente und fliegt mit.
-    offset: { x: 0, y: 15, z: 12 },
-    followLerp: 7,
-    fov: 58,
-    hover: 0.4, // sanftes Auf/Ab der "Drohne"
-    hoverSpeed: 1.6,
+    // Cinematischer 3/4-Blick: flacher + weiter hinten → mehr räumliche Tiefe.
+    offset: { x: 0, y: 13, z: 17 },
+    followLerp: 6, // etwas träger → ruhiger, kein Zittern
+    fov: 50, // kleineres FOV: weniger Weitwinkel-Verzerrung, „echter"
+    hover: 0.18, // dezentes Schweben (vorher zu stark → wirkte unruhig)
+    hoverSpeed: 1.2,
   },
 
   colors: {
