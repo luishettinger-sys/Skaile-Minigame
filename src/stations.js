@@ -38,6 +38,15 @@ export class Stations {
     return this.shop && Math.hypot(pos.x - this.shop.x, pos.z - this.shop.z) <= this.shop.r;
   }
 
+  // Prozedurale Verkäufer-Ente gegen AI-3D-Modell tauschen.
+  setKeeperModel(obj) {
+    if (!this.shop) return;
+    if (this.shop.keeper) this.group.remove(this.shop.keeper);
+    obj.position.set(this.shop.x - 1.2, 0, this.shop.z + 0.7);
+    this.group.add(obj);
+    this.shop.keeper = obj;
+  }
+
   _spawnField(arenaHalf) {
     const x = (Math.random() * 2 - 1) * (arenaHalf - 5);
     const z = (Math.random() * 2 - 1) * (arenaHalf - 5);

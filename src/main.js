@@ -73,6 +73,11 @@ for (const type of BUG_TYPES) {
   });
 }
 
+// Verkäufer-Ente am Shop-Stand (AI-Modell, optional).
+loadModel("./assets/shopkeeper.glb", { targetHeight: 2.6 }).then((obj) => {
+  if (obj) game.stations.setKeeperModel(obj);
+});
+
 // --- Game-Loop -------------------------------------------------------------
 const clock = new THREE.Clock();
 
