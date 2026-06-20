@@ -97,8 +97,8 @@ export class Game {
     const move = this.input.moveVector();
     this.player.update(dt, move);
 
-    // Ultimate auslösen.
-    if (this.input.wasPressed("Space") && this.ultReady && !this.ultActive) {
+    // Ultimate auslösen (Q).
+    if (this.input.wasPressed("KeyQ") && this.ultReady && !this.ultActive) {
       this._activateUltimate();
     }
 
@@ -127,32 +127,31 @@ export class Game {
   // -------------------------------------------------------------- Combat --
   _fireWeapon(dt) {
     this.fireTimer -= dt;
-    const interval = CONFIG.weapon.fireInterval * (this.ultActive ? 0.45 : 1);
-    if (this.fireTimer > 0) return;
 
-    const target = this._nearestEnemy(CONFIG.weapon.range);
-    if (!target) return;
+    // Manuell schießen: Leertaste oder Enter (gehalten feuert im Takt).
+    const firing =
+      this.input.isDown("Space") ||
+      this.input.isDown("Enter") ||
+      this.input.isDown("NumpadEnter");
+    if (!firing || this.fireTimer > 0) return;
 
-    this.fireTimer = interval;
+    this.fireTimer = CONFIG.weapon.fireInterval * (this.ultActive ? 0.5 : 1);
+
+    // In Blickrichtung der Ente feuern.
     const dir = new THREE.Vector3(
-      target.mesh.position.x - this.player.pos.x,
+      Math.sin(this.player.facing),
       0,
-      target.mesh.position.z - this.player.pos.z
+      Math.cos(this.player.facing)
     );
-    this.projectiles.spawn(this.player.muzzle(), dir);
-    this.player.facing = Math.atan2(dir.x, dir.z); // zur Beute schauen
-    this.audio.quack();
-  }
-
-  _nearestEnemy(range) {
-    let best = null;
-    let bestD = range;
-    for (const e of this.enemies.enemies) {
-      if (!e.alive || !e.visible) continue; // unsichtbare Heisenbugs nicht anvisieren
-      const d = distXZ(this.player.pos, e.mesh.position);
-      if (d < bestD) { bestD = d; best = e; }
-    }
-    return best;
+    const fwd = CONFIG.weapon.muzzleForward;
+    const origin = {
+      x: this.player.pos.x + dir.x * fwd,
+      z: this.player.pos.z + dir.z * fwd,
+    };
+    this.projectiles.spawn(origin, dir);
+    this.audio.shoot();
+    this.effects.burst(origin.x, origin.z, CONFIG.colors.projectile, 4, 0.5);
+    this.world.addShake(0.05);
   }
 
   _handleProjectileHits() {

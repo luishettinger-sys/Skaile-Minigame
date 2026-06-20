@@ -19,12 +19,13 @@ export const CONFIG = {
   },
 
   weapon: {
-    fireInterval: 0.32, // Sekunden zwischen Auto-Quaks
-    range: 17, // Reichweite der Zielerfassung
-    projSpeed: 38,
-    projRadius: 0.5,
-    projLife: 1.3,
+    fireInterval: 0.15, // Sekunden zwischen Schüssen (manuell, gehalten)
+    projSpeed: 52,
+    projRadius: 0.32,
+    projLen: 1.5, // Länge des Geschosses (echtes Projektil statt Kugel)
+    projLife: 1.1,
     damage: 1,
+    muzzleForward: 1.3, // wie weit vor der Ente das Geschoss erscheint
   },
 
   // Bug-Monster — jedes verkörpert einen Dev-Schmerz
@@ -73,9 +74,12 @@ export const CONFIG = {
   },
 
   camera: {
-    offset: { x: 0, y: 23, z: 17 }, // 3/4-Ansicht relativ zur Ente
-    followLerp: 6,
-    fov: 52,
+    // Drohnen-Blick: schwebt nah über/hinter der Ente und fliegt mit.
+    offset: { x: 0, y: 15, z: 12 },
+    followLerp: 7,
+    fov: 58,
+    hover: 0.4, // sanftes Auf/Ab der "Drohne"
+    hoverSpeed: 1.6,
   },
 
   colors: {

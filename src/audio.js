@@ -45,6 +45,13 @@ export class Audio {
     this._tone({ type: "sawtooth", from: 300, to: 180, dur: 0.1, gain: 0.12, delay: 0.05 });
   }
 
+  // Waffenschuss: knackiger Laser-"Pew" mit kleinem Enten-Quak-Oberton.
+  shoot() {
+    this._tone({ type: "square", from: 900, to: 180, dur: 0.11, gain: 0.16 });
+    this._tone({ type: "sawtooth", from: 520, to: 130, dur: 0.09, gain: 0.1, delay: 0.005 });
+    this._tone({ type: "sawtooth", from: 680, to: 320, dur: 0.06, gain: 0.07 });
+  }
+
   hit() {
     this._tone({ type: "square", from: 420, to: 220, dur: 0.06, gain: 0.12 });
   }

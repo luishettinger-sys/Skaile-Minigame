@@ -67,13 +67,16 @@ export function createWorld(canvas) {
   // --- Kamera-Rig (Follow + Screenshake) -------------------------------------
   const focus = new THREE.Vector3(0, 0, 0); // worauf die Kamera schaut
   let shake = 0;
+  let camT = 0;
 
   function updateCamera(targetPos, dt) {
+    camT += dt;
     focus.x = damp(focus.x, targetPos.x, CONFIG.camera.followLerp, dt);
     focus.z = damp(focus.z, targetPos.z, CONFIG.camera.followLerp, dt);
 
     const o = CONFIG.camera.offset;
-    camera.position.set(focus.x + o.x, o.y, focus.z + o.z);
+    const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
+    camera.position.set(focus.x + o.x, o.y + hover, focus.z + o.z);
 
     if (shake > 0.0001) {
       shake = Math.max(0, shake - dt * 1.6);

@@ -41,6 +41,10 @@ export class Input {
     return this.justPressed.has(code);
   }
 
+  isDown(code) {
+    return this.down.has(code);
+  }
+
   // Am Ende jedes Frames aufrufen, um den Einmal-Puffer zu leeren.
   endFrame() {
     this.justPressed.clear();
