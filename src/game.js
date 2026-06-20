@@ -25,7 +25,7 @@ import { META_UPGRADES, META_ORDER, metaPrice, metaMods, metaStartCoins } from "
 import { Achievements } from "./achievements.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
-const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over" };
+const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over", WON: "won" };
 const HISCORE_KEY = "duckdebug_highscore";
 
 // Witz-Flavor: zwischen Wellen & gelegentlich eingeblendet.
@@ -86,7 +86,7 @@ export class Game {
   }
 
   _loadMeta() {
-    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {} };
+    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false };
     let m;
     try { m = JSON.parse(localStorage.getItem("duckdebug_meta")) || {}; }
     catch (e) { m = {}; }
@@ -99,6 +99,8 @@ export class Game {
       if (!META_UPGRADES[key]) { delete m.upgrades[key]; continue; }
       m.upgrades[key] = Math.max(0, Math.min(META_UPGRADES[key].max, m.upgrades[key] | 0));
     }
+    m.sectorsCleared = Math.max(0, Math.min(CONFIG.campaign.sectors, m.sectorsCleared | 0));
+    m.won = !!m.won;
     return m;
   }
 
@@ -156,6 +158,12 @@ export class Game {
   _showMetaLine() {
     const m = this.meta;
     this.hud.setMeta(`Bank: ${m.coins.toLocaleString("de-DE")} 🪙 · Beste Welle ${m.bestWave} · ${m.kills.toLocaleString("de-DE")} Bugs gekillt`);
+    this._showProgress();
+  }
+
+  // Großes Ziel im Menü: wie viele Sektoren des Gebäudes schon gesäubert sind.
+  _showProgress() {
+    this.hud.setProgress(this.meta.sectorsCleared, CONFIG.campaign.sectors, this.meta.won);
   }
 
   // --- Lab-Ausbau (permanente Meta-Upgrades, aus der Bank) -------------------
@@ -305,6 +313,8 @@ export class Game {
     this.tipT = 14; // Timer bis zum nächsten Rubber-Duck-Tipp
     this.magnetBoost = 0; // Sekunden Riesen-Magnet (nach Level-Up)
     this.autoTntT = 6; // Timer bis zum nächsten automatischen TNT-Wurf
+    this.won = false; // Sieg in diesem Run schon erreicht?
+    this._banked = false; // Run-Coins schon in die Bank gebucht? (gegen Doppelung)
     this.runStats = { kills: 0, bossKills: 0, bonus: 0, maxCombo: 0, wave: 1 };
     this.inventory.reset();
     this.progression.reset();
@@ -453,27 +463,62 @@ export class Game {
     this._renderShop();
   }
 
-  gameOver() {
-    this.state = STATE.OVER;
-    this.audio.gameOver();
-    this.world.addShake(0.8);
-    this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.duckBody, 30, 1.6);
-
+  // Run-Coins + Statistik EINMAL in die persistente Bank buchen.
+  _bankRun() {
+    if (this._banked) return;
+    this._banked = true;
     const score = Math.floor(this.score);
     if (score > this.highscore) {
       this.highscore = score;
       localStorage.setItem(HISCORE_KEY, String(score));
     }
-
-    // Persistente Bank-/Meta-Statistik.
     this.meta.coins += this.coins;
     this.meta.bestWave = Math.max(this.meta.bestWave, this.waves.wave);
     this.meta.kills += this.runStats.kills;
-    localStorage.setItem("duckdebug_meta", JSON.stringify(this.meta));
+    this._saveMeta();
     this._showMetaLine();
+  }
 
+  gameOver() {
+    this.state = STATE.OVER;
+    this.audio.gameOver();
+    this.world.addShake(0.8);
+    this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.duckBody, 30, 1.6);
+    this._bankRun();
     this.audio.stopMusic();
-    this.hud.showGameOver(score, this.waves.wave, this.highscore, this.runStats.kills);
+    this.hud.showGameOver(Math.floor(this.score), this.waves.wave, this.highscore, this.runStats.kills);
+  }
+
+  // Großes Ziel erreicht: Final-Boss besiegt → Sieg. Run kann endlos weiterlaufen.
+  _victory() {
+    this.won = true;
+    this.meta.won = true;
+    this.meta.sectorsCleared = CONFIG.campaign.sectors;
+    this._saveMeta();
+    this.state = STATE.WON;
+    this.audio.stopMusic();
+    this.world.addShake(1.0);
+    this.hud.flash("#ffd23f", 0.6);
+    this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.duckBody, 26, 32);
+    this.hud.showVictory(Math.floor(this.score), this.waves.wave, this.runStats.kills);
+  }
+
+  // Nach dem Sieg im selben Run endlos weiterspielen.
+  resumeFromVictory() {
+    if (this.state !== STATE.WON) return;
+    this.hud.hideVictory();
+    this.audio.startMusic();
+    this.state = STATE.PLAYING;
+  }
+
+  // Aktiven Run vorzeitig beenden (z.B. nach Sieg) → Coins buchen, ins Menü.
+  endRunToMenu() {
+    this._bankRun();
+    this.audio.stopMusic();
+    this.hud.hideVictory();
+    this.hud.hideOverlays();
+    this.state = STATE.MENU;
+    this.hud.showStart();
   }
 
   // ----------------------------------------------------------------- Loop --
@@ -923,7 +968,19 @@ export class Game {
     if (e.def.isBoss) {
       this.boss = null;
       this.hud.hideBoss();
-      this.hud.banner("BOSS BESIEGT", "Kernel restored");
+      // Sektor gesäubert → Fortschritt persistieren + passenden Banner zeigen.
+      const sector = Math.floor(this.waves.wave / CONFIG.waves.bossEvery);
+      const sName = CONFIG.campaign.sectorNames[sector - 1] || ("Sektor " + sector);
+      if (sector > this.meta.sectorsCleared) {
+        this.meta.sectorsCleared = Math.min(CONFIG.campaign.sectors, sector);
+        this._saveMeta();
+        this._showProgress();
+      }
+      const isFinal = this.waves.wave >= CONFIG.campaign.finalWave;
+      this.hud.banner(
+        isFinal ? "🏆 GEBÄUDE BEFREIT" : `SEKTOR ${Math.min(sector, CONFIG.campaign.sectors)}/${CONFIG.campaign.sectors} GESÄUBERT`,
+        sName
+      );
       this.hud.flash("#ffd23f", 0.45);
       this._freeze(CONFIG.juice.hitStopBoss);
       this.world.resetCamera();
@@ -938,6 +995,9 @@ export class Game {
       this.pickups.spawnLoot(e.mesh.position.x + 2, e.mesh.position.z, rollItem());
       this.pickups.spawnLoot(e.mesh.position.x - 2, e.mesh.position.z, rollItem());
       this.pickups.spawnLucky(e.mesh.position.x, e.mesh.position.z + 2);
+
+      // Großes Ziel: letzter Sektor gesäubert → Sieg (Run kann weiterlaufen).
+      if (this.waves.wave >= CONFIG.campaign.finalWave && !this.won) this._victory();
     }
 
     if (e.def.splits) {

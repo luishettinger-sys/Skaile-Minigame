@@ -38,8 +38,12 @@ hud.el.upgradesBtn?.addEventListener("click", () => game.openUpgrades());
 hud.el.upgradesBtnPause?.addEventListener("click", () => game.openUpgrades());
 hud.el.upgradesBtnOver?.addEventListener("click", () => game.openUpgrades());
 hud.el.upgradesClose?.addEventListener("click", () => game.closeUpgrades());
+hud.el.victoryContinue?.addEventListener("click", () => game.resumeFromVictory());
+hud.el.victoryMenu?.addEventListener("click", () => game.endRunToMenu());
 window.addEventListener("keydown", (e) => {
-  if (e.code === "Space" && game.state !== "playing") beginGame();
+  // Nur aus Menü/Game-Over per Space starten – im Sieg-Screen entscheiden die
+  // Buttons (sonst gingen die noch nicht gebuchten Run-Coins verloren).
+  if (e.code === "Space" && (game.state === "menu" || game.state === "over")) beginGame();
 });
 
 hud.showStart();

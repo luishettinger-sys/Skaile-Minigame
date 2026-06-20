@@ -70,6 +70,14 @@ export class HUD {
       upgradeGrid: document.getElementById("upgrade-grid"),
       upgradeBank: document.getElementById("upgrade-bank"),
       upgradesClose: document.getElementById("upgrades-close"),
+      spPips: document.getElementById("sp-pips"),
+      spLabel: document.getElementById("sp-label"),
+      victoryOverlay: document.getElementById("overlay-victory"),
+      victoryScore: document.getElementById("victory-score"),
+      victoryWave: document.getElementById("victory-wave"),
+      victoryKills: document.getElementById("victory-kills"),
+      victoryContinue: document.getElementById("victory-continue"),
+      victoryMenu: document.getElementById("victory-menu"),
     };
     this._bannerTimer = null;
   }
@@ -164,6 +172,29 @@ export class HUD {
   setMeta(text) {
     this.el.metaLine.textContent = text || "";
   }
+
+  // Großes Ziel im Menü: Sektor-Fortschritt (gesäuberte Sektoren des Gebäudes).
+  setProgress(cleared = 0, total = 5, won = false) {
+    if (this.el.spPips) {
+      let pips = "";
+      for (let i = 0; i < total; i++) pips += `<span class="sp-pip${i < cleared ? " on" : ""}"></span>`;
+      this.el.spPips.innerHTML = pips;
+    }
+    if (this.el.spLabel) {
+      this.el.spLabel.textContent = won
+        ? "✅ GEBÄUDE BEFREIT"
+        : `GEBÄUDE GESÄUBERT · ${cleared}/${total}`;
+      this.el.spLabel.classList.toggle("won", won);
+    }
+  }
+
+  showVictory(score = 0, wave = 1, kills = 0) {
+    if (this.el.victoryScore) this.el.victoryScore.textContent = score.toLocaleString("de-DE");
+    if (this.el.victoryWave) this.el.victoryWave.textContent = wave;
+    if (this.el.victoryKills) this.el.victoryKills.textContent = kills;
+    this.el.victoryOverlay?.classList.remove("hidden");
+  }
+  hideVictory() { this.el.victoryOverlay?.classList.add("hidden"); }
 
   // data: { px, pz, half, enemies:[{x,z,boss,bonus}], shop:{x,z} }
   renderMinimap(d) {

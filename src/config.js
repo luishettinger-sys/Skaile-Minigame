@@ -119,6 +119,17 @@ export const CONFIG = {
     bossEvery: 5, // alle N Wellen erscheint ein Boss
   },
 
+  // Großes Ziel: Das Gebäude Sektor für Sektor zurückerobern. Jeder Boss
+  // (alle bossEvery Wellen) säubert einen Sektor; nach dem letzten Sektor
+  // ist das Gebäude befreit → Sieg (danach optional endlos weiter).
+  campaign: {
+    sectors: 5, // Anzahl Sektoren bis zum Sieg
+    sectorNames: [
+      "Großraumbüro", "Server-Raum", "Nacht-Office", "Rechenzentrum", "Der Kernel",
+    ],
+    get finalWave() { return CONFIG.waves.bossEvery * this.sectors; }, // = 25
+  },
+
   // Skalierung pro Welle – das Spiel wird spürbar schwerer und größer.
   difficulty: {
     hpPerWave: 0.16, // +16 % Gegner-HP pro Welle
