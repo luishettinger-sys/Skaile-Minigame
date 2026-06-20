@@ -83,8 +83,15 @@ export class Game {
     this.boss = null;
     this.energy = CONFIG.energy.max;
     this.sinceShot = 99; // Sekunden seit letztem Schuss (für Regen-Delay)
+    this.hitStop = 0; // kurzes Einfrieren (Impact)
+    this.autoCamT = 0; // Timer für automatische Perspektivwechsel
+    this.camRevert = 0; // verbleibende Zeit bis Kamera zurücksetzt
     this.progression.reset();
     this._initLoadout();
+  }
+
+  _freeze(t) {
+    this.hitStop = Math.max(this.hitStop, t);
   }
 
   start() {
@@ -110,6 +117,8 @@ export class Game {
     this.hud.setXp(0, 1);
     this.hud.setWeapon(this.weapon.name, this.weapon.icon);
     this.hud.setEnergy(1);
+    this.hud.setVignette(0);
+    this.world.resetCamera();
     this.state = STATE.PLAYING;
   }
 
@@ -153,7 +162,14 @@ export class Game {
     }
     if (this.paused || this.levelingUp) return;
 
+    // Hit-Stop: kurzes Einfrieren für spürbaren Impact.
+    if (this.hitStop > 0) {
+      this.hitStop = Math.max(0, this.hitStop - dt);
+      dt *= 0.06;
+    }
+
     this._autoAim(dt);
+    this._autoCamera(dt);
     const move = this.input.moveVector();
 
     // Energie regeneriert nach kurzer Verzögerung seit dem letzten Schuss.
@@ -199,11 +215,32 @@ export class Game {
     this._handleEnemyContact();
     this._updateCombo(dt);
 
+    // Gefahren-Vignette bei niedriger HP.
+    const hpRatio = this.player.hp / this.player.maxHp;
+    this.hud.setVignette(hpRatio < 0.35 ? (0.35 - hpRatio) / 0.35 : 0);
+
     if (this.boss && this.boss.alive) {
       this.hud.setBoss(this.boss.hp / this.boss.maxHp, this.boss.def.label);
     }
 
     this.world.updateCamera(this.player.pos, dt);
+  }
+
+  // Automatischer Perspektivwechsel (Boss/Ultimate haben Vorrang).
+  _autoCamera(dt) {
+    if (this.ultActive || this.boss) return;
+    if (this.camRevert > 0) {
+      this.camRevert -= dt;
+      if (this.camRevert <= 0) this.world.resetCamera();
+      return;
+    }
+    this.autoCamT += dt;
+    if (this.autoCamT > CONFIG.juice.autoCamInterval) {
+      this.autoCamT = 0;
+      const v = [{ x: 11, y: 16, z: 10 }, { x: -11, y: 15, z: 12 }, { x: 0, y: 27, z: 6 }];
+      this.world.setCamera(v[Math.floor(Math.random() * v.length)]);
+      this.camRevert = 3.2;
+    }
   }
 
   // Auto-Ausrichten: Ente schwenkt sanft auf den nächsten Gegner.
@@ -256,6 +293,7 @@ export class Game {
       scale: this._projScale(),
       color: this.weapon.color,
       speed: this.weapon.speed,
+      style: this.weapon.style,
     };
     for (let i = 0; i < n; i++) {
       const off = n === 1 ? 0 : (i - (n - 1) / 2) * spread;
@@ -280,15 +318,24 @@ export class Game {
     const list = this.projectiles.active;
     for (let i = list.length - 1; i >= 0; i--) {
       const p = list[i];
-      const pr = CONFIG.weapon.projRadius * p.mesh.scale.x;
+      const pr = p.hitR ?? CONFIG.weapon.projRadius * p.mesh.scale.x;
       let retired = false;
       for (const e of this.enemies.enemies) {
         if (!e.alive || !e.visible || p.hits.has(e)) continue;
         if (distXZ(p.mesh.position, e.mesh.position) <= pr + e.radius) {
           p.hits.add(e);
-          const killed = this.enemies.damage(e, p.damage);
+          const crit = Math.random() < CONFIG.juice.critChance;
+          const dmg = crit ? p.damage * CONFIG.juice.critMult : p.damage;
+          const killed = this.enemies.damage(e, dmg);
           this.audio.hit();
-          this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.glow, 5, 0.7);
+          this.effects.burst(
+            e.mesh.position.x, e.mesh.position.z, e.def.glow,
+            crit ? 11 : 5, crit ? 1.0 : 0.7
+          );
+          if (crit) {
+            this._popup(e.mesh.position, "CRIT", "#ff5470");
+            this.world.addShake(0.14);
+          }
           if (killed) this._killEnemy(e);
           if (p.pierce > 0) {
             p.pierce--;
@@ -311,7 +358,9 @@ export class Game {
         const hurt = this.player.takeDamage(e.def.damage);
         if (hurt) {
           this.audio.playerHurt();
-          this.world.addShake(0.5);
+          this.world.addShake(0.75);
+          this._freeze(CONFIG.juice.hitStopHurt);
+          this.hud.flash("#ff5470", 0.35);
           this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.red, 4, 12);
           this.hud.setHp(this.player.hp, this.player.maxHp);
           this._breakCombo();
@@ -329,8 +378,8 @@ export class Game {
   _killEnemy(e) {
     this.enemies.kill(e);
     this.audio.bugDeath();
-    this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.color, 16, 1.1);
-    this.world.addShake(e.def.isBoss ? 0.8 : 0.18);
+    this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.color, e.def.isBoss ? 40 : 16, e.def.isBoss ? 1.8 : 1.1);
+    this.world.addShake(e.def.isBoss ? 1.0 : 0.26);
 
     this.combo++;
     this.comboTimer = CONFIG.combo.decayTime;
@@ -360,6 +409,9 @@ export class Game {
       this.boss = null;
       this.hud.hideBoss();
       this.hud.banner("BOSS BESIEGT", "Kernel restored");
+      this.hud.flash("#ffd23f", 0.45);
+      this._freeze(CONFIG.juice.hitStopBoss);
+      this.world.resetCamera();
       this.effects.shockwave(e.mesh.position.x, e.mesh.position.z, e.def.glow, 18, 24);
       this.pickups.spawnHealth(e.mesh.position.x, e.mesh.position.z);
       for (let i = 0; i < 8; i++) {
@@ -401,7 +453,9 @@ export class Game {
     this.ultReady = false;
     this.ultTimer = CONFIG.combo.ultDuration;
     this.audio.ultimate();
-    this.world.addShake(0.6);
+    this.world.addShake(0.9);
+    this.world.setCamera({ x: 0, y: 30, z: 7 }); // dramatische Top-down-Perspektive
+    this.hud.flash("#6ee7ff", 0.45);
     this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.cyan, 14, 26);
     this.hud.banner("ERKLÄR'S DER ENTE", "Bugs werden sichtbar");
 
@@ -418,6 +472,7 @@ export class Game {
     this.ultCharge = 0;
     this.ultTimer = 0;
     this.hud.setUltimate(0, false);
+    this.world.resetCamera();
   }
 
   // ---------------------------------------------------------------- Combo --
@@ -518,6 +573,8 @@ export class Game {
     if (n % CONFIG.waves.bossEvery === 0) {
       this.boss = this.enemies.spawn("boss", 0, -(half - 3));
       this.hud.banner("⚠ BOSS: KERNEL PANIC", "Welle " + n);
+      this.hud.flash("#ff8c1a", 0.35);
+      this.world.setCamera({ x: 0, y: 13, z: 20 }); // dramatischer Boss-Blick
     } else {
       this.hud.banner("WELLE " + n, "Bugs eingehend…");
     }

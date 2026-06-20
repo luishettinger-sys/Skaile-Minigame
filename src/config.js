@@ -47,6 +47,16 @@ export const CONFIG = {
     aimTurn: 16, // wie schnell die Ente auf das Ziel schwenkt
   },
 
+  // "Juice": Crits, Hit-Stop, automatische Perspektivwechsel.
+  juice: {
+    critChance: 0.16,
+    critMult: 2,
+    hitStopKill: 0.04, // kurzes Einfrieren bei Kill
+    hitStopBoss: 0.12, // stärker bei Boss-Treffern
+    hitStopHurt: 0.09, // wenn die Ente getroffen wird
+    autoCamInterval: 16, // Sekunden zwischen kurzen Auto-Perspektivwechseln
+  },
+
   // Bug-Monster — jedes verkörpert einen Dev-Schmerz
   enemies: {
     syntax: {

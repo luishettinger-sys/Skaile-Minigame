@@ -252,6 +252,26 @@ body {
   transform: scale(1);
 }
 
+/* Vollbild-Flash (Treffer/Ultimate) */
+#flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease-out;
+}
+
+/* Rote Rand-Vignette bei niedriger HP */
+#vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(255, 40, 70, 0.55) 100%);
+  transition: opacity 0.25s;
+}
+
 /* Floating-Score-Popups */
 #popups { position: absolute; inset: 0; }
 .popup {

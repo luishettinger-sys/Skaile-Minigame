@@ -5,6 +5,15 @@ import { CONFIG } from "./config.js";
 
 const BOUND = 130; // großzügige Grenze, damit Geschosse irgendwann recyceln
 
+// Form je Waffenstil (z = Flugrichtung → Tracer/Laser werden gestreckt).
+const STYLE = {
+  ball: { x: 1, y: 1, z: 1 },
+  pellet: { x: 0.7, y: 0.7, z: 0.7 },
+  tracer: { x: 0.42, y: 0.42, z: 2.4 },
+  laser: { x: 0.3, y: 0.3, z: 4.6 },
+  plasma: { x: 1.5, y: 1.5, z: 1.5 },
+};
+
 export class ProjectileSystem {
   constructor(scene) {
     this.scene = scene;
@@ -37,14 +46,19 @@ export class ProjectileSystem {
     p.glowMat.color.setHex(color);
 
     p.mesh.visible = true;
-    p.mesh.scale.setScalar(opts.scale ?? 1);
+    const s = opts.scale ?? 1;
+    const sv = STYLE[opts.style] || STYLE.ball;
+    p.mesh.scale.set(sv.x * s, sv.y * s, sv.z * s);
     p.mesh.position.set(origin.x, 1.0, origin.z);
 
     const speed = opts.speed ?? CONFIG.weapon.projSpeed;
     p.vel.set(dir.x, 0, dir.z).normalize().multiplyScalar(speed);
+    p.mesh.rotation.y = Math.atan2(p.vel.x, p.vel.z); // Längsachse in Flugrichtung
     p.life = CONFIG.weapon.projLife;
     p.damage = opts.damage ?? CONFIG.weapon.damage;
     p.pierce = opts.pierce ?? 0;
+    // Trefferradius unabhängig von der optischen Streckung halten.
+    p.hitR = CONFIG.weapon.projRadius * s * Math.max(sv.x, 1);
     p.hits.clear();
     this.active.push(p);
     return p;

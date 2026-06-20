@@ -30,6 +30,8 @@ export class HUD {
       bossFill: document.getElementById("boss-fill"),
       bossLabel: document.getElementById("boss-label"),
       weapon: document.getElementById("weapon"),
+      flash: document.getElementById("flash"),
+      vignette: document.getElementById("vignette"),
     };
     this._bannerTimer = null;
   }
@@ -104,6 +106,22 @@ export class HUD {
 
   setEnergy(ratio) {
     this.el.enFill.style.width = Math.max(0, Math.min(100, ratio * 100)) + "%";
+  }
+
+  flash(color = "#ffffff", strength = 0.4) {
+    const f = this.el.flash;
+    f.style.transition = "none";
+    f.style.background = color;
+    f.style.opacity = String(strength);
+    // im nächsten Frame ausblenden lassen
+    requestAnimationFrame(() => {
+      f.style.transition = "opacity 0.5s ease-out";
+      f.style.opacity = "0";
+    });
+  }
+
+  setVignette(intensity) {
+    this.el.vignette.style.opacity = String(Math.max(0, Math.min(1, intensity)));
   }
 
   setXp(ratio, level) {

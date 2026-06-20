@@ -80,13 +80,23 @@ export function createWorld(canvas) {
   let shake = 0;
   let camT = 0;
 
+  // Dynamische Kamera-Perspektive: aktueller Versatz blendet zum Ziel-Versatz.
+  const baseOffset = { ...CONFIG.camera.offset };
+  const curOffset = { ...baseOffset };
+  let targetOffset = { ...baseOffset };
+
   function updateCamera(targetPos, dt) {
     camT += dt;
     focus.x = damp(focus.x, targetPos.x, CONFIG.camera.followLerp, dt);
     focus.z = damp(focus.z, targetPos.z, CONFIG.camera.followLerp, dt);
     focus.y = damp(focus.y, targetPos.y || 0, CONFIG.camera.followLerp, dt);
 
-    const o = CONFIG.camera.offset;
+    // Perspektive sanft überblenden.
+    curOffset.x = damp(curOffset.x, targetOffset.x, 2.6, dt);
+    curOffset.y = damp(curOffset.y, targetOffset.y, 2.6, dt);
+    curOffset.z = damp(curOffset.z, targetOffset.z, 2.6, dt);
+
+    const o = curOffset;
     const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
     camera.position.set(focus.x + o.x, o.y + focus.y + hover, focus.z + o.z);
 
@@ -116,6 +126,16 @@ export function createWorld(canvas) {
     arenaHalf: half,
     terrain,
   };
+
+  // Kamera-Perspektive setzen / zurücksetzen (sanfte Überblendung).
+  api.setCamera = (off) => {
+    targetOffset = {
+      x: off.x ?? baseOffset.x,
+      y: off.y ?? baseOffset.y,
+      z: off.z ?? baseOffset.z,
+    };
+  };
+  api.resetCamera = () => { targetOffset = { ...baseOffset }; };
 
   // Arena wächst: Boden, Grid und Rahmen mitskalieren.
   api.setArena = (h) => {
