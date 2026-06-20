@@ -18,10 +18,29 @@ import { Throwables } from "./throwables.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
+import { Achievements } from "./achievements.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
 const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over" };
 const HISCORE_KEY = "duckdebug_highscore";
+
+// Witz-Flavor: zwischen Wellen & gelegentlich eingeblendet.
+const PATCH_NOTES = [
+  "v1.3 – Stack Overflow's Lunge generft 😈",
+  "v1.4 – Heisenbug existiert jetzt nur, wenn man hinschaut",
+  "v1.5 – Race Condition spawnt jetzt deterministisch (lol)",
+  "v1.6 – Memory Leak leakt jetzt 12 % effizienter",
+  "v1.7 – Null Pointer zeigt endlich irgendwohin",
+  "v2.0 – 'Works on my machine' offiziell unterstützt",
+];
+const DUCK_TIPS = [
+  "Schon mal aus- und wieder eingeschaltet? 🦆",
+  "Erklär den Bug der Ente – dann siehst du ihn.",
+  "Tipp: Dash (Shift) hat i-Frames.",
+  "Wirf was mit F auf die Viecher!",
+  "Combo halten = mehr Score & schnelleres Ultimate.",
+  "Kauf dir am Stand Raketenstiefel (G zum Wechseln).",
+];
 
 export class Game {
   constructor({ world, input, hud, audio }) {
@@ -52,6 +71,7 @@ export class Game {
       onWaveClear: (n) => this._onWaveClear(n),
     });
 
+    this.achievements = new Achievements();
     this.highscore = Number(localStorage.getItem(HISCORE_KEY)) || 0;
     this.state = STATE.MENU;
     this._resetRun();
@@ -162,6 +182,8 @@ export class Game {
     this.activeGadget = null;
     this.carrying = null; // aktuell getragenes Wurfobjekt
     this.bonusT = 22; // Timer bis zum nächsten Bonus-Bug
+    this.tipT = 14; // Timer bis zum nächsten Rubber-Duck-Tipp
+    this.runStats = { kills: 0, bossKills: 0, bonus: 0, maxCombo: 0, wave: 1 };
     this.inventory.reset();
     this.progression.reset();
     this._initLoadout();
@@ -391,6 +413,13 @@ export class Game {
       const { x, z } = edgeSpawn(this.world.arenaHalf);
       this.enemies.spawn("bonus", x, z);
       this.hud.banner("💰 BONUS BUG", "Schnapp ihn dir!");
+    }
+
+    // Gelegentlicher Rubber-Duck-Tipp.
+    this.tipT -= dt;
+    if (this.tipT <= 0) {
+      this.tipT = 24 + Math.random() * 16;
+      this.hud.toast("🦆", "Rubber Duck", DUCK_TIPS[Math.floor(Math.random() * DUCK_TIPS.length)]);
     }
 
     this.waves.update(dt, this.enemies.aliveCount());
@@ -644,6 +673,13 @@ export class Game {
     this.hud.setScore(Math.floor(this.score));
     this.hud.setCombo(this.comboMult);
     this._popup(e.mesh.position, "+" + gained, "#ffd23f");
+
+    // Run-Statistik + Achievements.
+    this.runStats.kills++;
+    if (e.def.isBoss) this.runStats.bossKills++;
+    if (e.type === "bonus") this.runStats.bonus++;
+    if (this.combo > this.runStats.maxCombo) this.runStats.maxCombo = this.combo;
+    this._checkAch();
 
     if (!this.ultActive) {
       this.ultCharge += CONFIG.combo.ultPerKill;
@@ -919,9 +955,19 @@ export class Game {
     this.enemies.spawn(type, x, z);
   }
 
+  _checkAch() {
+    const got = this.achievements.check(this.runStats);
+    for (const a of got) {
+      this.hud.toast(a.icon, "Achievement: " + a.name, a.desc);
+      this.audio.levelUp();
+    }
+  }
+
   _onWaveStart(n) {
     this.hud.setWave(n);
     this.audio.waveStart();
+    this.runStats.wave = n;
+    this._checkAch();
 
     // Schwierigkeit skaliert mit der Welle.
     const d = CONFIG.difficulty;
@@ -981,6 +1027,7 @@ export class Game {
     this.player.hp = clamp(this.player.hp + 15, 0, this.player.maxHp);
     this.hud.setHp(this.player.hp, this.player.maxHp);
     this.hud.banner("WELLE " + n + " CLEAR", "+15 Build Health");
+    this.hud.toast("📝", "Patch Notes", PATCH_NOTES[Math.floor(Math.random() * PATCH_NOTES.length)]);
   }
 
   _popup(worldPos, text, color) {

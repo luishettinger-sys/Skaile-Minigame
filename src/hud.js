@@ -34,6 +34,7 @@ export class HUD {
       vignette: document.getElementById("vignette"),
       bossIntro: document.getElementById("boss-intro"),
       cwBugName: document.getElementById("cw-bug-name"),
+      toasts: document.getElementById("toasts"),
       invOverlay: document.getElementById("overlay-inv"),
       invSlots: document.getElementById("inv-slots"),
       invItems: document.getElementById("inv-items"),
@@ -181,6 +182,17 @@ export class HUD {
 
   setGadget(text) {
     this.el.gadget.textContent = text || "";
+  }
+
+  toast(icon, title, text) {
+    const d = document.createElement("div");
+    d.className = "toast";
+    d.innerHTML = `<span class="t-ic">${icon}</span><span><b>${title}</b><br>${text}</span>`;
+    this.el.toasts.appendChild(d);
+    setTimeout(() => {
+      d.classList.add("out");
+      setTimeout(() => d.remove(), 420);
+    }, 3600);
   }
 
   // buffs: [{ icon, ratio }]
