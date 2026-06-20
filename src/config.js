@@ -103,6 +103,11 @@ export const CONFIG = {
       ranged: true, shootInterval: 2.6, shootRange: 95, // Schuss-Fächer
       lunger: true, lungeInterval: 4.5, // Slam-Sprung
     },
+    bonus: {
+      label: "Bonus Bug",
+      hp: 3, speed: 7.8, radius: 0.7, damage: 0, score: 0,
+      color: 0xffd23f, glow: 0xfff3b0, scale: 0.9, flee: true, ttl: 9,
+    },
   },
 
   waves: {

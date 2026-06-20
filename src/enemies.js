@@ -57,6 +57,7 @@ export class EnemySystem {
       lungeState: "idle", // idle|tele|lunge|cd
       teleT: 0, lungeT: 0, cdT: 0, lvx: 0, lvz: 0,
       _t: 0,
+      ttl: def.ttl ?? Infinity, // Bonus-Bug verschwindet nach Zeit
     };
     this.enemies.push(enemy);
     return enemy;
@@ -65,13 +66,21 @@ export class EnemySystem {
   update(dt, targetPos, revealHidden = false, attack = null) {
     for (const e of this.enemies) {
       if (!e.alive) continue;
+
+      // Bonus-Bug verschwindet nach Ablauf (entkommt).
+      if (e.ttl !== Infinity) {
+        e.ttl -= dt;
+        if (e.ttl <= 0) { this.kill(e); continue; }
+      }
+
       const p = e.mesh.position;
 
-      // Richtung zum Ziel (XZ).
+      // Richtung zum Ziel (XZ). Flieht der Gegner, dreht sich die Richtung um.
       const dx = targetPos.x - p.x;
       const dz = targetPos.z - p.z;
       const len = Math.hypot(dx, dz) || 1;
-      const nx = dx / len, nz = dz / len;
+      const sign = e.def.flee ? -1 : 1;
+      const nx = (dx / len) * sign, nz = (dz / len) * sign;
       e._t += dt;
 
       // --- Fernkampf: schießen ---
@@ -151,6 +160,7 @@ export class EnemySystem {
         }
       }
     }
+    this.cull(); // u.a. abgelaufene Bonus-Bugs entfernen
   }
 
   damage(enemy, amount) {

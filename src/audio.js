@@ -14,8 +14,14 @@ export class Audio {
     const AC = window.AudioContext || window.webkitAudioContext;
     this.ctx = new AC();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.5;
-    this.master.connect(this.ctx.destination);
+    this.master.gain.value = 0.42;
+    // Sanfter Limiter → cleaner, „satisfying", keine harten Peaks.
+    const comp = this.ctx.createDynamicsCompressor();
+    comp.threshold.value = -18;
+    comp.knee.value = 24;
+    comp.ratio.value = 3;
+    this.master.connect(comp);
+    comp.connect(this.ctx.destination);
   }
 
   resume() {

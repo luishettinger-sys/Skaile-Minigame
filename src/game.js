@@ -161,6 +161,7 @@ export class Game {
     this.gadgets = {}; // id -> Stufe
     this.activeGadget = null;
     this.carrying = null; // aktuell getragenes Wurfobjekt
+    this.bonusT = 22; // Timer bis zum nächsten Bonus-Bug
     this.inventory.reset();
     this.progression.reset();
     this._initLoadout();
@@ -381,6 +382,15 @@ export class Game {
     // Zeitlupe-Powerup verlangsamt nur die Gegner.
     const enemyDt = worldDt * (this.buffs.slow > 0 ? 0.4 : 1);
 
+    // Bonus-Bug (Mini-Jagd): erscheint ab und zu, flieht, gibt viele Coins.
+    this.bonusT -= dt;
+    if (this.bonusT <= 0 && !this.boss) {
+      this.bonusT = 22 + Math.random() * 16;
+      const { x, z } = edgeSpawn(this.world.arenaHalf);
+      this.enemies.spawn("bonus", x, z);
+      this.hud.banner("💰 BONUS BUG", "Schnapp ihn dir!");
+    }
+
     this.waves.update(dt, this.enemies.aliveCount());
     this.enemies.update(enemyDt, this.player.pos, this.ultActive, {
       shoot: (x, z, dx, dz, o) => this.enemyShots.spawn(x, z, dx, dz, o),
@@ -565,7 +575,7 @@ export class Game {
 
   _handleEnemyContact() {
     for (const e of this.enemies.enemies) {
-      if (!e.alive) continue;
+      if (!e.alive || e.def.damage <= 0) continue; // Bonus-Bug tut nichts
       const hitR = CONFIG.player.radius + e.radius;
       if (distXZ(this.player.pos, e.mesh.position) <= hitR) {
         const hurt = this.player.takeDamage(e.def.damage);
@@ -663,6 +673,15 @@ export class Game {
     // Coins.
     this.coins += Math.max(1, Math.round(e.def.score / 10));
     this.hud.setCoins(this.coins);
+
+    // Bonus-Bug erwischt → fette Belohnung.
+    if (e.type === "bonus") {
+      this.coins += 100;
+      this.hud.setCoins(this.coins);
+      this.pickups.spawnLucky(e.mesh.position.x, e.mesh.position.z);
+      this.hud.flash("#ffd23f", 0.4);
+      this.hud.banner("💰 BONUS!", "+100 Coins");
+    }
 
     if (e.def.isBoss) {
       this.boss = null;
@@ -913,8 +932,8 @@ export class Game {
     this.player.arenaHalf = half;
 
     // Hintergrund wechselt zwischen den Level-Tiers.
-    if (n === 6) this.world.setBackdrop("./assets/textures/office_bg2.png");
-    else if (n === 11) this.world.setBackdrop("./assets/textures/office_bg.png");
+    if (n === 6) this.world.setBackdrop("./assets/textures/office_bg2.png"); // Server-Room
+    else if (n === 11) this.world.setBackdrop("./assets/textures/office_bg3.png"); // Nacht-Office
 
     if (n % CONFIG.waves.bossEvery === 0) {
       this._startBossIntro(n); // Cinematic: Zoom auf Monitor → Bug springt raus
