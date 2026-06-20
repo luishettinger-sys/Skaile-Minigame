@@ -61,6 +61,18 @@ export const WEAPONS = {
     projScale: 1.4, speed: 50, color: 0xc8a2ff, sound: "pulse", energyCost: 18,
     style: "plasma", desc: "Durchschlagende Pulskugel",
   },
+  sawblade: {
+    id: "sawblade", name: "Sawblade-Disc", icon: "🪚",
+    fireInterval: 0.5, damage: 2, projCount: 1, spread: 0, pierce: 5,
+    projScale: 1.6, speed: 34, color: 0xffd23f, sound: "cannon", energyCost: 16,
+    style: "saw", desc: "Säge durchschlägt viele Bugs",
+  },
+  needler: {
+    id: "needler", name: "Bit-Needler", icon: "📌",
+    fireInterval: 0.06, damage: 1, projCount: 1, spread: 0.1, pierce: 0,
+    projScale: 0.5, speed: 82, color: 0x80ed99, sound: "minigun", energyCost: 2.6,
+    style: "star", desc: "Schnelle Präzisionsnadeln",
+  },
 };
 
 export const WEAPON_IDS = Object.keys(WEAPONS);

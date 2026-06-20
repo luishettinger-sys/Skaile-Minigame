@@ -41,6 +41,7 @@ export class HUD {
       invClose: document.getElementById("inv-close"),
       coins: document.getElementById("coins"),
       prompt: document.getElementById("prompt"),
+      buffs: document.getElementById("buffs"),
       shopOverlay: document.getElementById("overlay-shop"),
       shopOffers: document.getElementById("shop-offers"),
       shopCoins: document.getElementById("shop-coins"),
@@ -175,6 +176,18 @@ export class HUD {
 
   setCoins(n) {
     this.el.coins.textContent = "🪙 " + n;
+  }
+
+  // buffs: [{ icon, ratio }]
+  setBuffs(buffs) {
+    this.el.buffs.innerHTML = "";
+    for (const b of buffs) {
+      const d = document.createElement("div");
+      d.className = "buff";
+      d.textContent = b.icon;
+      d.style.opacity = String(0.45 + 0.55 * b.ratio);
+      this.el.buffs.appendChild(d);
+    }
   }
 
   showPrompt(text) {

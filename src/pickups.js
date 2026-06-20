@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { distXZ } from "./utils.js";
+import { POWERUPS } from "./powerups.js";
 
 export class PickupSystem {
   constructor(scene) {
@@ -21,6 +22,11 @@ export class PickupSystem {
     this.coinMat = new THREE.MeshBasicMaterial({ color: 0xffcf3f });
     this.luckyGeo = new THREE.BoxGeometry(0.75, 0.75, 0.75);
     this.luckyMat = new THREE.MeshBasicMaterial({ color: 0xff6ec7 });
+    this.powerGeo = new THREE.IcosahedronGeometry(0.5, 0);
+  }
+
+  spawnPower(x, z, type) {
+    this._spawn("power", x, z, type);
   }
 
   spawnLoot(x, z, item) {
@@ -49,7 +55,10 @@ export class PickupSystem {
     else if (kind === "loot") mesh = new THREE.Mesh(this.lootGeo, this.lootMat);
     else if (kind === "coin") mesh = new THREE.Mesh(this.coinGeo, this.coinMat);
     else if (kind === "lucky") mesh = new THREE.Mesh(this.luckyGeo, this.luckyMat);
-    else mesh = new THREE.Mesh(this.healGeo, this.healMat);
+    else if (kind === "power") {
+      const color = (POWERUPS[value] && POWERUPS[value].color) || 0xffffff;
+      mesh = new THREE.Mesh(this.powerGeo, new THREE.MeshBasicMaterial({ color }));
+    } else mesh = new THREE.Mesh(this.healGeo, this.healMat);
     mesh.position.set(x, 0.6, z);
     mesh.scale.setScalar(0.01); // Pop-in
     this.group.add(mesh);

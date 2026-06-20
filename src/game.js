@@ -15,6 +15,7 @@ import { Inventory } from "./inventory.js";
 import { Stations } from "./stations.js";
 import { EnemyShots } from "./enemyshots.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
+import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
 const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over" };
@@ -78,8 +79,12 @@ export class Game {
   }
 
   // Effektive Kampfwerte aus Waffe + Mods.
-  _fireInterval() { return this.weapon.fireInterval * this.mods.fireMult; }
-  _damage() { return (this.weapon.damage + this.mods.dmgAdd) * this.mods.dmgMult; }
+  _fireInterval() {
+    return this.weapon.fireInterval * this.mods.fireMult * (this.buffs.rapid > 0 ? 0.5 : 1);
+  }
+  _damage() {
+    return (this.weapon.damage + this.mods.dmgAdd) * this.mods.dmgMult * (this.buffs.double > 0 ? 2 : 1);
+  }
   _projCount() { return this.weapon.projCount + this.mods.projAdd; }
   _pierce() { return this.weapon.pierce + this.mods.pierceAdd; }
   _projScale() { return this.weapon.projScale * this.mods.projScaleMult; }
@@ -113,6 +118,7 @@ export class Game {
     this.coins = 0;
     this.bossIntro = false;
     this.intro = null;
+    this.buffs = { rapid: 0, double: 0, shield: 0, slow: 0 };
     this.inventory.reset();
     this.progression.reset();
     this._initLoadout();
@@ -149,6 +155,7 @@ export class Game {
     this.hud.setEnergy(1);
     this.hud.setVignette(0);
     this.hud.setCoins(0);
+    this.hud.setBuffs([]);
     this.hud.hidePrompt();
     this.hud.hideBossIntro();
     this.world.resetCamera();
@@ -308,17 +315,21 @@ export class Game {
     if (this.input.wasPressed("KeyQ") && this.ultReady && !this.ultActive) {
       this._activateUltimate();
     }
+    this._updateBuffs(dt);
+
     const worldDt = this.ultActive ? dt * CONFIG.combo.ultSlowmo : dt;
     if (this.ultActive) {
       this.ultTimer -= dt;
       if (this.ultTimer <= 0) this._endUltimate();
     }
+    // Zeitlupe-Powerup verlangsamt nur die Gegner.
+    const enemyDt = worldDt * (this.buffs.slow > 0 ? 0.4 : 1);
 
     this.waves.update(dt, this.enemies.aliveCount());
-    this.enemies.update(worldDt, this.player.pos, this.ultActive, {
+    this.enemies.update(enemyDt, this.player.pos, this.ultActive, {
       shoot: (x, z, dx, dz, o) => this.enemyShots.spawn(x, z, dx, dz, o),
     });
-    this.enemyShots.update(worldDt);
+    this.enemyShots.update(enemyDt);
     this._handleEnemyShots();
     this.projectiles.update(dt);
     this.effects.update(dt);
@@ -554,6 +565,12 @@ export class Game {
     if (Math.random() < 0.02) {
       this.pickups.spawnLucky(e.mesh.position.x, e.mesh.position.z);
     }
+    if (Math.random() < 0.03) {
+      this.pickups.spawnPower(
+        e.mesh.position.x, e.mesh.position.z,
+        POWER_IDS[Math.floor(Math.random() * POWER_IDS.length)]
+      );
+    }
 
     // Coins.
     this.coins += Math.max(1, Math.round(e.def.score / 10));
@@ -612,7 +629,47 @@ export class Game {
       this.audio.pickup();
     } else if (kind === "lucky") {
       this._luckyReward();
+    } else if (kind === "power") {
+      this._activatePower(value);
     }
+  }
+
+  _activatePower(type) {
+    const meta = POWERUPS[type];
+    if (!meta) return;
+    this.audio.levelUp();
+    this.hud.flash("#" + meta.color.toString(16).padStart(6, "0"), 0.4);
+    this.world.addShake(0.3);
+    if (type === "nuke") {
+      for (const e of [...this.enemies.enemies]) {
+        if (e.alive && !e.def.isBoss && distXZ(this.player.pos, e.mesh.position) < 24) {
+          if (this.enemies.damage(e, 999)) this._killEnemy(e);
+        }
+      }
+      this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.red, 26, 30);
+      this.hud.banner("💥 PURGE", "Bugs gelöscht");
+    } else if (type === "heal") {
+      this.player.hp = this.player.maxHp;
+      this.hud.setHp(this.player.hp, this.player.maxHp);
+      this.hud.banner("❤️ HEILUNG", "Voll regeneriert");
+    } else {
+      this.buffs[type] = meta.dur;
+      this.hud.banner(meta.icon + " " + meta.label, meta.dur + "s aktiv");
+    }
+  }
+
+  _updateBuffs(dt) {
+    for (const id of TIMED_IDS) {
+      if (this.buffs[id] > 0) this.buffs[id] = Math.max(0, this.buffs[id] - dt);
+    }
+    if (this.buffs.shield > 0) this.player.invuln = Math.max(this.player.invuln, 0.15);
+    const list = [];
+    for (const id of TIMED_IDS) {
+      if (this.buffs[id] > 0) {
+        list.push({ icon: POWERUPS[id].icon, ratio: this.buffs[id] / POWERUPS[id].dur });
+      }
+    }
+    this.hud.setBuffs(list);
   }
 
   // Lucky-Drop: zufällige Belohnung mit Tamtam.

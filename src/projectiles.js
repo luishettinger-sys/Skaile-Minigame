@@ -12,6 +12,8 @@ const STYLE = {
   tracer: 0.7,
   laser: 0.85,
   plasma: 1.9,
+  saw: 1.7,
+  star: 0.65,
 };
 
 // Weiche radiale Glow-Textur (einmal, geteilt).
