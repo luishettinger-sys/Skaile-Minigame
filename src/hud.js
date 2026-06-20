@@ -42,6 +42,7 @@ export class HUD {
       coins: document.getElementById("coins"),
       prompt: document.getElementById("prompt"),
       buffs: document.getElementById("buffs"),
+      gadget: document.getElementById("gadget"),
       shopOverlay: document.getElementById("overlay-shop"),
       shopOffers: document.getElementById("shop-offers"),
       shopCoins: document.getElementById("shop-coins"),
@@ -176,6 +177,10 @@ export class HUD {
 
   setCoins(n) {
     this.el.coins.textContent = "🪙 " + n;
+  }
+
+  setGadget(text) {
+    this.el.gadget.textContent = text || "";
   }
 
   // buffs: [{ icon, ratio }]

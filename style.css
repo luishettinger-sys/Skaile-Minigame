@@ -60,6 +60,7 @@ body {
 #score { color: var(--yellow); }
 #wave { color: var(--cyan); }
 #coins { color: #ffd23f; }
+#gadget { color: #6ee7ff; }
 
 #prompt {
   position: absolute;

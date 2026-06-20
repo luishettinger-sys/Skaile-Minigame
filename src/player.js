@@ -147,6 +147,26 @@ export class Player {
     return true;
   }
 
+  // Aktives Gadget als kleines schwebendes Emoji-Symbol an der Ente.
+  setGadget(icon) {
+    if (this.gadgetSprite) { this.root.remove(this.gadgetSprite); this.gadgetSprite = null; }
+    if (!icon) return;
+    const c = document.createElement("canvas");
+    c.width = c.height = 128;
+    const ctx = c.getContext("2d");
+    ctx.font = "96px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(icon, 64, 72);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    spr.scale.set(1.1, 1.1, 1);
+    spr.position.set(0, 2.8, -0.4);
+    this.gadgetSprite = spr;
+    this.root.add(spr);
+  }
+
   _clearCosmetics() {
     for (const k of Object.keys(this.cosmetics)) {
       if (this.cosmetics[k]) this.root.remove(this.cosmetics[k]);
@@ -171,6 +191,7 @@ export class Player {
     this.dashCD = 0;
     this.arenaHalf = CONFIG.arena.half;
     this._clearCosmetics();
+    this.setGadget(null);
     this._setVisible(true);
   }
 

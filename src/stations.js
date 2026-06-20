@@ -14,7 +14,7 @@ export class Stations {
   }
 
   _buildShop() {
-    const x = 0, z = 15;
+    const x = 16, z = -16; // hinten am Rand
     const counter = new THREE.Mesh(
       new THREE.BoxGeometry(5, 1.6, 2.2),
       new THREE.MeshStandardMaterial({ color: 0x6b3f1d, roughness: 0.7 })
@@ -28,8 +28,10 @@ export class Stations {
     const sign = new THREE.Sprite(makeIcon("🛒"));
     sign.scale.set(2.8, 2.8, 1);
     sign.position.set(x, 3.7, z);
-    this.group.add(counter, top, sign);
-    this.shop = { x, z, r: 3.8, sign };
+    const keeper = makeKeeperDuck();
+    keeper.position.set(x - 1.2, 0, z + 0.6);
+    this.group.add(counter, top, sign, keeper);
+    this.shop = { x, z, r: 3.8, sign, keeper };
   }
 
   shopNear(pos) {
@@ -96,6 +98,35 @@ export class Stations {
     this._removeField();
     this.timer = 9;
   }
+}
+
+// Kleiner Soldaten-Enten-Verkäufer (prozedural).
+function makeKeeperDuck() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.SphereGeometry(0.7, 16, 12),
+    new THREE.MeshStandardMaterial({ color: 0x6b8e23, roughness: 0.6 })
+  );
+  body.scale.set(1, 0.9, 1.1);
+  body.position.y = 1.0;
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.45, 14, 12),
+    new THREE.MeshStandardMaterial({ color: 0x7a9a2e, roughness: 0.6 })
+  );
+  head.position.set(0, 1.7, 0.2);
+  const beak = new THREE.Mesh(
+    new THREE.ConeGeometry(0.18, 0.4, 10),
+    new THREE.MeshStandardMaterial({ color: 0xff8c1a })
+  );
+  beak.rotation.x = Math.PI / 2;
+  beak.position.set(0, 1.66, 0.7);
+  const helmet = new THREE.Mesh(
+    new THREE.SphereGeometry(0.5, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x4b5320, roughness: 0.7, metalness: 0.2 })
+  );
+  helmet.position.set(0, 1.9, 0.2);
+  g.add(body, head, beak, helmet);
+  return g;
 }
 
 function makeIcon(emoji) {

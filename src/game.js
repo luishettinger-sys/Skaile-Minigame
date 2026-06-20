@@ -16,6 +16,7 @@ import { Stations } from "./stations.js";
 import { EnemyShots } from "./enemyshots.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
+import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
 const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over" };
@@ -68,7 +69,43 @@ export class Game {
     const m = defaultMods();
     mergeMods(m, this.upgradeMods);
     mergeMods(m, this.equipMods);
+    mergeMods(m, this._gadgetMods());
     this.mods = m;
+  }
+
+  // Boni des aktuell aktiven Gadgets (nur eins gleichzeitig).
+  _gadgetMods() {
+    const m = defaultMods();
+    const id = this.activeGadget;
+    if (id && this.gadgets[id] > 0) GADGETS[id].apply(m, this.gadgets[id]);
+    return m;
+  }
+
+  buyGadget(id) {
+    this.gadgets[id] = (this.gadgets[id] || 0) + 1;
+    if (!this.activeGadget) this.activeGadget = id;
+    this._recomputeMods();
+    this._syncStats();
+    this.player.setGadget(GADGETS[this.activeGadget].icon);
+    this.hud.setGadget(this._gadgetLabel());
+  }
+
+  _gadgetLabel() {
+    const id = this.activeGadget;
+    return id ? GADGETS[id].icon + " Lv" + this.gadgets[id] : "";
+  }
+
+  // Aktives Gadget durchschalten (Taste G).
+  cycleGadget() {
+    const owned = GADGET_IDS.filter((id) => this.gadgets[id] > 0);
+    if (owned.length === 0) return;
+    const cur = owned.indexOf(this.activeGadget);
+    this.activeGadget = owned[(cur + 1) % owned.length];
+    this._recomputeMods();
+    this._syncStats();
+    this.player.setGadget(GADGETS[this.activeGadget].icon);
+    this.hud.setGadget(this._gadgetLabel());
+    this.hud.banner("GADGET", GADGETS[this.activeGadget].icon + " " + GADGETS[this.activeGadget].name);
   }
 
   // Ausrüstung neu berechnen und anwenden (nach Equip/Unequip).
@@ -119,6 +156,8 @@ export class Game {
     this.bossIntro = false;
     this.intro = null;
     this.buffs = { rapid: 0, double: 0, shield: 0, slow: 0 };
+    this.gadgets = {}; // id -> Stufe
+    this.activeGadget = null;
     this.inventory.reset();
     this.progression.reset();
     this._initLoadout();
@@ -156,6 +195,8 @@ export class Game {
     this.hud.setVignette(0);
     this.hud.setCoins(0);
     this.hud.setBuffs([]);
+    this.hud.setGadget("");
+    this.player.setGadget(null);
     this.hud.hidePrompt();
     this.hud.hideBossIntro();
     this.world.resetCamera();
@@ -211,23 +252,28 @@ export class Game {
   }
 
   _rollShop() {
-    const offers = [];
-    const ids = [...WEAPON_IDS].sort(() => Math.random() - 0.5).slice(0, 3);
-    for (const id of ids) {
+    this.shopOffers = [];
+    for (let i = 0; i < 5; i++) this.shopOffers.push(this._makeOffer());
+  }
+
+  // Ein zufälliges Angebot (Waffe / Ausrüstung / Gadget).
+  _makeOffer() {
+    const r = Math.random();
+    if (r < 0.4) {
+      const id = WEAPON_IDS[Math.floor(Math.random() * WEAPON_IDS.length)];
       const w = WEAPONS[id];
-      offers.push({
-        type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc,
-        price: 70 + Math.floor(Math.random() * 60),
-      });
-    }
-    for (let i = 0; i < 2; i++) {
+      return { type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc,
+        price: 70 + Math.floor(Math.random() * 60) };
+    } else if (r < 0.72) {
       const it = rollItem();
-      offers.push({
-        type: "item", item: it, icon: it.icon, name: it.name, desc: it.desc,
-        price: 40 + Math.floor(Math.random() * 40),
-      });
+      return { type: "item", item: it, icon: it.icon, name: it.name, desc: it.desc,
+        price: 40 + Math.floor(Math.random() * 40) };
     }
-    this.shopOffers = offers;
+    const id = GADGET_IDS[Math.floor(Math.random() * GADGET_IDS.length)];
+    const g = GADGETS[id];
+    const lvl = this.gadgets[id] || 0;
+    return { type: "gadget", id, icon: g.icon, name: g.name + " ▸ Lv" + (lvl + 1),
+      desc: g.desc, price: gadgetPrice(lvl) };
   }
 
   _renderShop() {
@@ -239,14 +285,18 @@ export class Game {
     if (!o || this.coins < o.price) return;
     this.coins -= o.price;
     this.hud.setCoins(this.coins);
+    this.audio.pickup();
     if (o.type === "weapon") {
       this._setWeapon(o.id);
       this.hud.banner("GEKAUFT", WEAPONS[o.id].name);
-    } else {
+    } else if (o.type === "item") {
       this.inventory.add(o.item);
       this.hud.banner("GEKAUFT", o.item.icon + " " + o.item.name);
+    } else if (o.type === "gadget") {
+      this.buyGadget(o.id);
+      this.hud.banner("GEKAUFT", GADGETS[o.id].icon + " " + GADGETS[o.id].name);
     }
-    this.shopOffers.splice(i, 1);
+    this.shopOffers[i] = this._makeOffer(); // sofort neuer Nachschub
     this._renderShop();
   }
 
@@ -278,6 +328,7 @@ export class Game {
         (this.shopOpen || this.stations.shopNear(this.player.pos))) {
       this.toggleShop();
     }
+    if (this.input.wasPressed("KeyG")) this.cycleGadget();
     if (this.bossIntro) { this._updateIntro(dt); return; }
     if (this.paused || this.levelingUp || this.invOpen || this.shopOpen) return;
 
