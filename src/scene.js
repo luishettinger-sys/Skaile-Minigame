@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
-import { buildOffice, applyDeskTexture } from "./environment.js";
+import { buildOffice, applyDeskTexture, buildBackdrop } from "./environment.js";
 import { Terrain } from "./terrain.js";
 
 export function createWorld(canvas) {
@@ -54,8 +54,9 @@ export function createWorld(canvas) {
   scene.add(floor);
   applyDeskTexture(floor.material); // AI-Desk-Mat, sobald vorhanden
 
-  // Office-Kulisse rund um die Arena.
+  // Office-Kulisse rund um die Arena + umlaufender Hintergrund.
   buildOffice(scene);
+  buildBackdrop(scene);
 
   // Begehbare Plattformen / Stufen.
   const terrain = new Terrain(scene);

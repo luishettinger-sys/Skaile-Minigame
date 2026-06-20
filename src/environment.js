@@ -19,6 +19,24 @@ export function buildOffice(scene) {
   return group;
 }
 
+// Umlaufender Office-Hintergrund (Fenster, Regale …) als großer Zylinder.
+export function buildBackdrop(scene, url = "./assets/textures/office_bg.png") {
+  const loader = new THREE.TextureLoader();
+  loader.load(url, (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.repeat.set(3, 1); // Panorama mehrfach um den Zylinder
+    const geo = new THREE.CylinderGeometry(85, 85, 52, 48, 1, true);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex, side: THREE.BackSide, fog: false, depthWrite: false,
+    });
+    const cyl = new THREE.Mesh(geo, mat);
+    cyl.position.y = 16;
+    scene.add(cyl);
+    console.info("[env] Office-Backdrop geladen.");
+  });
+}
+
 // Boden bekommt die AI-Desk-Mat-Textur, sobald vorhanden.
 export function applyDeskTexture(material, url = "./assets/textures/desk.png") {
   const loader = new THREE.TextureLoader();
