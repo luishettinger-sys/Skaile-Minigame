@@ -1,0 +1,200 @@
+// Office-Kulisse: der Schreibtisch rund um die Arena (Monitor, Tastatur,
+// Kaffeetasse, Pflanze, Stifthalter). Prozedural, aber stimmungsvoll.
+// AI-Texturen (Higgsfield) werden bei Verfügbarkeit nachgeladen.
+import * as THREE from "three";
+import { CONFIG } from "./config.js";
+
+export function buildOffice(scene) {
+  const group = new THREE.Group();
+  const half = CONFIG.arena.half;
+
+  group.add(makeMonitor(0, -(half + 9)));
+  group.add(makeKeyboard(0, -(half + 2.5)));
+  group.add(makeMug(half + 4, half - 4));
+  group.add(makePlant(-(half + 4), -(half - 6)));
+  group.add(makePenHolder(half + 4, -(half - 3)));
+  group.add(makeNotebook(-(half + 3.5), half - 5));
+
+  scene.add(group);
+  return group;
+}
+
+// Boden bekommt die AI-Desk-Mat-Textur, sobald vorhanden.
+export function applyDeskTexture(material, url = "./assets/textures/desk.png") {
+  const loader = new THREE.TextureLoader();
+  loader.load(
+    url,
+    (tex) => {
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(3, 3);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      material.map = tex;
+      material.color.setHex(0xffffff);
+      material.needsUpdate = true;
+      console.info("[env] Desk-Textur geladen.");
+    },
+    undefined,
+    () => {} // still: Fallback bleibt die Farbfläche
+  );
+}
+
+// --- Props -----------------------------------------------------------------
+
+function makeMonitor(x, z) {
+  const g = new THREE.Group();
+  const dark = new THREE.MeshStandardMaterial({ color: 0x0c0e14, roughness: 0.6, metalness: 0.3 });
+
+  const W = 20, H = 11;
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.8), dark);
+  frame.position.set(0, H / 2 + 2, 0);
+  g.add(frame);
+
+  // Leuchtender Code-Screen (CanvasTexture, unbeleuchtet → glüht).
+  const screen = new THREE.Mesh(
+    new THREE.PlaneGeometry(W - 1.2, H - 1.2),
+    new THREE.MeshBasicMaterial({ map: makeCodeTexture() })
+  );
+  screen.position.set(0, H / 2 + 2, 0.45);
+  g.add(screen);
+
+  // Standfuß.
+  const neck = new THREE.Mesh(new THREE.BoxGeometry(1.2, 3, 1), dark);
+  neck.position.set(0, 1.5, 0);
+  g.add(neck);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.4, 0.5, 24), dark);
+  base.position.set(0, 0.25, 0);
+  g.add(base);
+
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function makeKeyboard(x, z) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(16, 0.7, 5),
+    new THREE.MeshStandardMaterial({ color: 0x15181f, roughness: 0.7 })
+  );
+  body.position.y = 0.35;
+  g.add(body);
+
+  const keyMat = new THREE.MeshStandardMaterial({ color: 0x2a2f3a, roughness: 0.6 });
+  const cols = 18, rows = 5;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const key = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.25, 0.62), keyMat);
+      key.position.set(-7.6 + c * 0.85, 0.75, -1.7 + r * 0.85);
+      g.add(key);
+    }
+  }
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function makeMug(x, z) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0xff6b6b, roughness: 0.4 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.1, 2.6, 24), mat);
+  body.position.y = 1.3;
+  g.add(body);
+  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.18, 10, 18), mat);
+  handle.position.set(1.4, 1.3, 0);
+  handle.rotation.y = Math.PI / 2;
+  g.add(handle);
+  // Kaffee.
+  const coffee = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.15, 1.15, 0.1, 24),
+    new THREE.MeshStandardMaterial({ color: 0x3a2418, roughness: 0.3 })
+  );
+  coffee.position.y = 2.55;
+  g.add(coffee);
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function makePlant(x, z) {
+  const g = new THREE.Group();
+  const pot = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.4, 1.0, 2.2, 20),
+    new THREE.MeshStandardMaterial({ color: 0xc4663b, roughness: 0.8 })
+  );
+  pot.position.y = 1.1;
+  g.add(pot);
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x3fa34d, roughness: 0.7 });
+  for (let i = 0; i < 7; i++) {
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3.2, 6), leafMat);
+    const a = (i / 7) * Math.PI * 2;
+    leaf.position.set(Math.cos(a) * 0.6, 3.0, Math.sin(a) * 0.6);
+    leaf.rotation.z = Math.cos(a) * 0.5;
+    leaf.rotation.x = -Math.sin(a) * 0.5;
+    g.add(leaf);
+  }
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function makePenHolder(x, z) {
+  const g = new THREE.Group();
+  const cup = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.0, 0.9, 2.4, 16),
+    new THREE.MeshStandardMaterial({ color: 0x2b3550, roughness: 0.5, metalness: 0.4 })
+  );
+  cup.position.y = 1.2;
+  g.add(cup);
+  const colors = [0xffd23f, 0x6ee7ff, 0xff6ec7, 0x80ed99];
+  for (let i = 0; i < 4; i++) {
+    const pen = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, 4, 8),
+      new THREE.MeshStandardMaterial({ color: colors[i] })
+    );
+    pen.position.set((Math.random() - 0.5) * 0.8, 2.2, (Math.random() - 0.5) * 0.8);
+    pen.rotation.z = (Math.random() - 0.5) * 0.6;
+    pen.rotation.x = (Math.random() - 0.5) * 0.6;
+    g.add(pen);
+  }
+  g.position.set(x, 0, z);
+  return g;
+}
+
+function makeNotebook(x, z) {
+  const g = new THREE.Group();
+  const book = new THREE.Mesh(
+    new THREE.BoxGeometry(5, 0.6, 7),
+    new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.6 })
+  );
+  book.position.y = 0.3;
+  book.rotation.y = 0.3;
+  g.add(book);
+  g.position.set(x, 0, z);
+  return g;
+}
+
+// Erzeugt eine "Code-Editor"-Textur per Canvas (Fake-Syntax-Highlighting).
+function makeCodeTexture() {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 320;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#0b0f17";
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  const palette = ["#6ee7ff", "#ffd23f", "#ff6ec7", "#80ed99", "#9b5de5", "#5d6678"];
+  const lineH = 16;
+  for (let y = 12; y < c.height - 8; y += lineH) {
+    const indent = (Math.floor(Math.random() * 4)) * 14 + 12;
+    let x = indent;
+    const tokens = 2 + Math.floor(Math.random() * 5);
+    for (let t = 0; t < tokens; t++) {
+      const w = 18 + Math.random() * 60;
+      ctx.fillStyle = palette[Math.floor(Math.random() * palette.length)];
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(x, y, w, 7);
+      x += w + 8;
+      if (x > c.width - 30) break;
+    }
+  }
+  ctx.globalAlpha = 1;
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}

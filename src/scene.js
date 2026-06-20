@@ -2,6 +2,7 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
+import { buildOffice, applyDeskTexture } from "./environment.js";
 
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -50,6 +51,10 @@ export function createWorld(canvas) {
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);
+  applyDeskTexture(floor.material); // AI-Desk-Mat, sobald vorhanden
+
+  // Office-Kulisse rund um die Arena.
+  buildOffice(scene);
 
   const grid = new THREE.GridHelper(
     half * 2,
