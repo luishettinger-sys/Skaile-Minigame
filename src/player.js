@@ -29,6 +29,7 @@ export class Player {
     this.lastDir = { x: 0, z: 1 }; // Richtung für Dash im Stand
     this.arenaHalf = CONFIG.arena.half; // wächst mit der Arena
     this.cosmetics = { helmet: null, shades: null, cape: null };
+    this.terrain = null; // wird von Game gesetzt (Höhen-Sampling)
   }
 
   // Dash auslösen (Ausweichen mit i-Frames). Gibt true zurück, wenn erfolgreich.
@@ -72,7 +73,11 @@ export class Player {
     const waddle = moving ? Math.sin(this.phase) * 0.18 : 0;
     const bob = moving ? Math.abs(Math.sin(this.phase)) * 0.12 : 0;
     this.root.rotation.z = waddle;
-    this.pos.y = bob;
+
+    // Höhe: auf Plattformen/Stufen steigen (weich nachziehen).
+    const groundY = this.terrain ? this.terrain.heightAt(this.pos.x, this.pos.z) : 0;
+    const targetY = groundY + bob;
+    this.pos.y += (targetY - this.pos.y) * (1 - Math.exp(-14 * dt));
 
     // Unverwundbarkeit + Blink-Feedback.
     if (this.invuln > 0) {

@@ -30,6 +30,10 @@ export class Game {
     this.pickups = new PickupSystem(world.scene);
     this.progression = new Progression();
 
+    // Höhen-Sampling (Plattformen) an Spieler & Gegner geben.
+    this.player.terrain = world.terrain;
+    this.enemies.terrain = world.terrain;
+
     this.waves = new WaveManager({
       onSpawn: (type) => this._spawnEnemy(type),
       onWaveStart: (n) => this._onWaveStart(n),

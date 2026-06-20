@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
 import { buildOffice, applyDeskTexture } from "./environment.js";
+import { Terrain } from "./terrain.js";
 
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -56,6 +57,9 @@ export function createWorld(canvas) {
   // Office-Kulisse rund um die Arena.
   buildOffice(scene);
 
+  // Begehbare Plattformen / Stufen.
+  const terrain = new Terrain(scene);
+
   const grid = new THREE.GridHelper(
     half * 2,
     CONFIG.arena.grid,
@@ -79,10 +83,11 @@ export function createWorld(canvas) {
     camT += dt;
     focus.x = damp(focus.x, targetPos.x, CONFIG.camera.followLerp, dt);
     focus.z = damp(focus.z, targetPos.z, CONFIG.camera.followLerp, dt);
+    focus.y = damp(focus.y, targetPos.y || 0, CONFIG.camera.followLerp, dt);
 
     const o = CONFIG.camera.offset;
     const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
-    camera.position.set(focus.x + o.x, o.y + hover, focus.z + o.z);
+    camera.position.set(focus.x + o.x, o.y + focus.y + hover, focus.z + o.z);
 
     if (shake > 0.0001) {
       shake = Math.max(0, shake - dt * 1.6);
@@ -91,7 +96,7 @@ export function createWorld(canvas) {
       camera.position.y += (Math.random() - 0.5) * s * 4;
       camera.position.z += (Math.random() - 0.5) * s * 6;
     }
-    camera.lookAt(focus.x, 0, focus.z);
+    camera.lookAt(focus.x, focus.y, focus.z);
   }
 
   function addShake(amount) {
@@ -108,6 +113,7 @@ export function createWorld(canvas) {
   const api = {
     renderer, scene, camera, updateCamera, addShake, resize,
     arenaHalf: half,
+    terrain,
   };
 
   // Arena wächst: Boden, Grid und Rahmen mitskalieren.

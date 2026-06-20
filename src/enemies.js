@@ -13,6 +13,7 @@ export class EnemySystem {
     this.models = {}; // typeKey -> Object3D (GLB-Szene zum Klonen)
     this.hpScale = 1; // pro Welle erhöht (Schwierigkeit)
     this.speedScale = 1;
+    this.terrain = null; // wird von Game gesetzt (Höhen-Sampling)
     this._labelMats = {}; // typeKey -> SpriteMaterial (Error-Label)
 
     this._sharedEye = new THREE.SphereGeometry(0.16, 8, 8);
@@ -72,9 +73,10 @@ export class EnemySystem {
 
       e.mesh.rotation.y = Math.atan2(dx, dz);
 
-      // Lauf-Bob.
+      // Lauf-Bob + Höhe (Gegner klettern Stufen mit).
       e.phase += dt * (6 + e.speed);
-      p.y = e.def.radius + Math.abs(Math.sin(e.phase)) * 0.25;
+      const gy = this.terrain ? this.terrain.heightAt(p.x, p.z) : 0;
+      p.y = gy + e.def.radius + Math.abs(Math.sin(e.phase)) * 0.25;
 
       // Treffer-Punch (per Instanz, daher Skalierung statt Material).
       if (e.flash > 0) e.flash = Math.max(0, e.flash - dt * 6);
