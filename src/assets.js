@@ -30,6 +30,8 @@ export function loadModel(url, { targetHeight = 2.2 } = {}) {
             o.material && (o.material.needsUpdate = true);
           }
         });
+        // Skelett-Animationen (falls gerigged) mitgeben.
+        obj.userData.gltfAnimations = gltf.animations || [];
         resolve(obj);
       },
       undefined,

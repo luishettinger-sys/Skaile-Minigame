@@ -71,15 +71,19 @@ export class Player {
     // Lebendige Bewegung: Waddle, Bob, Lean, Squash & Stretch, Idle-Atmen.
     this.phase += dt * (moving ? 16 : 3);
     const swing = Math.sin(this.phase);
-    const waddle = moving ? swing * 0.22 : swing * 0.03;
     const bob = moving ? Math.abs(swing) * 0.18 : Math.abs(swing) * 0.04;
-    this.root.rotation.z = waddle;
-    this.root.rotation.x = moving ? 0.14 : 0; // beim Laufen leicht nach vorn
 
-    // Squash & Stretch (volumen-erhaltend) – der Footfall „staucht" die Ente.
-    const squash = 1 - Math.abs(swing) * (moving ? 0.09 : 0.02);
-    const stretch = 1 / Math.sqrt(squash);
-    this.root.scale.set(stretch, squash, stretch);
+    if (this.mixer) {
+      // Echte Skelett-Animation treibt die Pose; nur leichte Geschwindigkeit.
+      this.mixer.update(dt * (moving ? 1.6 : 0.8));
+    } else {
+      // Prozedurale Animation (Platzhalter / nicht-gerigged).
+      this.root.rotation.z = moving ? swing * 0.22 : swing * 0.03;
+      this.root.rotation.x = moving ? 0.14 : 0;
+      const squash = 1 - Math.abs(swing) * (moving ? 0.09 : 0.02);
+      const stretch = 1 / Math.sqrt(squash);
+      this.root.scale.set(stretch, squash, stretch);
+    }
 
     // Höhe: auf Plattformen/Stufen steigen (weich nachziehen).
     const groundY = this.terrain ? this.terrain.heightAt(this.pos.x, this.pos.z) : 0;
@@ -195,12 +199,21 @@ export class Player {
     this._setVisible(true);
   }
 
-  // Tauscht das Platzhalter-Mesh gegen ein geladenes GLB-Modell (M4).
+  // Tauscht das Platzhalter-Mesh gegen ein geladenes GLB-Modell.
+  // Spielt vorhandene Skelett-Animationen (gerigged) per Mixer ab.
   setModel(object3d) {
     if (this.model) this.root.remove(this.model);
     this.placeholder.visible = false;
     this.model = object3d;
     this.root.add(object3d);
+
+    const clips = object3d.userData.gltfAnimations || [];
+    if (clips.length) {
+      this.mixer = new THREE.AnimationMixer(object3d);
+      this.mixer.clipAction(clips[0]).play();
+    } else {
+      this.mixer = null;
+    }
   }
 
   _setVisible(v) {
