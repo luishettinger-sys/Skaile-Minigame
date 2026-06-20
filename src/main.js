@@ -14,6 +14,7 @@ const input = new Input();
 const hud = new HUD();
 const audio = new Audio();
 const game = new Game({ world, input, hud, audio });
+window.__game = game; // Debug-Hook (Konsole)
 
 // --- UI verdrahten ---------------------------------------------------------
 function beginGame() {

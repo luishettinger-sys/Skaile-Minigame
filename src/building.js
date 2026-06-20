@@ -7,6 +7,7 @@
 //   rooms                    -> benannte Raum-Rechtecke (für Spawns/Logik)
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
+import { makeFloorMaterial } from "./floortex.js";
 
 const WALL_H = 4.2; // niedrig genug, dass die Kamera in die Räume schaut (Puppenhaus)
 const WALL_T = 0.7; // Wandstärke
@@ -50,17 +51,17 @@ export class Building {
     // Nord-Galerie (y6) – über Rampe hinter dem Labor
     const GALLERY = R.gallery = { minX: -20, maxX: 20, minZ: -128, maxZ: -104, y: 6 };
 
-    // --- Böden je Raum (eigene Optik/Themen) ---
-    this._floor(ARENA, 0x12151d, true); // Arena: Code-Grid
-    this._floor(SHOP, 0x1f1710, false); // Shop: warmes Braun
-    this._floor(LAB, 0x101a1c, false); // Labor: Petrol
-    this._floor(PUZZLE, 0x0f1a14, false); // Rätsel: Grün
-    this._floor(ARMORY, 0x1c1414, false); // Waffenkammer: Rot
-    this._floor(LOUNGE, 0x17101c, false); // Lounge: Violett
-    this._floor(SERVER, 0x0c1320, false); // Server: Blau
-    this._floor(VAULT, 0x1d1a10, false); // Vault: Gold
-    this._floor(ROOF, 0x0a1018, false); // Dach: Nacht
-    this._floor(GALLERY, 0x141622, false);
+    // --- Böden je Raum (PBR-Textur + Raum-Tint, eigene Themen) ---
+    this._floor(ARENA, 0x2a3550, true, "tech"); // Arena: Tech-Platten + Code-Grid
+    this._floor(SHOP, 0x3a2a18, false, "carpet"); // Shop: warmer Teppich
+    this._floor(LAB, 0x123036, false, "tech"); // Labor: Petrol-Platten
+    this._floor(PUZZLE, 0x123626, false, "tech"); // Rätsel: Grün
+    this._floor(ARMORY, 0x361a1a, false, "tech"); // Waffenkammer: Rot
+    this._floor(LOUNGE, 0x2a1838, false, "carpet"); // Lounge: violetter Teppich
+    this._floor(SERVER, 0x102440, false, "tech"); // Server: Blau
+    this._floor(VAULT, 0x37310f, false, "tech"); // Vault: Gold
+    this._floor(ROOF, 0x121c2c, false, "tech"); // Dach: Nacht
+    this._floor(GALLERY, 0x222640, false, "tech"); // Galerie
 
     // --- Korridore (Verbinder durch die Türöffnungen) ---
     this._connector(-D, D, -32, -28, 0); // Arena -> Shop
@@ -99,7 +100,7 @@ export class Building {
     // Großer Büro-Teppichboden unter allem (verbindet die Räume optisch zum Büro).
     const base = new THREE.Mesh(
       new THREE.PlaneGeometry(320, 360),
-      new THREE.MeshStandardMaterial({ color: 0x252b3a, roughness: 0.97, metalness: 0.04 })
+      makeFloorMaterial("carpet", 0x3a4258, 320, 360)
     );
     base.rotation.x = -Math.PI / 2;
     base.position.set(0, -0.06, 0);
@@ -108,12 +109,12 @@ export class Building {
   }
 
   // ------------------------------------------------------------- Bau-Helfer --
-  _floor(r, color, grid) {
+  _floor(r, color, grid, theme = "tech") {
     const w = r.maxX - r.minX, d = r.maxZ - r.minZ;
     const cx = (r.minX + r.maxX) / 2, cz = (r.minZ + r.maxZ) / 2;
     const slab = new THREE.Mesh(
       new THREE.BoxGeometry(w, 0.4, d),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.78, metalness: 0.22 })
+      makeFloorMaterial(theme, color, w, d)
     );
     slab.position.set(cx, r.y - 0.2, cz);
     slab.receiveShadow = true;
@@ -147,7 +148,7 @@ export class Building {
     const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
     const slab = new THREE.Mesh(
       new THREE.BoxGeometry(w, 0.4, d),
-      new THREE.MeshStandardMaterial({ color: 0x14171f, roughness: 0.8, metalness: 0.2 })
+      makeFloorMaterial("tech", 0x232b3c, Math.max(w, 2), Math.max(d, 2))
     );
     slab.position.set(cx, y - 0.2, cz);
     slab.receiveShadow = true;
@@ -167,7 +168,7 @@ export class Building {
     const cx = (minX + maxX) / 2, cz = (zLow + zHigh) / 2;
     const ramp = new THREE.Mesh(
       new THREE.BoxGeometry(w, 0.4, Math.hypot(len, yHigh - yLow)),
-      new THREE.MeshStandardMaterial({ color: 0x1b2233, roughness: 0.75, metalness: 0.25 })
+      makeFloorMaterial("tech", 0x283250, w, Math.hypot(len, yHigh - yLow))
     );
     const angle = Math.atan2(yHigh - yLow, len);
     ramp.rotation.x = -angle; // steigt mit +z an
