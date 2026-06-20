@@ -68,6 +68,7 @@ export const CONFIG = {
       label: "Stack Overflow",
       hp: 4, speed: 2.9, radius: 1.35, damage: 16, score: 35,
       color: 0x9b5de5, glow: 0xc89bff, scale: 1.6,
+      lunger: true, lungeInterval: 3.2, // setzt zum Sprung an
     },
     racecondition: {
       label: "Race Condition",
@@ -91,13 +92,16 @@ export const CONFIG = {
     },
     nullptr: {
       label: "Null Pointer",
-      hp: 2, speed: 5.0, radius: 0.85, damage: 12, score: 35,
+      hp: 2, speed: 4.4, radius: 0.85, damage: 12, score: 35,
       color: 0x4a5bff, glow: 0x9bb0ff, scale: 1.0, fly: true,
+      ranged: true, shootInterval: 2.0, shootRange: 32, // schießt Void-Bolts
     },
     boss: {
       label: "Kernel Panic",
       hp: 120, speed: 2.3, radius: 2.6, damage: 26, score: 500,
       color: 0xff3355, glow: 0xff8899, scale: 3.4, isBoss: true,
+      ranged: true, shootInterval: 2.6, shootRange: 95, // Schuss-Fächer
+      lunger: true, lungeInterval: 4.5, // Slam-Sprung
     },
   },
 

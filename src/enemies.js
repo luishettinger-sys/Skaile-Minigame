@@ -53,12 +53,16 @@ export class EnemySystem {
       visible: true,
       baseScale: mesh.scale.x, // Referenz für den Treffer-Punch
       flash: 0,
+      atkT: Math.random() * 2, // Angriffs-Timer
+      lungeState: "idle", // idle|tele|lunge|cd
+      teleT: 0, lungeT: 0, cdT: 0, lvx: 0, lvz: 0,
+      _t: 0,
     };
     this.enemies.push(enemy);
     return enemy;
   }
 
-  update(dt, targetPos, revealHidden = false) {
+  update(dt, targetPos, revealHidden = false, attack = null) {
     for (const e of this.enemies) {
       if (!e.alive) continue;
       const p = e.mesh.position;
@@ -67,9 +71,56 @@ export class EnemySystem {
       const dx = targetPos.x - p.x;
       const dz = targetPos.z - p.z;
       const len = Math.hypot(dx, dz) || 1;
-      const step = e.speed * dt;
-      p.x += (dx / len) * step;
-      p.z += (dz / len) * step;
+      const nx = dx / len, nz = dz / len;
+      e._t += dt;
+
+      // --- Fernkampf: schießen ---
+      if (e.def.ranged && attack && e.visible) {
+        e.atkT -= dt;
+        if (e.atkT <= 0 && len < (e.def.shootRange ?? 30)) {
+          e.atkT = e.def.shootInterval ?? 2.2;
+          e.flash = 1; // Mündungsblitz
+          if (e.def.isBoss) {
+            const base = Math.atan2(nx, nz);
+            for (let k = -2; k <= 2; k++) {
+              const a = base + k * 0.22;
+              attack.shoot(p.x, p.z, Math.sin(a), Math.cos(a),
+                { color: e.def.glow, speed: 26, damage: 10, size: 1.4 });
+            }
+          } else {
+            attack.shoot(p.x, p.z, nx, nz, { color: e.def.glow, speed: 22, damage: 8 });
+          }
+        }
+      }
+
+      // --- Nahkampf: Sprung-Slam (Telegraph → Lunge → Cooldown) ---
+      let lunging = false;
+      if (e.def.lunger) {
+        if (e.lungeState === "tele") {
+          e.teleT -= dt;
+          e.mesh.scale.setScalar(e.baseScale * (1.2 + Math.sin(e._t * 30) * 0.12));
+          if (e.teleT <= 0) { e.lungeState = "lunge"; e.lungeT = 0.32; e.lvx = nx; e.lvz = nz; }
+        } else if (e.lungeState === "lunge") {
+          e.lungeT -= dt;
+          p.x += e.lvx * e.speed * 3.6 * dt;
+          p.z += e.lvz * e.speed * 3.6 * dt;
+          lunging = true;
+          if (e.lungeT <= 0) { e.lungeState = "cd"; e.cdT = e.def.lungeInterval ?? 3; }
+        } else if (e.lungeState === "cd") {
+          e.cdT -= dt;
+          if (e.cdT <= 0) e.lungeState = "idle";
+        } else if (len < 17 && Math.random() < dt * 0.7) {
+          e.lungeState = "tele";
+          e.teleT = 0.5;
+        }
+      }
+
+      // --- Normale Bewegung (außer beim Telegraph/Lunge) ---
+      if (e.lungeState !== "tele" && !lunging) {
+        const step = e.speed * dt;
+        p.x += nx * step;
+        p.z += nz * step;
+      }
 
       e.mesh.rotation.y = Math.atan2(dx, dz);
 
@@ -83,7 +134,9 @@ export class EnemySystem {
 
       // Treffer-Punch (per Instanz, daher Skalierung statt Material).
       if (e.flash > 0) e.flash = Math.max(0, e.flash - dt * 6);
-      e.mesh.scale.setScalar(e.baseScale * (1 + e.flash * 0.35));
+      if (e.lungeState !== "tele") {
+        e.mesh.scale.setScalar(e.baseScale * (1 + e.flash * 0.35));
+      }
 
       // Error-Label über dem Bug mitführen.
       e.label.position.set(p.x, p.y + e.def.radius * 2.4 + 0.7, p.z);

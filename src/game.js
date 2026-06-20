@@ -13,6 +13,7 @@ import { PickupSystem } from "./pickups.js";
 import { WEAPONS, WEAPON_IDS } from "./weapons.js";
 import { Inventory } from "./inventory.js";
 import { Stations } from "./stations.js";
+import { EnemyShots } from "./enemyshots.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
@@ -35,6 +36,7 @@ export class Game {
 
     this.inventory = new Inventory();
     this.stations = new Stations(world.scene);
+    this.enemyShots = new EnemyShots(world.scene);
 
     // Höhen-Sampling (Plattformen) an Spieler & Gegner geben.
     this.player.terrain = world.terrain;
@@ -128,6 +130,7 @@ export class Game {
     this.effects.reset();
     this.pickups.reset();
     this.stations.reset();
+    this.enemyShots.reset();
     this.waves.reset();
     this.audio.init();
     this.audio.resume();
@@ -312,7 +315,11 @@ export class Game {
     }
 
     this.waves.update(dt, this.enemies.aliveCount());
-    this.enemies.update(worldDt, this.player.pos, this.ultActive);
+    this.enemies.update(worldDt, this.player.pos, this.ultActive, {
+      shoot: (x, z, dx, dz, o) => this.enemyShots.spawn(x, z, dx, dz, o),
+    });
+    this.enemyShots.update(worldDt);
+    this._handleEnemyShots();
     this.projectiles.update(dt);
     this.effects.update(dt);
     this.pickups.update(dt, this.player.pos, this._magnet(), (kind, value) =>
@@ -490,6 +497,24 @@ export class Game {
         const len = Math.hypot(dx, dz) || 1;
         e.mesh.position.x += (dx / len) * CONFIG.player.contactKnockback * 0.2;
         e.mesh.position.z += (dz / len) * CONFIG.player.contactKnockback * 0.2;
+      }
+    }
+  }
+
+  _handleEnemyShots() {
+    const list = this.enemyShots.active;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const s = list[i];
+      if (distXZ(this.player.pos, s.spr.position) <= CONFIG.player.radius + s.radius) {
+        if (this.player.takeDamage(s.damage)) {
+          this.audio.playerHurt();
+          this.world.addShake(0.6);
+          this.hud.flash("#ff5470", 0.3);
+          this.hud.setHp(this.player.hp, this.player.maxHp);
+          this._breakCombo();
+          if (!this.player.alive) { this.gameOver(); return; }
+        }
+        this.enemyShots.retire(i);
       }
     }
   }
