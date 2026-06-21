@@ -90,7 +90,7 @@ export function createWorld(canvas) {
   //   1 = Drohne (3rd-Person hinter der Ente, action-reicher)
   let camMode = 0;
   const BIRDS = { y: 30, z: 11 };                  // hoch & steil
-  const DRONE = { dist: 17, y: 9.5, lookAhead: 7 }; // hinter der Ente, etwas weiter weg
+  const DRONE = { dist: 23, y: 13, lookAhead: 9 }; // hinter der Ente, weiter weg (Ente kleiner im Bild)
   let camDir = 0; // geglättete „Director"-Blickrichtung (Drohne)
 
   // Vorausschau (Flow): Kamera blickt leicht in Bewegungsrichtung.
@@ -124,8 +124,8 @@ export function createWorld(canvas) {
     const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
     let lookX = focus.x, lookY = focus.y, lookZ = focus.z, camDist;
 
-    // Director-Richtung immer weich nachziehen (langsam → cinematisch, kein Whip).
-    camDir = angleDamp(camDir, heading, 3.2, dt);
+    // Director-Richtung weich nachziehen (langsam → trailt sauber hinterher, kein Whip).
+    camDir = angleDamp(camDir, heading, 2.6, dt);
     if (camMode === 1) {
       // Drohne: hinter der Ente entlang der Director-Richtung, über die Schulter.
       const fx = Math.sin(camDir), fz = Math.cos(camDir);

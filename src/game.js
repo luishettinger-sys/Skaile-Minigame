@@ -699,19 +699,9 @@ export class Game {
     }
 
     this._autoCamera(dt);
-    // Bewegung: in der Vogelperspektive welt-relativ (W=hoch). In der Drohne
-    // KAMERA-relativ (W=ins Bild/vorwärts, D=rechts), damit WASD-only mit der
-    // mitdrehenden Kamera intuitiv bleibt.
-    const rawMove = this.input.moveVector();
-    let move = rawMove;
-    if (this.world.isDrone && this.world.isDrone() && (rawMove.x || rawMove.z)) {
-      const h = this.world.camHeading();
-      const fwd = -rawMove.z, rgt = rawMove.x; // W→vorwärts, D→rechts
-      let mx = Math.sin(h) * fwd + Math.cos(h) * rgt;
-      let mz = Math.cos(h) * fwd - Math.sin(h) * rgt;
-      const len = Math.hypot(mx, mz) || 1;
-      move = { x: mx / len, z: mz / len };
-    }
+    // Bewegung welt-relativ (W=hoch/Nord, S=runter, A=links, D=rechts) – sauber &
+    // nicht invertiert. Die Drohnen-Kamera trailt hinterher (siehe updateCamera).
+    const move = this.input.moveVector();
     this._updateFacing(dt, move);
     if (move.x !== 0 || move.z !== 0) this.guide.event("move");
     // Näherungs-Ereignisse für den Guide (Terminal / verschlossene Tür).

@@ -262,27 +262,40 @@ export class Player {
   // Getragene Waffe: hängt ein normalisiertes GLB an die Ente.
   // obj === Klon aus cloneWeaponModel() oder null (entfernt die Waffe).
   setWeaponModel(obj) {
-    if (!this.weaponAnchor) {
-      // Anker an der rechten Seite, vorn & auf Hüfthöhe; Lauf zeigt +Z.
-      this.weaponAnchor = new THREE.Group();
-      this.weaponAnchor.position.set(0.58, 0.78, 0.5);
-      this.root.add(this.weaponAnchor);
-    }
-    if (this.weaponModel) {
-      this.weaponAnchor.remove(this.weaponModel);
-      this.weaponModel = null;
-    }
-    if (!obj) return;
-    // Auf gut sichtbare Ziellänge skalieren – sonst sind Pistolen winzig.
+    // Alte Waffe entfernen (egal woran sie hing).
+    if (this.weaponModel && this.weaponModel.parent) this.weaponModel.parent.remove(this.weaponModel);
+    if (this.weaponModel && this.weaponModel !== obj) this.weaponModel = null;
+    if (!obj) { this.weaponModel = null; return; }
+
+    // Skalierung wird auf 1 zurückgesetzt, bevor die Box gemessen wird (Re-Attach).
+    obj.scale.setScalar(1);
     const box = new THREE.Box3().setFromObject(obj);
-    const size = new THREE.Vector3();
-    box.getSize(size);
+    const size = new THREE.Vector3(); box.getSize(size);
     const len = Math.max(size.x, size.y, size.z) || 1;
-    const targetLen = Math.min(1.35, Math.max(1.0, len)); // handlich: kleiner als die Ente, verdeckt sie nicht
-    obj.scale.setScalar(targetLen / len);
+    const targetLen = 1.2; // handliche Welt-Größe
+
+    if (this.handBone) {
+      // An die rechte Hand hängen (folgt der Lauf-Animation). Die Bone trägt die
+      // Modell-Skalierung → gegenrechnen, damit die Waffe Welt-Größe behält.
+      const ws = new THREE.Vector3();
+      this.handBone.getWorldScale(ws);
+      const inv = 1 / (ws.x || 1);
+      obj.scale.setScalar((targetLen / len) * inv);
+      obj.position.set(0, 0, 0);
+      obj.rotation.set(0, 0, 0);
+      this.handBone.add(obj);
+    } else {
+      if (!this.weaponAnchor) {
+        this.weaponAnchor = new THREE.Group();
+        this.weaponAnchor.position.set(0.58, 0.78, 0.5);
+        this.root.add(this.weaponAnchor);
+      }
+      obj.scale.setScalar(targetLen / len);
+      obj.position.set(0, 0, 0);
+      this.weaponAnchor.add(obj);
+    }
     this.weaponModel = obj;
     this._kick = 0;
-    this.weaponAnchor.add(obj);
   }
 
   // Rückstoß auslösen (beim Schießen) – die Waffe ruckt kurz zurück.
@@ -340,6 +353,7 @@ export class Player {
     this.duckDepth = box.max.z || 0.7; // Vorderkante (Blickrichtung +Z)
 
     const clips = object3d.userData.gltfAnimations || [];
+    this._isRigged = clips.length > 0;
     if (clips.length) {
       this.mixer = new THREE.AnimationMixer(object3d);
       this.mixer.clipAction(clips[0]).play();
@@ -347,7 +361,16 @@ export class Player {
       this.mixer = null;
     }
 
-    if (this._skin) this.setSkin(this._skin); // gewählten Skin auf neues Modell anwenden
+    // Rechte Hand-Bone finden → getragene Waffe hängt daran (folgt der Animation).
+    this.handBone = null;
+    object3d.traverse((o) => { if (o.isBone && o.name === "RightHand") this.handBone = o; });
+
+    // Gebackene Skins gehören zu den UVs von duck.glb und passen NICHT auf das
+    // gerigte Modell → beim gerigten Modell native Textur behalten (kein Skin-Tausch).
+    if (this._skin && !this._isRigged) this.setSkin(this._skin);
+
+    // Waffe (falls schon geladen) neu anhängen – jetzt ggf. an die Hand.
+    if (this.weaponModel) this.setWeaponModel(this.weaponModel);
   }
 
   // Wendet einen Skin (recolorierte Albedo-Textur + Material-Props) auf das
