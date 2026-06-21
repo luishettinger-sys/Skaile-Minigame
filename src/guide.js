@@ -9,7 +9,7 @@ const STEPS = [
   { on: "deployStarted", text: "Drück [E] – das schickt deinen Code live, und prompt kommen die Bugs rein!" },
   { on: "waveCleared",   text: "Top, Build grün! ✅ Fürs Abwehren gibt's 🪙 Coins. Damit kannst du was anfangen…" },
   { on: "nearDoor",      text: "Geh zu einer 🔒 verschlossenen Tür – da kannst du einen neuen Raum freischalten." },
-  { on: "roomUnlocked",  text: "Stark! 🎉 So wächst dein Büro Stück für Stück." },
+  { on: "roomUnlocked",  text: "Stark! 🎉 So eroberst du die Platine Chip für Chip zurück." },
   { on: null,            text: "Du hast's drauf! Merke: Deploy → Coins → Räume freischalten. Viel Spaß, Boss! 🦆", hold: 8 },
 ];
 

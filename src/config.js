@@ -167,7 +167,7 @@ export const CONFIG = {
   campaign: {
     sectors: 5, // Anzahl Sektoren bis zum Sieg
     sectorNames: [
-      "Großraumbüro", "Server-Raum", "Nacht-Office", "Rechenzentrum", "Der Kernel",
+      "Der I/O-Port", "Die RAM-Bänke", "Der GPU-Kern", "Der CPU-Die", "Der Kernel",
     ],
     get finalWave() { return CONFIG.waves.bossEvery * this.sectors; }, // = 25
   },

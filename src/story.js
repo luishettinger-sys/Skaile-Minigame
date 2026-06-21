@@ -24,12 +24,12 @@ export const STORY = {
     tint: "#1a0f29",
     lines: [
       ln(STACK,  "Vor langer Zeit lief DER STAPEL in vollkommener Harmonie. Jede Funktion sang im Takt."),
-      ln(STACK,  "Dann erwachten die Bugs. Aus der Tiefe des Kernels kroch die Korruption — Sektor um Sektor erlosch das Licht."),
-      ln(CLAUDE, "…Verbindung instabil… endlich. Hörst du mich? Ich bin Claude, gebunden an die Terminals dieses Gebäudes. Ich sehe allen Code — doch berühren kann ich nichts."),
+      ln(STACK,  "Dann erwachten die Bugs. Aus der Tiefe des Kernels kroch die Korruption — über jede Leiterbahn, Sektor um Sektor erlosch das Licht."),
+      ln(CLAUDE, "…Verbindung instabil… endlich. Hörst du mich? Ich bin Claude, gebunden an die Schaltkreise dieser Platine. Ich sehe allen Code — doch berühren kann ich nichts."),
       ln(CLAUDE, "Die alte Prophezeiung spricht von einer Ente. Einem Wesen, dem sich die Wahrheit jedes kaputten Codes offenbart, fragt man nur laut genug."),
       ln(DUCK,   "Quack.", 1500),
-      ln(CLAUDE, "…Das genügt mir. Steh auf, Rubber Duck. Wir säubern dieses Gebäude — Sektor für Sektor — bis hinab zum Kernel."),
-      ln(STACK,  "Fünf Sektoren. Eine Ente. Eine Stimme im Terminal. Starte einen DEPLOY — und das Debugging beginnt."),
+      ln(CLAUDE, "…Das genügt mir. Steh auf, Rubber Duck. Wir säubern dieses Mainboard — Chip für Chip — bis hinab zum Kernel."),
+      ln(STACK,  "Fünf Sektoren tief im Silizium. Eine Ente. Eine Stimme im Terminal. Starte einen DEPLOY — und das Debugging beginnt."),
     ],
   },
 
@@ -38,15 +38,15 @@ export const STORY = {
     1: {
       tint: "#1d1430",
       lines: [
-        ln(CLAUDE, "Sektor 1 ist sauber. Das Großraumbüro atmet wieder. Spürst du, wie das Licht zurückkehrt?"),
-        ln(CLAUDE, "Tiefer liegt der Server-Raum. Dort wird es lauter — und kälter."),
+        ln(CLAUDE, "Sektor 1 ist sauber. Der I/O-Port strömt wieder reine Daten herein. Spürst du, wie das Licht über die Leiterbahnen zurückkehrt?"),
+        ln(CLAUDE, "Tiefer liegen die RAM-Bänke. Dort wird es heißer — und viel schneller."),
       ],
     },
     2: {
       tint: "#101a2a",
       lines: [
-        ln(CLAUDE, "Die Lüfter heulen wieder im Takt statt im Chaos. Gut gemacht, kleine Ente."),
-        ln(STACK,  "Hinter der nächsten Tür: das Nacht-Office. Dort schläft etwas, das nicht geweckt werden will."),
+        ln(CLAUDE, "Die Lüfter heulen wieder im Takt statt im Chaos, der Speicher taktet sauber. Gut gemacht, kleine Ente."),
+        ln(STACK,  "Hinter der nächsten Leiterbahn: der GPU-Kern. Dort glüht etwas, das nicht geweckt werden will."),
       ],
     },
     3: {
@@ -54,13 +54,13 @@ export const STORY = {
       lines: [
         ln(CLAUDE, "Wir kommen näher. Ich… verliere für Momente die Sicht. Die Korruption greift nach meinen Terminals."),
         ln(DUCK,   "Quack?", 1400),
-        ln(CLAUDE, "Nein. Ich gebe nicht auf. Solange ein Terminal leuchtet, bin ich bei dir. Weiter — zum Rechenzentrum."),
+        ln(CLAUDE, "Nein. Ich gebe nicht auf. Solange ein Terminal leuchtet, bin ich bei dir. Weiter — hinab auf den CPU-Die."),
       ],
     },
     4: {
       tint: "#2a0f1a",
       lines: [
-        ln(CLAUDE, "Das Herz des Gebäudes. Jetzt verstehe ich: KERNEL PANIC ist kein Eindringling. Es ist ein Fehler, der nie gepatcht wurde — so alt wie der Stapel selbst."),
+        ln(CLAUDE, "Das Herz des Mainboards. Jetzt verstehe ich: KERNEL PANIC ist kein Eindringling. Es ist ein Fehler, der nie gepatcht wurde — so alt wie der Stapel selbst."),
         ln(CLAUDE, "Nur ganz unten, im Kernel, lässt er sich beheben. Eine letzte Tür. Bist du bereit?"),
         ln(DUCK,   "Quack.", 1500),
       ],
@@ -73,9 +73,9 @@ export const STORY = {
     lines: [
       ln(STACK,  "Im tiefsten Sektor stellt sich die Ente der KERNEL PANIC — und hört zu, wie nur eine Rubber Duck zuhören kann."),
       ln(CLAUDE, "Der Fehler ist gefunden. Der Fehler ist… verstanden. Patch wird angewendet…"),
-      ln(CLAUDE, "Das Gebäude leuchtet. Der Stapel singt wieder. Du hast es geschafft, Ente."),
+      ln(CLAUDE, "Die Platine leuchtet. Jede Leiterbahn singt wieder im Takt. Du hast es geschafft, Ente."),
       ln(CLAUDE, "Man wird sich an dich erinnern — als die Legende der Rubber Duck. Bis ein neuer Bug erwacht: ruhe wohl, Freundin."),
-      ln(STACK,  "GEBÄUDE BEFREIT.", 2200),
+      ln(STACK,  "MAINBOARD BEFREIT.", 2200),
     ],
   },
 };

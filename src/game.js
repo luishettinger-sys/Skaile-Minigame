@@ -1341,7 +1341,7 @@ export class Game {
       }
       const isFinal = this.waves.wave >= CONFIG.campaign.finalWave;
       this.hud.banner(
-        isFinal ? "🏆 GEBÄUDE BEFREIT" : `SEKTOR ${Math.min(sector, CONFIG.campaign.sectors)}/${CONFIG.campaign.sectors} GESÄUBERT`,
+        isFinal ? "🏆 MAINBOARD BEFREIT" : `SEKTOR ${Math.min(sector, CONFIG.campaign.sectors)}/${CONFIG.campaign.sectors} GESÄUBERT`,
         sName
       );
       this.hud.flash("#ffd23f", 0.45);
@@ -1369,7 +1369,7 @@ export class Game {
         this.world.addShake(1.0);
         this.hud.flash("#ffd23f", 0.6);
         this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.duckBody, 26, 32);
-        this.hud.banner("🏆 GEBÄUDE BEFREIT!", "Endlos-Modus – überlebe so lange du kannst!");
+        this.hud.banner("🏆 MAINBOARD BEFREIT!", "Endlos-Modus – überlebe so lange du kannst!");
       } else {
         // Sektor-Zwischenszene (einmal pro Sitzung), kurz nach dem Spektakel,
         // damit Boss-Tod, Loot & Banner noch sichtbar abklingen.
@@ -1665,7 +1665,7 @@ export class Game {
   _updateObjective(n) {
     const be = CONFIG.waves.bossEvery;
     const sectors = CONFIG.campaign.sectors;
-    if (this.won) { this.hud.setObjective("🏆 Gebäude befreit · Endlos-Modus"); return; }
+    if (this.won) { this.hud.setObjective("🏆 Mainboard befreit · Endlos-Modus"); return; }
     const sector = Math.min(sectors, Math.floor((n - 1) / be) + 1);
     const name = CONFIG.campaign.sectorNames[sector - 1] || ("Sektor " + sector);
     const nextBoss = Math.ceil(n / be) * be;
