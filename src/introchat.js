@@ -106,14 +106,14 @@ class IntroScene {
     if (d.recoil > 0) d.recoil = Math.max(0, d.recoil - dt * 60);
     if (d.flash > 0) d.flash -= dt;
 
-    // Bugs spawnen (von rechts).
+    // Bugs spawnen (von rechts) – dichter, damit das MG immer was zu tun hat.
     this.spawnT -= dt;
-    if (this.spawnT <= 0 && this.bugs.length < 7) {
-      this.spawnT = 0.55 + Math.random() * 0.6;
+    if (this.spawnT <= 0 && this.bugs.length < 14) {
+      this.spawnT = 0.22 + Math.random() * 0.32;
       this.bugs.push({
-        x: this.W + 40, y: this.H * (0.4 + Math.random() * 0.42),
-        v: 60 + Math.random() * 70, e: BUGS[(Math.random() * BUGS.length) | 0],
-        s: 26 + Math.random() * 14, w: Math.random() * 6,
+        x: this.W + 40, y: this.H * (0.32 + Math.random() * 0.5),
+        v: 70 + Math.random() * 90, e: BUGS[(Math.random() * BUGS.length) | 0],
+        s: 24 + Math.random() * 16, w: Math.random() * 6,
       });
     }
     for (let i = this.bugs.length - 1; i >= 0; i--) {
@@ -123,18 +123,20 @@ class IntroScene {
       if (b.x < this.duck.x - 36) { this._burst(b.x, b.y, "#ff5470", 6); this.bugs.splice(i, 1); } // am Duck vorbei
     }
 
-    // Duck feuert auf den nächsten Bug.
+    // Duck feuert im MG-Takt – schnelles Dauerfeuer + Hülsenauswurf.
     this.fireT -= dt;
-    if (this.fireT <= 0 && this.bugs.length) {
-      this.fireT = 0.32 + Math.random() * 0.15;
+    if (this.fireT <= 0) {
+      this.fireT = 0.06 + Math.random() * 0.04; // ~12–16 Schuss/Sek
       let tgt = null, bd = 1e9;
-      for (const b of this.bugs) { if (b.x > d.x && b.x - d.x < bd) { bd = b.x - d.x; tgt = b; } }
-      if (tgt) {
-        const my = d.y + d.bob - 6;
-        const ang = Math.atan2(tgt.y - my, tgt.x - (d.x + 26));
-        this.bullets.push({ x: d.x + 26, y: my, vx: Math.cos(ang) * 720, vy: Math.sin(ang) * 720 });
-        d.recoil = 10; d.flash = 0.09;
-      }
+      for (const b of this.bugs) { if (b.x > d.x - 60 && Math.abs(b.x - d.x) < bd) { bd = Math.abs(b.x - d.x); tgt = b; } }
+      const mx = d.x + 84, my = d.y + d.bob + 8; // an der MG-Mündung (1.5x-Ente)
+      // Zielwinkel (oder leicht streuend geradeaus, wenn kein Bug da ist).
+      let ang = tgt ? Math.atan2(tgt.y - my, tgt.x - mx) : (Math.random() - 0.5) * 0.25;
+      ang += (Math.random() - 0.5) * 0.08; // MG-Streuung
+      this.bullets.push({ x: mx, y: my, vx: Math.cos(ang) * 900, vy: Math.sin(ang) * 900 });
+      d.recoil = 8; d.flash = 0.06;
+      // Patronenhülse auswerfen (fliegt nach oben/hinten, fällt mit Schwerkraft).
+      this.parts.push({ x: d.x + 30, y: my - 8, vx: -60 - Math.random() * 60, vy: -120 - Math.random() * 80, life: 0.6 + Math.random() * 0.3, color: "#e8b04a", s: 3 });
     }
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const p = this.bullets[i];
@@ -248,23 +250,82 @@ class IntroScene {
     ctx.fillText("C L A U D E", c.x, c.y + 78); ctx.globalAlpha = 1;
   }
 
+  // Prozedurale Hero-Ente mit echtem MG (statt Emoji+Stick): blickt nach rechts
+  // zu den Bugs, ballert im Dauerfeuer, Rückstoß-Wackeln, fetter Mündungsblitz.
   _drawDuck(ctx) {
-    const d = this.duck, x = d.x - d.recoil, y = d.y + d.bob;
+    const d = this.duck;
+    const rk = d.recoil / 8; // 0..1 Rückstoß
+    const x = d.x - rk * 6, y = d.y + d.bob;
     // Bodenschatten.
-    ctx.globalAlpha = 0.3; ctx.fillStyle = "#000";
-    ctx.beginPath(); ctx.ellipse(d.x, d.y + 34, 36, 9, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
-    // Mündungsblitz.
+    ctx.globalAlpha = 0.32; ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.ellipse(d.x, d.y + 40, 40, 10, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(1.5, 1.5); // größer = präsenter
+
+    // --- Ente (prozedural, gelb mit Soldaten-Cap) ---
+    // Körper.
+    ctx.fillStyle = "#f7c948";
+    ctx.beginPath(); ctx.ellipse(-4, 6, 26, 22, 0, 0, 7); ctx.fill();
+    // Bauch-Highlight.
+    ctx.fillStyle = "#ffe08a";
+    ctx.beginPath(); ctx.ellipse(-2, 12, 16, 13, 0, 0, 7); ctx.fill();
+    // Kopf.
+    ctx.fillStyle = "#f7c948";
+    ctx.beginPath(); ctx.arc(14, -14, 16, 0, 7); ctx.fill();
+    // Schnabel (zeigt nach rechts zu den Bugs).
+    ctx.fillStyle = "#ff8c1a";
+    ctx.beginPath(); ctx.moveTo(26, -16); ctx.lineTo(40, -12); ctx.lineTo(26, -8); ctx.closePath(); ctx.fill();
+    // Auge + entschlossener Blick.
+    ctx.fillStyle = "#1a1a22"; ctx.beginPath(); ctx.arc(18, -17, 2.6, 0, 7); ctx.fill();
+    // Soldaten-Cap (oliv).
+    ctx.fillStyle = "#5a6a2e";
+    ctx.beginPath(); ctx.arc(13, -22, 13, Math.PI, 0); ctx.fill();
+    ctx.fillRect(0, -23, 26, 3);
+    ctx.fillStyle = "#6f8238"; ctx.fillRect(24, -23, 9, 3); // Schirm
+
+    // --- MG (in den Flügeln, zeigt nach rechts) ---
+    ctx.save();
+    ctx.translate(8, 6);
+    // leichtes Gun-Rütteln im Takt.
+    ctx.rotate(Math.sin(this.t * 40) * 0.02 * rk);
+    // Magazin.
+    ctx.fillStyle = "#23262e"; ctx.fillRect(8, 4, 7, 16);
+    // Body.
+    ctx.fillStyle = "#33373f"; ctx.fillRect(-2, -6, 26, 12);
+    // Lauf.
+    ctx.fillStyle = "#1c1f25"; ctx.fillRect(22, -3, 26, 6);
+    // Lauf-Kühlrippen.
+    ctx.fillStyle = "#0e1014"; for (let i = 0; i < 4; i++) ctx.fillRect(26 + i * 5, -3, 1.5, 6);
+    // Mündung.
+    ctx.fillStyle = "#0a0b0e"; ctx.fillRect(46, -4, 4, 8);
+    // Vorder-Flügel (hält den Lauf).
+    ctx.fillStyle = "#eaba38";
+    ctx.beginPath(); ctx.ellipse(20, 8, 8, 5, -0.3, 0, 7); ctx.fill();
+    ctx.restore();
+
+    // --- Mündungsblitz (fett, gezackt) – an der Laufmündung, mitskaliert ---
     if (d.flash > 0) {
-      ctx.save(); ctx.globalAlpha = d.flash * 8; ctx.shadowColor = "#fff3b0"; ctx.shadowBlur = 20;
-      ctx.fillStyle = "#fff3b0"; ctx.beginPath(); ctx.arc(x + 30, y - 6, 12, 0, 7); ctx.fill(); ctx.restore();
+      const fx = 58, fy = 6;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, d.flash * 14);
+      ctx.shadowColor = "#ffd23f"; ctx.shadowBlur = 24;
+      ctx.fillStyle = "#fff3b0";
+      ctx.beginPath();
+      const spikes = 7, ro = 18, ri = 6;
+      for (let i = 0; i < spikes * 2; i++) {
+        const a = (i / (spikes * 2)) * Math.PI * 2;
+        const r = i % 2 ? ri : ro * (0.7 + Math.random() * 0.6);
+        ctx[i ? "lineTo" : "moveTo"](fx + Math.cos(a) * r, fy + Math.sin(a) * r * 0.7);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#ff8c1a"; ctx.globalAlpha = Math.min(1, d.flash * 10);
+      ctx.beginPath(); ctx.arc(fx, fy, 7, 0, 7); ctx.fill();
+      ctx.restore();
     }
-    // Ente (Emoji, nach rechts gespiegelt → blickt zu den Bugs).
-    ctx.save(); ctx.translate(x, y); ctx.scale(-1, 1);
-    ctx.font = "72px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("🦆", 0, 0); ctx.restore();
-    // Kleiner Blaster-Lauf.
-    ctx.strokeStyle = "#6ee7ff"; ctx.lineWidth = 5; ctx.lineCap = "round";
-    ctx.beginPath(); ctx.moveTo(x + 8, y - 4); ctx.lineTo(x + 30, y - 6); ctx.stroke();
+
+    ctx.restore();
   }
 }
 
@@ -372,16 +433,17 @@ export class IntroChat {
         const body = this._append("claude");
         await this._type(body, msg.text, 16);
         if (this._skip) break;
-        await this._hold((msg.hold ?? 700) + msg.text.length * 16);
+        // Mehr Lesezeit: längere Haltezeit, skaliert mit Textlänge.
+        await this._hold((msg.hold ?? 1200) + msg.text.length * 30);
       } else if (msg.role === "duck") {
         const body = this._append("duck");
         await this._type(body, msg.text, 40);
         if (this._skip) break;
-        await this._hold(700);
+        await this._hold(1400);
       } else {
         const body = this._append("sys");
         body.textContent = msg.text;
-        await this._hold(650);
+        await this._hold(1100);
       }
     }
 
