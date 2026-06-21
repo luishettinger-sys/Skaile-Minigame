@@ -748,3 +748,103 @@ kbd {
   color: #8a93a6;
   margin-top: 4px;
 }
+
+/* ----------------------------------------------------- Story-Cutscene ---- */
+#cutscene {
+  --cs-tint: #160c24;
+  position: absolute;
+  inset: 0;
+  z-index: 30; /* über allen Overlays (Sieg 13, Skins 12 …) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background:
+    radial-gradient(120% 90% at 50% 38%, rgba(255, 255, 255, 0.04), transparent 60%),
+    radial-gradient(140% 120% at 50% 50%, var(--cs-tint), #05060a 92%);
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+#cutscene.show { opacity: 1; }
+#cutscene.hidden { display: none; }
+
+/* Letterbox-Balken (Kino-Look) */
+.cs-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 11vh;
+  background: #000;
+  transform: scaleY(0);
+  transition: transform 0.5s ease;
+}
+.cs-bar-top { top: 0; transform-origin: top; }
+.cs-bar-bottom { bottom: 0; transform-origin: bottom; }
+#cutscene.show .cs-bar { transform: scaleY(1); }
+
+.cs-stage {
+  max-width: min(760px, 84vw);
+  text-align: center;
+  padding: 0 24px;
+  transform: translateY(8px);
+  transition: transform 0.45s ease;
+}
+#cutscene.show .cs-stage { transform: translateY(0); }
+
+.cs-glyph {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 14px;
+  filter: drop-shadow(0 0 18px currentColor);
+  animation: cs-float 3.4s ease-in-out infinite;
+}
+@keyframes cs-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.cs-speaker {
+  font-size: 13px;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+  opacity: 0.92;
+  text-shadow: 0 0 12px currentColor;
+}
+
+.cs-text {
+  --cs-line: #f3f0ff;
+  font-size: clamp(18px, 2.4vw, 26px);
+  line-height: 1.6;
+  color: #f3f0ff;
+  min-height: 3.2em;
+  font-family: "Georgia", "Iowan Old Style", serif;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.2);
+}
+/* Tippender Cursor am Textende */
+.cs-text::after {
+  content: "▌";
+  margin-left: 2px;
+  color: var(--cs-line);
+  animation: cs-caret 0.9s steps(2) infinite;
+}
+@keyframes cs-caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.cs-hint {
+  position: absolute;
+  bottom: calc(11vh + 18px);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: #7e88a0;
+  opacity: 0.85;
+  animation: cs-pulse 2.6s ease-in-out infinite;
+}
+.cs-hint b { color: #aeb8d0; }
+@keyframes cs-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}

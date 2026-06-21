@@ -25,6 +25,7 @@ import { SKINS } from "./skins.js";
 import { META_UPGRADES, META_ORDER, metaPrice, metaMods, metaStartCoins } from "./metaupgrades.js";
 import { BOONS, rollBoons } from "./boons.js";
 import { Achievements } from "./achievements.js";
+import { STORY, Cutscene } from "./story.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
 const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over", WON: "won" };
@@ -68,6 +69,12 @@ export class Game {
     this.throwables = new Throwables(world.scene);
     this.armory = new Armory(world.scene, world.building?.rooms?.armory);
     this.automation = new Automation(world.scene, world.building?.rooms?.lab);
+
+    // Story-Cutscenes (Intro / Sektor-Zwischenszenen / Finale).
+    this.cutscene = new Cutscene(document.getElementById("cutscene"));
+    this.cutsceneActive = false;
+    this._introSeen = false;        // Intro nur einmal pro Sitzung
+    this._seenSectorCS = new Set(); // jede Sektor-Szene einmal pro Sitzung
 
     // Höhen-Sampling (Plattformen) an Spieler & Gegner geben.
     this.player.terrain = world.terrain;
@@ -382,6 +389,12 @@ export class Game {
     this.world.setBackdrop("./assets/textures/office_bg.png");
     this.world.setMood(CONFIG.colors.fog); // Tint auf Default zurück
     this.state = STATE.PLAYING;
+
+    // Intro-Cutscene: einmal pro Sitzung (Restarts nach Tod überspringen sie).
+    if (!this._introSeen) {
+      this._introSeen = true;
+      this.playCutscene(STORY.intro);
+    }
   }
 
   // maxHp aus Mods übernehmen (z.B. nach Upgrade).
@@ -519,7 +532,9 @@ export class Game {
     this.world.addShake(1.0);
     this.hud.flash("#ffd23f", 0.6);
     this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.duckBody, 26, 32);
-    this.hud.showVictory(Math.floor(this.score), this.waves.wave, this.runStats.kills);
+    // Finale-Cutscene zuerst, danach erst der Sieg-Screen.
+    const showWin = () => this.hud.showVictory(Math.floor(this.score), this.waves.wave, this.runStats.kills);
+    this.playCutscene(STORY.ending).then(showWin);
   }
 
   // Nach dem Sieg im selben Run endlos weiterspielen.
@@ -541,7 +556,15 @@ export class Game {
   }
 
   // ----------------------------------------------------------------- Loop --
+  // Cutscene abspielen; pausiert das Gameplay, bis sie fertig/übersprungen ist.
+  playCutscene(scene) {
+    if (!scene || !this.cutscene) return Promise.resolve();
+    this.cutsceneActive = true;
+    return this.cutscene.play(scene).then(() => { this.cutsceneActive = false; });
+  }
+
   update(dt) {
+    if (this.cutsceneActive) return; // Story läuft → Sim einfrieren
     if (this.state !== STATE.PLAYING) return;
 
     if (this.input.wasPressed("KeyP") || this.input.wasPressed("Escape")) {
@@ -1120,7 +1143,17 @@ export class Game {
       this.pickups.spawnLucky(e.mesh.position.x, e.mesh.position.z + 2);
 
       // Großes Ziel: letzter Sektor gesäubert → Sieg (Run kann weiterlaufen).
-      if (this.waves.wave >= CONFIG.campaign.finalWave && !this.won) this._victory();
+      if (this.waves.wave >= CONFIG.campaign.finalWave && !this.won) {
+        this._victory();
+      } else {
+        // Sektor-Zwischenszene (einmal pro Sitzung), kurz nach dem Spektakel,
+        // damit Boss-Tod, Loot & Banner noch sichtbar abklingen.
+        const scene = STORY.sectors[sector];
+        if (scene && !this._seenSectorCS.has(sector)) {
+          this._seenSectorCS.add(sector);
+          setTimeout(() => { if (this.state === STATE.PLAYING) this.playCutscene(scene); }, 1400);
+        }
+      }
     }
 
     if (e.def.splits) {
