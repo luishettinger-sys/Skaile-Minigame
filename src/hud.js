@@ -127,39 +127,43 @@ export class HUD {
   showSkins() { this.el.skinsOverlay.classList.remove("hidden"); }
   hideSkins() { this.el.skinsOverlay.classList.add("hidden"); }
 
-  renderSkins(meta, balance, mode, onBuy, onEquip) {
+  // Skins werden per Claude-Rätsel freigeschaltet (kein Preis mehr).
+  // riddle = { key, q, options } oder null. onCard(key), onEquip(key), onAnswer(key, optionText).
+  renderSkins(meta, riddle, onCard, onEquip, onAnswer) {
     const grid = this.el.skinGrid;
     if (!grid) return;
-    this.el.skinBank.textContent = (balance ?? 0).toLocaleString("de-DE");
-    if (this.el.skinBalanceLine) {
-      const label = mode === "run" ? "Coins" : "Bank";
-      this.el.skinBalanceLine.innerHTML = `${label}: <span id="skin-bank">${(balance ?? 0).toLocaleString("de-DE")}</span> 🪙`;
-      this.el.skinBank = document.getElementById("skin-bank");
-    }
+    if (this.el.skinBalanceLine) this.el.skinBalanceLine.textContent = "Skins durch Claude-Rätsel freischalten 🧠";
     grid.innerHTML = "";
     for (const key of SKIN_ORDER) {
       const def = SKINS[key];
       if (!def) continue;
       const owned = meta.ownedSkins.includes(key);
       const equipped = meta.equippedSkin === key;
-      const affordable = (balance ?? 0) >= def.price;
       const card = document.createElement("div");
-      card.className =
-        "skin-card " + (equipped ? "equipped" : owned ? "owned" : "locked") +
-        (!owned && affordable ? " affordable" : "");
-      const status = equipped ? "✓ Aktiv" : owned ? "Anlegen" : def.price.toLocaleString("de-DE") + " 🪙";
+      card.className = "skin-card " + (equipped ? "equipped" : owned ? "owned" : "locked");
+      const status = equipped ? "✓ Aktiv" : owned ? "Anlegen" : "🔒 Rätsel";
       card.innerHTML =
         `<div class="skin-emoji">${def.emoji}</div>` +
         `<div class="skin-name">${def.label}</div>` +
         `<div class="skin-status">${status}</div>`;
-      if (equipped) {
-        // aktiv – kein Klick
-      } else if (owned) {
-        card.onclick = () => onEquip(key);
-      } else {
-        card.onclick = () => onBuy(key);
-      }
+      if (equipped) { /* aktiv */ }
+      else if (owned) card.onclick = () => onEquip(key);
+      else card.onclick = () => onCard(key);
       grid.appendChild(card);
+    }
+
+    // Rätsel-Bereich (unter dem Grid).
+    let r = this.el.skinRiddle;
+    if (!r) { r = document.createElement("div"); r.id = "skin-riddle"; grid.parentNode.appendChild(r); this.el.skinRiddle = r; }
+    if (riddle) {
+      r.style.display = "block";
+      const opts = riddle.options.map((o) =>
+        `<button class="riddle-opt" data-o="${o.replace(/"/g, "&quot;")}">${o}</button>`).join("");
+      r.innerHTML = `<div class="riddle-q">🧠 ${riddle.q}</div><div class="riddle-opts">${opts}</div>`;
+      for (const btn of r.querySelectorAll(".riddle-opt")) btn.onclick = () => onAnswer(riddle.key, btn.dataset.o);
+    } else {
+      r.style.display = "none";
+      r.innerHTML = "";
     }
   }
 

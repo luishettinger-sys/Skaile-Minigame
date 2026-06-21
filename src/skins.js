@@ -12,8 +12,18 @@ export const SKINS = {
   toxic:    { label: "Toxic",     emoji: "☢️", price: 2500, map: "./assets/skins/duck_toxic.webp",    metalness: 0.1,  roughness: 0.5, emissive: 0x66ff22, emissiveIntensity: 0.7, emissiveFromMap: true },
 };
 
-// Reihenfolge im Shop (Preis aufsteigend).
+// Reihenfolge (classic frei, Rest per Claude-Rätsel freischalten).
 export const SKIN_ORDER = ["classic", "gold", "camo", "blackops", "chrome", "toxic"];
+
+// Skins werden NICHT mehr mit Coins gekauft, sondern durch das Beantworten einer
+// kleinen Claude-/KI-Rätselfrage freigeschaltet (3 Optionen, eine richtig).
+export const SKIN_RIDDLES = {
+  gold:     { q: "Welche Firma steckt hinter Claude?", options: ["Anthropic", "OpenAI", "Google"], answer: "Anthropic" },
+  camo:     { q: "Was ist Claude?", options: ["Ein KI-Sprachmodell", "Eine Suchmaschine", "Ein Betriebssystem"], answer: "Ein KI-Sprachmodell" },
+  blackops: { q: "Claude ist (u.a.) benannt nach dem Informationstheorie-Pionier …", options: ["Claude Shannon", "Alan Turing", "Ada Lovelace"], answer: "Claude Shannon" },
+  chrome:   { q: "Wie heißt die Technik, bei der Menschen KI-Antworten bewerten?", options: ["RLHF", "SQL", "HTTP"], answer: "RLHF" },
+  toxic:    { q: "Wie nennt Anthropic seinen KI-Sicherheits-Ansatz?", options: ["Constitutional AI", "Firewall AI", "Antivirus AI"], answer: "Constitutional AI" },
+};
 
 // Texturen einmalig laden + cachen. flipY=false wegen GLB-UV-Konvention.
 const _cache = new Map();

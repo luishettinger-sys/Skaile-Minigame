@@ -45,7 +45,7 @@ export class Stations {
   }
 
   _buildShop() {
-    const x = -15, z = 15; // Arena-Ecke (Süd-West) – allgemeiner Vendor
+    const x = 17, z = -17; // Arena oben-rechts
     const counter = new THREE.Mesh(
       new THREE.BoxGeometry(5, 1.6, 2.2),
       new THREE.MeshStandardMaterial({ color: 0x6b3f1d, roughness: 0.7 })
@@ -56,13 +56,38 @@ export class Stations {
       new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.6 })
     );
     top.position.set(x, 1.7, z);
-    const sign = new THREE.Sprite(makeIcon("🛒"));
+    const sign = new THREE.Sprite(makeIcon("🛍️")); // Einkaufswagen entfernt
     sign.scale.set(2.8, 2.8, 1);
     sign.position.set(x, 3.7, z);
     const keeper = makeKeeperDuck();
     keeper.position.set(x - 1.2, 0, z + 0.6);
     this.group.add(counter, top, sign, keeper);
     this.shop = { x, z, r: 3.8, sign, keeper };
+    this._buildSkins();
+  }
+
+  // Skin-Station (Garderobe) – oben-rechts neben dem Shop. E öffnet die Skins.
+  _buildSkins() {
+    const x = 22, z = -13;
+    const podium = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.3, 1.5, 0.5, 20),
+      new THREE.MeshStandardMaterial({ color: 0x2a2440, roughness: 0.6, metalness: 0.3 })
+    );
+    podium.position.set(x, 0.25, z);
+    const stand = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 2.2, 0.3),
+      new THREE.MeshStandardMaterial({ color: 0x4a4470, roughness: 0.5 })
+    );
+    stand.position.set(x, 1.3, z);
+    const sign = new THREE.Sprite(makeIcon("👕"));
+    sign.scale.set(2.4, 2.4, 1);
+    sign.position.set(x, 3.4, z);
+    this.group.add(podium, stand, sign);
+    this.skins = { x, z, r: 3.4 };
+  }
+
+  skinsNear(pos) {
+    return this.skins && Math.hypot(pos.x - this.skins.x, pos.z - this.skins.z) <= this.skins.r;
   }
 
   shopNear(pos) {

@@ -730,6 +730,41 @@ kbd {
 }
 .skin-card.equipped:hover { transform: none; border-color: var(--green); }
 .skin-card.equipped .skin-status { color: var(--green); }
+.skin-card.locked .skin-status { color: var(--yellow); }
+
+/* Claude-Rätsel zum Freischalten eines Skins */
+#skin-riddle {
+  display: none;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(43, 212, 255, 0.4);
+  border-radius: 14px;
+  background: rgba(13, 18, 32, 0.7);
+}
+#skin-riddle .riddle-q {
+  font-weight: 800;
+  color: #e6e9ef;
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+#skin-riddle .riddle-opts { display: flex; flex-direction: column; gap: 8px; }
+#skin-riddle .riddle-opt {
+  cursor: pointer;
+  text-align: left;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #dfe4ee;
+  font: inherit;
+  font-weight: 700;
+  transition: transform 0.08s, border-color 0.12s, background 0.12s;
+}
+#skin-riddle .riddle-opt:hover {
+  transform: translateX(3px);
+  border-color: var(--cyan);
+  background: rgba(43, 212, 255, 0.12);
+}
 
 /* Lab-Ausbau (permanente Meta-Upgrades) */
 #overlay-upgrades { z-index: 12; }

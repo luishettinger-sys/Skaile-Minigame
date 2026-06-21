@@ -22,7 +22,7 @@ import { Throwables } from "./throwables.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
-import { SKINS } from "./skins.js";
+import { SKINS, SKIN_RIDDLES } from "./skins.js";
 import { META_UPGRADES, META_ORDER, metaPrice, metaMods, metaStartCoins } from "./metaupgrades.js";
 import { BOONS, rollBoons } from "./boons.js";
 import { Achievements } from "./achievements.js";
@@ -135,28 +135,33 @@ export class Game {
   closeSkins() { this.hud.hideSkins(); }
 
   _renderSkins() {
-    const mode = this._skinMode || "bank";
-    const balance = mode === "run" ? this.coins : this.meta.coins;
-    this.hud.renderSkins(this.meta, balance, mode, (k) => this.buySkin(k), (k) => this.equipSkin(k));
+    this.hud.renderSkins(this.meta, this._skinRiddle, (k) => this._onSkinCard(k), (k) => this.equipSkin(k), (k, opt) => this._answerSkinRiddle(k, opt));
   }
 
-  buySkin(key) {
-    const def = SKINS[key];
-    if (!def || this.meta.ownedSkins.includes(key)) return;
-    const mode = this._skinMode || "bank";
-    if (mode === "run") {
-      if (this.coins < def.price) { this.hud.toast?.("Nicht genug Coins 🪙"); return; }
-      this.coins -= def.price;
-      this.hud.setCoins(this.coins);
-      if (this.shopOpen) this._renderShop();
+  // Klick auf eine Skin-Karte: besessen → anlegen, sonst Claude-Rätsel öffnen.
+  _onSkinCard(key) {
+    if (this.meta.ownedSkins.includes(key)) { this.equipSkin(key); return; }
+    const r = SKIN_RIDDLES[key];
+    if (!r) return;
+    const options = [...r.options].sort(() => Math.random() - 0.5); // mischen
+    this._skinRiddle = { key, q: r.q, options };
+    this._renderSkins();
+  }
+
+  // Rätsel beantwortet: richtig → Skin freischalten + anlegen; falsch → Hinweis.
+  _answerSkinRiddle(key, chosen) {
+    const r = SKIN_RIDDLES[key];
+    this._skinRiddle = null;
+    if (r && chosen === r.answer) {
+      if (!this.meta.ownedSkins.includes(key)) { this.meta.ownedSkins.push(key); this._saveMeta(); }
+      this.audio.levelUp?.();
+      this.hud.toast?.("✅", "Richtig!", (SKINS[key]?.label || "Skin") + " freigeschaltet");
+      this.equipSkin(key);
     } else {
-      if (this.meta.coins < def.price) { this.hud.toast?.("Nicht genug Bank 🪙"); return; }
-      this.meta.coins -= def.price;
+      this.audio.playerHurt?.();
+      this.hud.toast?.("❌", "Leider falsch", "Versuch's nochmal");
+      this._renderSkins();
     }
-    this.meta.ownedSkins.push(key);
-    this._saveMeta();
-    this.audio.buy();
-    this.equipSkin(key); // direkt anlegen
   }
 
   equipSkin(key) {
@@ -674,6 +679,7 @@ export class Game {
       else if (!this.shopOpen && this._stationNear("vault")) this._useVault();
       else if (!this.shopOpen && this._stationNear("powerups")) this._usePowerupShop();
       else if (!this.shopOpen && this._stationNear("spawner")) this._useSpawner();
+      else if (!this.shopOpen && this.stations.skinsNear(this.player.pos)) this.openSkins("riddle");
       else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
       else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
     }
@@ -878,7 +884,8 @@ export class Game {
       const owned = this.weaponId === pad.id;
       this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)` : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙`);
     }
-    else if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] SHOP");
+    else if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] 🛍️ SHOP");
+    else if (this.stations.skinsNear?.(this.player.pos)) this.hud.showPrompt("[E] 👕 Skins (Claude-Rätsel)");
     else if (this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z)) {
       const d = this.world.building.lockedDoorNear(this.player.pos.x, this.player.pos.z);
       this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
