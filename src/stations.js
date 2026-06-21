@@ -12,10 +12,35 @@ export class Stations {
     this.field = null;
     this.timer = 9; // bis zum nächsten Spawn
     this._t = 0;
+    this.markers = []; // leuchtende [E]-Boden-Ringe an interagierbaren Stationen
     this.shop = null;
     this._buildShop();
     this.deploy = null;
     this._buildDeploy();
+  }
+
+  // Leuchtender Boden-Ring + schwebende [E]-Taste → markiert eine Station klar
+  // als „hier interagieren". Pulsiert dezent in update().
+  _addMarker(x, z, color = 0x2bd4ff) {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1.7, 2.25, 44),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(x, 0.06, z);
+    const disk = new THREE.Mesh(
+      new THREE.CircleGeometry(1.7, 40),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1, side: THREE.DoubleSide, depthWrite: false })
+    );
+    disk.rotation.x = -Math.PI / 2;
+    disk.position.set(x, 0.05, z);
+    const key = new THREE.Sprite(makeKeySprite("E", color));
+    key.scale.set(1.25, 1.25, 1);
+    key.position.set(x, 1.5, z);
+    this.group.add(ring, disk, key);
+    const m = { ring, disk, key, _t: Math.random() * 6 };
+    this.markers.push(m);
+    return m;
   }
 
   // Deploy-Terminal in der Arena: Hier startest DU eine Bug-Welle ("git push" →
@@ -37,6 +62,7 @@ export class Stations {
     sign.scale.set(2.6, 2.6, 1);
     sign.position.set(x, 3.6, z);
     this.group.add(base, screen, sign);
+    this._addMarker(x, z + 1.6, 0x2bd4ff);
     this.deploy = { x, z, r: 3.4, screen, sign, _t: 0 };
   }
 
@@ -45,45 +71,47 @@ export class Stations {
   }
 
   _buildShop() {
-    const x = 17, z = -17; // Arena oben-rechts
+    const x = 19.5, z = -19.5; // ganz in die obere rechte Ecke
     const counter = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 1.6, 2.2),
-      new THREE.MeshStandardMaterial({ color: 0x6b3f1d, roughness: 0.7 })
+      new THREE.BoxGeometry(3.4, 1.4, 1.8),
+      new THREE.MeshStandardMaterial({ color: 0x243042, roughness: 0.7, metalness: 0.3 })
     );
-    counter.position.set(x, 0.8, z);
+    counter.position.set(x, 0.7, z);
     const top = new THREE.Mesh(
-      new THREE.BoxGeometry(5.4, 0.25, 2.6),
-      new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.6 })
+      new THREE.BoxGeometry(3.7, 0.2, 2.1),
+      new THREE.MeshStandardMaterial({ color: 0x33455e, roughness: 0.6, metalness: 0.35 })
     );
-    top.position.set(x, 1.7, z);
-    const sign = new THREE.Sprite(makeIcon("🛍️")); // Einkaufswagen entfernt
-    sign.scale.set(2.8, 2.8, 1);
-    sign.position.set(x, 3.7, z);
+    top.position.set(x, 1.5, z);
+    const sign = new THREE.Sprite(makeIcon("🛍️")); // dezenter (kleiner)
+    sign.scale.set(1.8, 1.8, 1);
+    sign.position.set(x, 2.9, z);
     const keeper = makeKeeperDuck();
-    keeper.position.set(x - 1.2, 0, z + 0.6);
+    keeper.position.set(x - 1.0, 0, z + 0.5);
     this.group.add(counter, top, sign, keeper);
-    this.shop = { x, z, r: 3.8, sign, keeper };
+    this._addMarker(x, z + 1.6, 0xffd23f); // [E]-Ring vor dem Tresen
+    this.shop = { x, z: z + 1.6, r: 3.4, sign, keeper };
     this._buildSkins();
   }
 
-  // Skin-Station (Garderobe) – oben-rechts neben dem Shop. E öffnet die Skins.
+  // Skin-Station (Garderobe) – direkt neben dem Shop in der Ecke. E öffnet die Skins.
   _buildSkins() {
-    const x = 22, z = -13;
+    const x = 19.5, z = -13.5;
     const podium = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.3, 1.5, 0.5, 20),
+      new THREE.CylinderGeometry(1.1, 1.3, 0.45, 20),
       new THREE.MeshStandardMaterial({ color: 0x2a2440, roughness: 0.6, metalness: 0.3 })
     );
-    podium.position.set(x, 0.25, z);
+    podium.position.set(x, 0.22, z);
     const stand = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 2.2, 0.3),
+      new THREE.BoxGeometry(0.28, 2.0, 0.28),
       new THREE.MeshStandardMaterial({ color: 0x4a4470, roughness: 0.5 })
     );
-    stand.position.set(x, 1.3, z);
+    stand.position.set(x, 1.2, z);
     const sign = new THREE.Sprite(makeIcon("👕"));
-    sign.scale.set(2.4, 2.4, 1);
-    sign.position.set(x, 3.4, z);
+    sign.scale.set(1.6, 1.6, 1);
+    sign.position.set(x, 2.7, z);
     this.group.add(podium, stand, sign);
-    this.skins = { x, z, r: 3.4 };
+    this._addMarker(x, z + 1.4, 0xc792ea);
+    this.skins = { x, z: z + 1.4, r: 3.2 };
   }
 
   skinsNear(pos) {
@@ -133,6 +161,15 @@ export class Stations {
 
   update(dt, arenaHalf) {
     this._t += dt;
+    // [E]-Marker dezent pulsieren lassen (Ring + schwebende Taste).
+    for (const m of this.markers) {
+      m._t += dt;
+      const p = 0.45 + Math.sin(m._t * 2.4) * 0.22;
+      m.ring.material.opacity = p;
+      m.disk.material.opacity = 0.06 + p * 0.08;
+      m.key.position.y = 1.5 + Math.sin(m._t * 2.4) * 0.12;
+      m.ring.rotation.z += dt * 0.4;
+    }
     if (this.field) {
       this.field.life -= dt;
       this.field.ring.rotation.z += dt * 2;
@@ -192,6 +229,34 @@ function makeKeeperDuck() {
   helmet.position.set(0, 1.9, 0.2);
   g.add(body, head, beak, helmet);
   return g;
+}
+
+// Schwebende Tastatur-Taste (z.B. „E") als Sprite – signalisiert Interaktion.
+function makeKeySprite(label, color = 0x2bd4ff) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  const hex = "#" + color.toString(16).padStart(6, "0");
+  ctx.fillStyle = "rgba(8,12,20,0.88)";
+  roundRect(ctx, 26, 24, 76, 80, 16); ctx.fill();
+  ctx.lineWidth = 7; ctx.strokeStyle = hex; ctx.stroke();
+  ctx.fillStyle = "#eaf6ff";
+  ctx.font = "bold 56px system-ui, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(label, 64, 68);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 function makeIcon(emoji) {
