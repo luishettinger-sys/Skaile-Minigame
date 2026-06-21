@@ -45,6 +45,7 @@ export class Audio {
     this._tryLoadSample("ui", "buy", ["mp3", "wav", "ogg"], 0);
     this._tryLoadSample("ui", "ouch", ["wav", "mp3", "ogg"], 0);
     this._tryLoadSample("ui", "yay", ["wav", "mp3", "ogg"], 0);
+    this._tryLoadSample("ui", "boss", ["wav", "mp3", "ogg"], 0);
   }
 
   _tryLoadSample(dir, id, exts, i) {
@@ -291,6 +292,13 @@ export class Audio {
   yay() {
     if (this._playSample("yay", { rateVar: 0.05, gain: 0.85 })) return;
     this.levelUp();
+  }
+
+  // Boss erscheint: dramatisches Sample. Fehlt die Datei → tiefer Gong-Sweep.
+  bossAppear() {
+    if (this._playSample("boss", { rateVar: 0.02, gain: 0.95 })) return;
+    this._tone({ type: "sawtooth", from: 90, to: 200, dur: 0.7, gain: 0.28 });
+    this._tone({ type: "square", from: 60, to: 120, dur: 0.8, gain: 0.18, delay: 0.05 });
   }
 
   gameOver() {

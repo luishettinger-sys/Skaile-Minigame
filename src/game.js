@@ -1387,6 +1387,7 @@ export class Game {
       this.hud.flash("#ff8c1a", 0.5);
       const half = this.world.arenaHalf;
       this.boss = this.enemies.spawn("boss", 0, -(half - 3));
+      this.audio.bossAppear();
       this.world.addShake(1.0);
       this._freeze(0.1);
       this.effects.shockwave(0, -(half - 3), CONFIG.colors.red, 18, 26);
