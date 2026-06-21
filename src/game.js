@@ -26,6 +26,7 @@ import { META_UPGRADES, META_ORDER, metaPrice, metaMods, metaStartCoins } from "
 import { BOONS, rollBoons } from "./boons.js";
 import { Achievements } from "./achievements.js";
 import { STORY, Cutscene } from "./story.js";
+import { IntroChat } from "./introchat.js";
 import { distXZ, clamp, angleLerp } from "./utils.js";
 
 const STATE = { MENU: "menu", PLAYING: "playing", OVER: "over", WON: "won" };
@@ -72,6 +73,7 @@ export class Game {
 
     // Story-Cutscenes (Intro / Sektor-Zwischenszenen / Finale).
     this.cutscene = new Cutscene(document.getElementById("cutscene"));
+    this.introChat = new IntroChat(document.getElementById("intro-chat"));
     this.cutsceneActive = false;
     this._introSeen = false;        // Intro nur einmal pro Sitzung
     this._seenSectorCS = new Set(); // jede Sektor-Szene einmal pro Sitzung
@@ -390,10 +392,12 @@ export class Game {
     this.world.setMood(CONFIG.colors.fog); // Tint auf Default zurück
     this.state = STATE.PLAYING;
 
-    // Intro-Cutscene: einmal pro Sitzung (Restarts nach Tod überspringen sie).
+    // Onboarding-Chat mit Claude (vor animierter Kampf-Cutscene): einmal pro
+    // Sitzung — Restarts nach Tod überspringen ihn.
     if (!this._introSeen) {
       this._introSeen = true;
-      this.playCutscene(STORY.intro);
+      this.cutsceneActive = true;
+      this.introChat.play().then(() => { this.cutsceneActive = false; });
     }
   }
 
