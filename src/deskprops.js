@@ -7,7 +7,11 @@ import * as THREE from "three";
 const stone = (c = 0x1a1622) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, metalness: 0.05 });
 const wax = (c = 0xe8dcc2) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 });
 const flameMat = () => new THREE.MeshBasicMaterial({ color: 0xffb24a });
-const glowMat = (hex) => new THREE.MeshBasicMaterial({ color: hex, transparent: true, opacity: 0.55, fog: false });
+// depthWrite:false + polygonOffset → flache Glüh-Decals flackern nicht gegen den Boden.
+const glowMat = (hex) => new THREE.MeshBasicMaterial({
+  color: hex, transparent: true, opacity: 0.55, fog: false,
+  depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+});
 
 function shade(obj) {
   obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -50,12 +54,13 @@ function ritualSigil(x, z, r) {
   const outerRing = new THREE.Mesh(new THREE.TorusGeometry(r, 0.12, 8, 64), ringMat);
   const midRing = new THREE.Mesh(new THREE.TorusGeometry(r * 0.66, 0.09, 8, 56), ringMat2);
   const innerRing = new THREE.Mesh(new THREE.TorusGeometry(r * 0.33, 0.07, 8, 40), ringMat);
-  for (const ring of [outerRing, midRing, innerRing]) { ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; g.add(ring); }
+  for (const ring of [outerRing, midRing, innerRing]) { ring.rotation.x = -Math.PI / 2; ring.position.y = 0.14; ring.renderOrder = 2; g.add(ring); }
   // Radialstrahlen (Pentagramm-Andeutung) zwischen den Ringen.
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     const ray = new THREE.Mesh(new THREE.BoxGeometry(r * 0.6, 0.04, 0.08), glowMat(0x8a3a6a));
-    ray.position.set(Math.cos(a) * r * 0.66, 0.04, Math.sin(a) * r * 0.66);
+    ray.renderOrder = 2;
+    ray.position.set(Math.cos(a) * r * 0.66, 0.12, Math.sin(a) * r * 0.66);
     ray.rotation.y = -a;
     g.add(ray);
   }

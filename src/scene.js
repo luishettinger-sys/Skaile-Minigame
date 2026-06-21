@@ -16,8 +16,8 @@ import { clamp } from "./utils.js";
 
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-  // Pixelratio deckeln: auf Retina/4K spart das massiv GPU-Last → flüssiger.
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  // Pixelratio bis 2 (Retina scharf statt unscharf); darüber gedeckelt für GPU.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -173,7 +173,15 @@ export function createWorld(canvas) {
   }
 
   // --- Post-Processing: Bloom für leuchtende Geschosse/Neon/Monitor ---------
-  const composer = new EffectComposer(renderer);
+  // MSAA-Render-Target (samples:4) → harte Kanten/dünne Linien flimmern beim
+  // Bewegen nicht mehr; HalfFloat → sauberes Bloom ohne Banding.
+  const dpr = renderer.getPixelRatio();
+  const msaaRT = new THREE.WebGLRenderTarget(
+    Math.floor(window.innerWidth * dpr),
+    Math.floor(window.innerHeight * dpr),
+    { type: THREE.HalfFloatType, samples: 4 }
+  );
+  const composer = new EffectComposer(renderer, msaaRT);
   composer.addPass(new RenderPass(scene, camera));
 
   // Comic-Outline (Cult-of-the-Lamb-Look) zwischen Render und Bloom.

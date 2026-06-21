@@ -9,8 +9,8 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 export function createOutline(renderer, width, height) {
   // Vollauflösender Normalen-Buffer.
   const normalRT = new THREE.WebGLRenderTarget(width, height, {
-    minFilter: THREE.NearestFilter,
-    magFilter: THREE.NearestFilter,
+    minFilter: THREE.LinearFilter, // weicher → Kanten flimmern beim Bewegen nicht
+    magFilter: THREE.LinearFilter,
     type: THREE.UnsignedByteType,
   });
   const normalMaterial = new THREE.MeshNormalMaterial();
@@ -20,9 +20,9 @@ export function createOutline(renderer, width, height) {
       tDiffuse: { value: null }, // wird vom ShaderPass gefüllt (Farbbild)
       tNormal: { value: normalRT.texture },
       texel: { value: new THREE.Vector2(1 / width, 1 / height) },
-      thickness: { value: 1.7 }, // Linienbreite in Texeln (dicker → Comic)
-      edgeLo: { value: 0.40 }, // unter diesem Kanten-Wert: keine Linie
-      edgeHi: { value: 1.05 }, // darüber: volle Linie
+      thickness: { value: 1.2 }, // dünner → weniger Flimmern beim Bewegen
+      edgeLo: { value: 0.55 }, // höhere Schwelle → keine Linien auf feinem Rauschen
+      edgeHi: { value: 1.15 }, // darüber: volle Linie
       strength: { value: 1.0 }, // Deckkraft der Linie (voll)
       outlineColor: { value: new THREE.Color(0x080310) }, // tiefdunkles Violett statt hartem Schwarz
     },

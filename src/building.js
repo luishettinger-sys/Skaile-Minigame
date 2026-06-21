@@ -187,18 +187,26 @@ export class Building {
       new THREE.BoxGeometry(w + 0.2, 0.08, d + 0.2),
       new THREE.MeshBasicMaterial({ color: NEON })
     );
-    edge.position.set(cx, r.y + 0.04, cz);
+    edge.position.set(cx, r.y + 0.06, cz);
     edge.renderOrder = -1;
     // Nur als dünner Rahmen sichtbar: über dem Slab, leicht transparent.
     edge.material.transparent = true;
     edge.material.opacity = 0.12;
+    edge.material.depthWrite = false; // kein Z-Fighting gegen den Slab
+    edge.material.polygonOffset = true;
+    edge.material.polygonOffsetFactor = -1;
+    edge.material.polygonOffsetUnits = -1;
     this.group.add(edge);
 
     if (grid) {
       const g = new THREE.GridHelper(Math.max(w, d), CONFIG.arena.grid, CONFIG.colors.gridMain, CONFIG.colors.gridSub);
-      g.position.set(cx, r.y + 0.02, cz);
+      g.position.set(cx, r.y + 0.03, cz);
       g.material.transparent = true;
       g.material.opacity = 0.5;
+      g.material.depthWrite = false; // kein Z-Fighting gegen Slab/Kante
+      g.material.polygonOffset = true;
+      g.material.polygonOffsetFactor = -1;
+      g.material.polygonOffsetUnits = -1;
       this.group.add(g);
     }
 
