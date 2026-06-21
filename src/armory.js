@@ -1,5 +1,11 @@
 // Waffenshop ("Armory"): präsentiert Waffen auf leuchtenden Podesten im
 // Ost-Raum. Nah herangehen + [E] kauft & rüstet die Waffe aus (Run-Coins).
+//
+// Inszenierung: flaches, breites Raster (übersichtlich statt Haufen), pro Tier
+// eine farbige Bodenscheibe (Einstieg=Cyan, Mitte=Violett, Spitze=Gold) und ein
+// Proximity-Fokus: das Podest, vor dem du stehst, hebt sich, dreht schneller,
+// leuchtet auf und zeigt sein Namensschild — die übrigen bleiben ruhig & gedimmt
+// (nur ein Label sichtbar statt 27 → keine Reizüberflutung).
 import * as THREE from "three";
 import { WEAPONS, WEAPON_PRICE } from "./weapons.js";
 import { cloneWeaponModel } from "./weaponmodels.js";
@@ -17,6 +23,13 @@ const DISPLAY = [
   "voidlober", "photon",
 ];
 
+// Tier-Farbe nach Preis → Gruppierung auf einen Blick.
+function tierColor(price) {
+  if (price <= 95) return 0x6ee7ff;   // Einstieg – Cyan
+  if (price <= 150) return 0x9b5de5;  // Mittelklasse – Violett
+  return 0xffd23f;                     // Spitze – Gold
+}
+
 export class Armory {
   constructor(scene, room) {
     this.group = new THREE.Group();
@@ -27,16 +40,16 @@ export class Armory {
   }
 
   _build(r) {
-    // Adaptives Raster: 3 Spalten, Reihen nach Anzahl. So passen auch alle
-    // kreativen + klassischen Waffen sauber in den Armory-Raum.
+    // Flaches, breites Raster: viele Spalten, wenige Reihen → man blickt die
+    // Waffen nebeneinander an statt in einen tiefen Stapel.
     const n = DISPLAY.length;
-    const colCount = 3;
+    const colCount = 5;
     const rows = Math.ceil(n / colCount);
     const cols = [];
     for (let c = 0; c < colCount; c++) {
-      cols.push(r.minX + (r.maxX - r.minX) * (0.2 + 0.6 * (c / (colCount - 1))));
+      cols.push(r.minX + (r.maxX - r.minX) * (0.1 + 0.8 * (c / (colCount - 1))));
     }
-    const z0 = r.minZ + 3, z1 = r.maxZ - 3;
+    const z0 = r.minZ + 4, z1 = r.maxZ - 4;
     let idx = 0;
     for (let row = 0; row < rows; row++) {
       for (let c = 0; c < colCount; c++) {
@@ -58,7 +71,18 @@ export class Armory {
 
   _pedestal(x, y, z, id, w) {
     const color = w.color;
+    const price = WEAPON_PRICE[id] ?? 60;
+    const tier = tierColor(price);
     const g = new THREE.Group();
+
+    // Tier-Bodenscheibe (Gruppierung nach Preis).
+    const disc = new THREE.Mesh(
+      new THREE.CircleGeometry(1.7, 28),
+      new THREE.MeshBasicMaterial({ color: tier, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })
+    );
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.05;
+    g.add(disc);
 
     // Sockel.
     const base = new THREE.Mesh(
@@ -69,7 +93,7 @@ export class Armory {
     base.castShadow = true;
     g.add(base);
 
-    // Leuchtender Ring oben.
+    // Leuchtender Ring oben (Waffenfarbe = Identität).
     const ring = new THREE.Mesh(
       new THREE.TorusGeometry(1.0, 0.09, 8, 24),
       new THREE.MeshBasicMaterial({ color })
@@ -78,7 +102,16 @@ export class Armory {
     ring.position.y = 1.05;
     g.add(ring);
 
-    // Schwebendes, glühendes Display (repräsentiert das Geschoss).
+    // Fokus-Halo (erscheint nur beim Herantreten).
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(1.25, 0.05, 8, 32),
+      new THREE.MeshBasicMaterial({ color: tier, transparent: true, opacity: 0, depthWrite: false })
+    );
+    halo.rotation.x = Math.PI / 2;
+    halo.position.y = 1.15;
+    g.add(halo);
+
+    // Schwebendes, glühendes Display (Platzhalter bis das Modell geladen ist).
     const display = new THREE.Mesh(
       new THREE.IcosahedronGeometry(0.55, 0),
       new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.8, roughness: 0.3, metalness: 0.3 })
@@ -89,31 +122,31 @@ export class Armory {
     // Lichtsäule.
     const beam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.16, 0.16, 2.4, 10, 1, true),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false })
     );
     beam.position.y = 2.2;
     g.add(beam);
 
-    // Beschriftung (Icon, Name, Preis).
-    const price = WEAPON_PRICE[id] ?? 60;
-    const label = new THREE.Sprite(makeLabel(`${w.icon} ${w.name}`, `${price} 🪙`, color, 0xffffff));
+    // Beschriftung (Icon, Name, Preis) – standardmäßig unsichtbar, nur im Fokus.
+    const label = new THREE.Sprite(makeLabel(`${w.icon} ${w.name}`, `${price} 🪙`, tier, 0xffffff));
     label.scale.set(4.6, 1.5, 1);
-    label.position.set(0, 3.5, 0);
+    label.position.set(0, 3.6, 0);
+    label.material.opacity = 0;
+    label.visible = false;
     g.add(label);
 
     g.position.set(x, y, z);
     this.group.add(g);
-    this.pads.push({ x, z, y, r: 2.2, id, price, display, ring });
+    this.pads.push({ x, z, y, r: 2.2, id, price, display, ring, beam, halo, disc, label, foc: 0 });
   }
 
   // Echte GLB-Waffenmodelle auf die Podeste setzen (sobald geladen).
-  // Ersetzt das leuchtende Icosaeder-Display durch das gedrehte Modell.
   populateModels() {
     for (const p of this.pads) {
       if (p.model) continue;
       const m = cloneWeaponModel(p.id);
       if (!m) continue;
-      m.scale.setScalar(1.25); // schwebende Schaugröße (native Proportionen bleiben)
+      m.scale.setScalar(1.25); // Basis-Schaugröße (native Proportionen bleiben)
       m.position.set(p.x, p.y + 2.25, p.z);
       this.group.add(m);
       p.model = m;
@@ -131,17 +164,61 @@ export class Armory {
     return best;
   }
 
-  update(dt) {
+  // dt + Spielerposition: animiert Idle + Proximity-Fokus.
+  update(dt, playerPos) {
     this._t += dt;
-    for (const p of this.pads) {
-      if (p.model) {
-        p.model.rotation.y += dt * 0.9;
-        p.model.position.y = p.y + 2.25 + Math.sin(this._t * 2 + p.z) * 0.16;
-      } else {
-        p.display.rotation.y += dt * 1.4;
-        p.display.position.y = 2.2 + Math.sin(this._t * 2 + p.z) * 0.18;
+
+    // Nächstes Podest bestimmen (Fokus).
+    let focus = null, fd = 3.4;
+    if (playerPos) {
+      for (const p of this.pads) {
+        const d = Math.hypot(playerPos.x - p.x, playerPos.z - p.z);
+        if (d < fd) { fd = d; focus = p; }
       }
-      p.ring.rotation.z += dt * 0.8;
+    }
+
+    for (const p of this.pads) {
+      // Fokus-Wert 0..1 sanft annähern.
+      const want = p === focus ? 1 : 0;
+      p.foc += (want - p.foc) * Math.min(1, dt * 9);
+      const f = p.foc;
+
+      const lift = f * 0.55;
+      const bob = Math.sin(this._t * 2 + p.z) * (0.16 + f * 0.12);
+
+      // Schwebendes Modell / Platzhalter: drehen, heben, im Fokus vergrößern.
+      if (p.model) {
+        p.model.rotation.y += dt * (0.7 + f * 2.6);
+        p.model.position.y = p.y + 2.25 + lift + bob;
+        p.model.scale.setScalar(1.25 * (1 + f * 0.34));
+      } else {
+        p.display.rotation.y += dt * (1.2 + f * 2.4);
+        p.display.position.y = 2.2 + lift + bob;
+        p.display.scale.setScalar(1 + f * 0.34);
+      }
+
+      p.ring.rotation.z += dt * (0.8 + f * 1.8);
+
+      // Lichtsäule heller im Fokus, dezent pulsierend.
+      if (p.beam) p.beam.material.opacity = 0.12 + f * 0.42 + Math.sin(this._t * 4 + p.z) * 0.03 * f;
+      // Tier-Scheibe atmet, im Fokus stärker.
+      if (p.disc) p.disc.material.opacity = 0.16 + 0.06 * Math.sin(this._t * 2.4 + p.z) + f * 0.3;
+
+      // Fokus-Halo: erscheint, dreht & pulsiert.
+      if (p.halo) {
+        p.halo.material.opacity = f * 0.8;
+        p.halo.rotation.z += dt * 2.2 * f;
+        p.halo.scale.setScalar(1 + Math.sin(this._t * 5) * 0.05 * f);
+      }
+
+      // Namensschild nur für das fokussierte Podest (räumt den Raum auf).
+      if (p.label) {
+        p.label.visible = f > 0.04;
+        p.label.material.opacity = Math.min(1, f * 1.4);
+        const s = 1 + f * 0.12;
+        p.label.scale.set(4.6 * s, 1.5 * s, 1);
+        p.label.position.y = 3.4 + lift + f * 0.3;
+      }
     }
   }
 }

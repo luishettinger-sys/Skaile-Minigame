@@ -21,7 +21,7 @@ export function createWorld(canvas) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.18; // heller, lebendiger – Stimmung ohne Tristesse
+  renderer.toneMappingExposure = 1.35; // hell & freundlich (ORAS-Büro), gut lesbar
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -34,7 +34,7 @@ export function createWorld(canvas) {
   // Image-Based-Lighting: gibt allen PBR-Materialien Reflexionen → „echt"
   // statt flach. Erzeugt aus einer prozeduralen Raum-Umgebung.
   const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.28).texture;
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.45).texture;
 
   const camera = new THREE.PerspectiveCamera(
     CONFIG.camera.fov,
@@ -45,13 +45,13 @@ export function createWorld(canvas) {
   camera.position.set(0, CONFIG.camera.offset.y, CONFIG.camera.offset.z);
   camera.lookAt(0, 0, 0);
 
-  // --- Licht (Cult-of-the-Lamb-Stimmung: düster, kerzenwarm, okkulte Rims) ----
-  // Schwaches violettes Umgebungslicht von oben, fast schwarz von unten.
-  const hemi = new THREE.HemisphereLight(0x9c7aac, 0x1a1420, 0.62);
+  // --- Licht (helles, freundliches Büro – ORAS-Vibe, gut lesbar) -------------
+  // Helles, neutral-warmes Umgebungslicht von oben, sanfter Boden-Fill.
+  const hemi = new THREE.HemisphereLight(0xdce8f5, 0x8a8478, 0.95);
   scene.add(hemi);
 
-  // Warmes „Kerzen"-Key-Light statt neutralem Weiß (heller → die Ente strahlt).
-  const key = new THREE.DirectionalLight(0xffd9b0, 1.15);
+  // Helles, leicht warmes Key-Light (Sonnenlicht durchs Bürofenster).
+  const key = new THREE.DirectionalLight(0xfff4e2, 1.35);
   key.position.set(14, 40, 16);
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024); // 1024 statt 2048: deutlich weniger Stutter
@@ -64,13 +64,13 @@ export function createWorld(canvas) {
   key.shadow.bias = -0.0004;
   scene.add(key);
 
-  // Okkulter Magenta-Rim aus dem Rücken → ritueller Kontursaum.
-  const rim = new THREE.DirectionalLight(0xe06aa0, 0.6);
+  // Kühler Himmels-Rim von hinten → frische, freundliche Tiefe.
+  const rim = new THREE.DirectionalLight(0xbcd4ec, 0.4);
   rim.position.set(-18, 12, -16);
   scene.add(rim);
 
-  // Zweiter, magenta-violetter Fülllichtschein von der Seite (Tiefe + Vibe).
-  const fill = new THREE.DirectionalLight(0x8a5a84, 0.35);
+  // Weicher neutraler Fülllichtschein von der Seite.
+  const fill = new THREE.DirectionalLight(0xcfd8e4, 0.4);
   fill.position.set(20, 10, -6);
   scene.add(fill);
 
@@ -190,9 +190,9 @@ export function createWorld(canvas) {
 
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.5, // strength: gezielter Neon-/Ritual-Schein
-    0.45, // radius
-    1.0 // threshold höher → helle Office-Panels überstrahlen die Szene nicht mehr
+    0.28, // strength: nur dezenter Schein (helle Szene braucht wenig Bloom)
+    0.4, // radius
+    1.1 // threshold hoch → nur wirklich helle Quellen glühen
   );
   composer.addPass(bloom);
 

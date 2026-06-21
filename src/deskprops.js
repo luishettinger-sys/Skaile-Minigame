@@ -19,23 +19,10 @@ function shade(obj) {
 }
 
 export function buildDeskProps(scene) {
-  const group = new THREE.Group();
-
-  group.add(ritualSigil(0, 0, 7.5));      // zentrales okkultes Sigill (flach, blockiert nicht)
-
-  // Hinweis: Die Stein-Fackeln (Braziers) und Kandelaber sind jetzt KI-Hero-Assets
-  // (Higgsfield→Blender), platziert in main.js inkl. warmem Punktlicht + Glühen.
-  // Hier bleiben nur Sigill + Wand-Banner.
-
-  // Kult-Banner an den vier Wänden (über den Tür-Öffnungen, hängen hoch).
-  group.add(banner(0, -27.4, 0));          // Nord
-  group.add(banner(0, 27.4, Math.PI));     // Süd
-  group.add(banner(-27.4, 0, Math.PI / 2));// West
-  group.add(banner(27.4, 0, -Math.PI / 2));// Ost
-
-  shade(group);
-  scene.add(group);
-  return group;
+  // Okkulte Deko (Ritual-Sigill, Kult-Banner) entfernt → heller, aufgeräumter
+  // ORAS-Büro-Look. Die alten Bauteile bleiben unten als Funktionen erhalten,
+  // werden aber nicht mehr platziert.
+  return new THREE.Group();
 }
 
 // --- Ritual-Sigill: konzentrische glühende Ringe + Radialstrahlen ----------

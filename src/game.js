@@ -734,7 +734,7 @@ export class Game {
       }
     }
 
-    this.armory.update(dt);
+    this.armory.update(dt, this.player.pos);
 
     // Kontext-Hinweis: Automation/Armory/Shop haben Vorrang, sonst Wurfobjekt.
     const autoPad = this.automation.nearest(this.player.pos);
@@ -1508,17 +1508,17 @@ export class Game {
     this.world.setArena(half);
     this.player.arenaHalf = half;
 
-    // Stimmungs-Tint vertieft sich pro Sektor – okkulte CotL-Progression.
+    // Stimmungs-Tint je Sektor – hell & freundlich (ORAS), nur leichte Variation.
     if (n === 6) {
       this.world.setBackdrop("./assets/textures/office_bg2.png");
-      this.world.setMood(0x130a1c); // Sektor 2: sattes Violett
+      this.world.setMood(0xc9d9e8); // Sektor 2: kühles Tageslicht-Blau
     } else if (n === 11) {
       this.world.setBackdrop("./assets/textures/office_bg3.png");
-      this.world.setMood(0x1a0a16); // Sektor 3: Maroon-Dämmer
+      this.world.setMood(0xe2d8c8); // Sektor 3: warmes Nachmittags-Beige
     } else if (n === 16) {
-      this.world.setMood(0x0c0820); // Sektor 4: Mitternachts-Indigo
+      this.world.setMood(0xd6cce4); // Sektor 4: sanftes Lavendel
     } else if (n === 21) {
-      this.world.setMood(0x20060f); // Sektor 5: Blutrot-Finale
+      this.world.setMood(0xf0d6cc); // Sektor 5: warmes Abendlicht
     }
 
     if (n % CONFIG.waves.bossEvery === 0) {

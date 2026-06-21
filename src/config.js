@@ -172,9 +172,9 @@ export const CONFIG = {
   },
 
   colors: {
-    bg: 0x271833, // wärmeres, helleres Violett → Stimmung statt Tristesse
-    fog: 0x2c1b3a,
-    floor: 0x1c2030,
+    bg: 0xcdd8e6, // helles, luftiges Büro-Blau (ORAS-Stil)
+    fog: 0xc6d2e0,
+    floor: 0x3a4250,
     gridMain: 0x4a2c54, // okkultes Violett statt Blau
     gridSub: 0x251830,
     border: 0x6ee7ff,
