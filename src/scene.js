@@ -3,9 +3,6 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
-import { buildOffice, buildBackdrop, setBackdropTexture } from "./environment.js";
-import { buildOffice2 } from "./furnish.js";
-import { buildDeskProps } from "./deskprops.js";
 import { buildRoomDecor } from "./roomdecor.js";
 import { Building } from "./building.js";
 import { clamp } from "./utils.js";
@@ -72,26 +69,15 @@ export function createWorld(canvas) {
   fill.position.set(20, 10, -6);
   scene.add(fill);
 
-  // --- Gebäude (mehrere Räume, Wände, Treppe ins Obergeschoss) ---------------
+  // --- Gebäude (kompakte Arena + 4 Funktionsräume) ---------------------------
   const half = CONFIG.arena.half;
+  const backdrop = null; // Büro-Kulisse entfernt (Theme: PC-Inneres, dunkler Void)
 
-  // Office-Kulisse + umlaufender Hintergrund (Atmosphäre).
-  buildOffice(scene);
-  const backdrop = buildBackdrop(scene);
-
-  // Große Büro-Hülle: das gesamte Areal liegt in einem Büro (Fensterwände,
-  // Deckenlicht, Cubicles, Server-Racks, Pflanzen).
-  buildOffice2(scene);
-
-  // Das begehbare Gebäude: Böden, Wände, Rampe, Räume.
+  // Das begehbare Gebäude: Böden, Wände, Räume.
   const building = new Building(scene);
 
-  // Schreibtisch-Thema: überdimensionale Büro-Utensilien als Deko in der Arena
-  // (Lampe, Stifte, Tastatur, Tasse, Haftnotizen, Quietsche-Buddy, Sukkulente …).
-  buildDeskProps(scene);
-
-  // Themen-Einrichtung der freischaltbaren Räume (Lounge, Labor, Rätsel, Server,
-  // Vault, Armory) – aufgeräumt & symmetrisch, macht das Freischalten lohnend.
+  // PC-Inneres: Platinen-Deko (RAM-Riegel, Kondensatoren, Chip-Mittelpunkt) statt
+  // Büro-Möbel.
   buildRoomDecor(scene, building.rooms);
 
   // --- Kamera-Rig (Follow + Screenshake) -------------------------------------
@@ -206,7 +192,7 @@ export function createWorld(canvas) {
   api.resetZoom = () => {};
   api.setCamera = () => {};
   api.resetCamera = () => {};
-  api.setBackdrop = (url) => setBackdropTexture(backdrop, url);
+  api.setBackdrop = () => {}; // Büro-Backdrop entfernt (PC-Theme)
   api.render = () => {
     renderer.render(scene, camera); // direkt, ohne Post-Processing → flüssig
   };

@@ -49,6 +49,52 @@ function getMaps(theme, s, rx, rz, aniso) {
   return m;
 }
 
+// --- Motherboard/Platinen-Boden (PC-Inneres) -------------------------------
+let _circuitTex = null;
+function circuitTexture() {
+  if (_circuitTex) return _circuitTex;
+  const S = 256;
+  const c = document.createElement("canvas"); c.width = c.height = S;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#05150c"; ctx.fillRect(0, 0, S, S); // dunkles PCB-Grün
+  const cells = 8, step = S / cells;
+  // Leiterbahnen (Raster), teils mit Lücken.
+  ctx.lineWidth = 2.2; ctx.strokeStyle = "#179a5e";
+  for (let i = 1; i < cells; i++) {
+    if (Math.random() < 0.85) { ctx.beginPath(); ctx.moveTo(i * step, 0); ctx.lineTo(i * step, S); ctx.stroke(); }
+    if (Math.random() < 0.85) { ctx.beginPath(); ctx.moveTo(0, i * step); ctx.lineTo(S, i * step); ctx.stroke(); }
+  }
+  // Lötpunkte an Kreuzungen (leuchtend).
+  for (let i = 1; i < cells; i++) for (let j = 1; j < cells; j++) {
+    if (Math.random() < 0.45) { ctx.fillStyle = "#46ffa6"; ctx.beginPath(); ctx.arc(i * step, j * step, 2.6, 0, Math.PI * 2); ctx.fill(); }
+  }
+  // ein paar Chips (dunkel mit Gold-Rand).
+  for (let k = 0; k < 3; k++) {
+    const x = Math.floor(Math.random() * 5 + 1) * step, y = Math.floor(Math.random() * 5 + 1) * step;
+    ctx.fillStyle = "#0a0f0c"; ctx.fillRect(x, y, step * 1.4, step);
+    ctx.strokeStyle = "#caa83a"; ctx.lineWidth = 1; ctx.strokeRect(x, y, step * 1.4, step);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  _circuitTex = t;
+  return t;
+}
+
+// Platinen-Boden-Material: dunkles Grün + leuchtende Leiterbahnen (selbst-leuchtend
+// via emissiveMap, da kein Bloom). tintHex tönt die Grundfarbe leicht je Raum.
+export function makeCircuitMaterial(tintHex, w, d) {
+  const base = circuitTexture().clone();
+  base.needsUpdate = true;
+  base.repeat.set(Math.max(1, Math.round(w / 14)), Math.max(1, Math.round(d / 14)));
+  return new THREE.MeshStandardMaterial({
+    map: base,
+    color: new THREE.Color(tintHex).multiplyScalar(1.2).addScalar(0.04),
+    roughness: 0.55, metalness: 0.35,
+    emissive: 0xffffff, emissiveMap: base, emissiveIntensity: 0.35, // Bahnen leuchten
+  });
+}
+
 // Material für eine w×d große Bodenfläche im gegebenen Thema, getintet mit tintHex.
 export function makeFloorMaterial(theme, tintHex, w, d, aniso = 8) {
   const s = SETS[theme] || SETS.tech;

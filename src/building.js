@@ -7,7 +7,7 @@
 //   rooms                    -> benannte Raum-Rechtecke (für Spawns/Logik)
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
-import { makeFloorMaterial } from "./floortex.js";
+import { makeFloorMaterial, makeCircuitMaterial } from "./floortex.js";
 
 const WALL_H = 4.2; // niedrig genug, dass die Kamera in die Räume schaut (Puppenhaus)
 const WALL_T = 0.7; // Wandstärke
@@ -54,8 +54,8 @@ export class Building {
     const EAST  = R.armory   = { minX: 30,  maxX: 52,  minZ: -15, maxZ: 15,  y: 0 }; // rechts: Waffen
     const WEST  = R.powerups = { minX: -52, maxX: -30, minZ: -15, maxZ: 15,  y: 0 }; // links: Power-Ups
 
-    // Böden (Schaltkreis-Look; Arena mit Grid). Farben = Leitfarbe je Raum.
-    this._floor(ARENA, 0x123026, true, "tech");
+    // Böden (Platinen-Look). Farben = Leitfarbe je Raum.
+    this._floor(ARENA, 0x123026, false, "tech");
     this._floor(NORTH, 0x2a1418, false, "tech");
     this._floor(SOUTH, 0x141f2e, false, "tech");
     this._floor(EAST,  0x2e1414, false, "tech");
@@ -79,10 +79,10 @@ export class Building {
     this._roomWalls(EAST,  [{ side: "west",  from: -D, to: D }]);
     this._roomWalls(WEST,  [{ side: "east",  from: -D, to: D }]);
 
-    // Dunkle Boden-Hülle unter allem.
+    // Dunkle Platinen-Boden-Hülle unter allem.
     const base = new THREE.Mesh(
       new THREE.PlaneGeometry(180, 180),
-      makeFloorMaterial("tech", 0x06100a, 180, 180)
+      makeCircuitMaterial(0x06140c, 180, 180)
     );
     base.rotation.x = -Math.PI / 2;
     base.position.set(0, -0.06, 0);
@@ -145,7 +145,7 @@ export class Building {
     const cx = (r.minX + r.maxX) / 2, cz = (r.minZ + r.maxZ) / 2;
     const slab = new THREE.Mesh(
       new THREE.BoxGeometry(w, 0.4, d),
-      makeFloorMaterial(theme, color, w, d)
+      makeCircuitMaterial(color, w, d) // Platinen-Boden (PC-Inneres)
     );
     slab.position.set(cx, r.y - 0.2, cz);
     slab.receiveShadow = true;
