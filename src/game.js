@@ -362,7 +362,7 @@ export class Game {
     this.throwables.reset();
     this.carrying = null;
     this.waves.reset();
-    this.defenseActive = false; // Wellen sind opt-in: erst per Deploy-Terminal starten
+    this.defenseLoop = false; // Wellen sind opt-in: erst per Deploy-Terminal starten
     this._challengeActive = false; this._challengeCD = 0; this._challengeTimer = 0;
     this._aimHold = 0; // Rest-Zeit, in der die Ente zum Gegner blickt (nach Schuss)
     this.automation.reset();
@@ -699,7 +699,19 @@ export class Game {
     }
 
     this._autoCamera(dt);
-    const move = this.input.moveVector();
+    // Bewegung: in der Vogelperspektive welt-relativ (W=hoch). In der Drohne
+    // KAMERA-relativ (W=ins Bild/vorwärts, D=rechts), damit WASD-only mit der
+    // mitdrehenden Kamera intuitiv bleibt.
+    const rawMove = this.input.moveVector();
+    let move = rawMove;
+    if (this.world.isDrone && this.world.isDrone() && (rawMove.x || rawMove.z)) {
+      const h = this.world.camHeading();
+      const fwd = -rawMove.z, rgt = rawMove.x; // W→vorwärts, D→rechts
+      let mx = Math.sin(h) * fwd + Math.cos(h) * rgt;
+      let mz = Math.cos(h) * fwd - Math.sin(h) * rgt;
+      const len = Math.hypot(mx, mz) || 1;
+      move = { x: mx / len, z: mz / len };
+    }
     this._updateFacing(dt, move);
     if (move.x !== 0 || move.z !== 0) this.guide.event("move");
     // Näherungs-Ereignisse für den Guide (Terminal / verschlossene Tür).
@@ -743,7 +755,7 @@ export class Game {
     // Bonus-Bug (Mini-Jagd): nur während eines laufenden Deploys – im ruhigen
     // Bau-Modus soll nichts spawnen.
     this.bonusT -= dt;
-    if (this.defenseActive && this.bonusT <= 0 && !this.boss) {
+    if (this.defenseLoop && this.bonusT <= 0 && !this.boss) {
       this.bonusT = 22 + Math.random() * 16;
       const { x, z } = edgeSpawn(this.world.arenaHalf);
       this.enemies.spawn("bonus", x, z);
@@ -772,7 +784,7 @@ export class Game {
 
     // Wellen laufen nur während eines aktiven Deploys (opt-in). Im Bau-Modus
     // ist es ruhig – die Basis-Verwaltung ist der Kern, Kämpfe sind optional.
-    if (this.defenseActive) this.waves.update(dt, this.enemies.aliveCount());
+    if (this.defenseLoop) this.waves.update(dt, this.enemies.aliveCount());
     this.enemies.update(enemyDt, this.player.pos, this.ultActive, {
       shoot: (x, z, dx, dz, o) => this.enemyShots.spawn(x, z, dx, dz, o),
     });
@@ -858,7 +870,7 @@ export class Game {
     else if (this._stationNear("powerups")) this.hud.showPrompt("[E] ⚡ Power-Up kaufen (40 🪙)");
     else if (this._stationNear("spawner")) this.hud.showPrompt("[E] 🐛 Bug-Farm: Bugs spawnen für XP (30 🪙)");
     else if (this.stations.deployNear(this.player.pos)) {
-      this.hud.showPrompt(this.defenseActive ? "🚀 Deploy läuft… Bugs abwehren!" : "[E] 🚀 DEPLOY – Bug-Welle starten (Coins)");
+      this.hud.showPrompt(this.defenseLoop ? "[E] ⏸ Deploy-Schleife stoppen" : "[E] 🚀 DEPLOY starten (Dauerschleife)");
     }
     else if (this.carrying) this.hud.showPrompt("[F] werfen");
     else if (this.throwables.nearestIdle(this.player.pos, 2.8)) this.hud.showPrompt("[F] aufheben");
@@ -887,7 +899,15 @@ export class Game {
       shop: this.stations.shop,
     });
 
-    this.world.updateCamera(this.player.pos, dt, this.player.facing);
+    // Director-Kamera: in Bewegungsrichtung schauen; im Stand langsam zum
+    // nächsten Gegner (Action im Blick) – ergibt cinematische, sinnvolle Führung.
+    let camTarget;
+    if (move.x !== 0 || move.z !== 0) camTarget = Math.atan2(move.x, move.z);
+    else if (this.aimTarget) camTarget = Math.atan2(
+      this.aimTarget.mesh.position.x - this.player.pos.x,
+      this.aimTarget.mesh.position.z - this.player.pos.z);
+    else camTarget = this.world.camHeading();
+    this.world.updateCamera(this.player.pos, dt, camTarget);
   }
 
   // Kamera bleibt im CotL-Stil ruhig „gelockt" auf der Basis-Perspektive.
@@ -1727,29 +1747,33 @@ export class Game {
     if (I.t > 3.3) { this.bossIntro = false; this.intro = null; }
   }
 
-  // Opt-in: Eine Deploy-Welle starten (am Deploy-Terminal mit E). Während ein
-  // Deploy läuft, kein erneuter Start; Boss-Intro blockiert ebenfalls.
+  // Deploy-Terminal (E) als TOGGLE: einmal an → Wellen laufen in Dauerschleife,
+  // nochmal → Schleife stoppt (laufende Gegner bleiben, aber keine neuen Wellen).
   startDefense() {
-    if (this.defenseActive || this.bossIntro) return;
-    this.defenseActive = true;
-    this.waves.beginNow();
-    this.guide.event("deployStarted");
-    this.audio.buy?.();
-    this.world.addShake(0.15);
-    this.hud.flash("#2bd4ff", 0.3);
+    if (this.bossIntro) return;
+    this.defenseLoop = !this.defenseLoop;
+    if (this.defenseLoop) {
+      if (this.waves.state === "break") this.waves.beginNow();
+      this.guide.event("deployStarted");
+      this.audio.buy?.();
+      this.world.addShake(0.15);
+      this.hud.flash("#2bd4ff", 0.3);
+      this.hud.banner("🚀 DEPLOY AN", "Wellen laufen jetzt durchgehend");
+    } else {
+      this.hud.banner("⏸ DEPLOY AUS", "Keine neuen Wellen mehr");
+      this.hud.toast("🚀", "Deploy", "Dauerschleife gestoppt");
+    }
   }
 
   _onWaveClear(n) {
     this.audio.yay();
     this.player.hp = clamp(this.player.hp + 15, 0, this.player.maxHp);
     this.hud.setHp(this.player.hp, this.player.maxHp);
-    // Deploy beendet → zurück in den ruhigen Bau-Modus (keine Auto-Folgewelle).
-    this.defenseActive = false;
-    // Coin-Belohnung skaliert mit der Welle → Deploys lohnen sich fürs Bauen.
+    // Coin-Belohnung pro Welle (die Schleife läuft weiter, bis man sie ausschaltet).
     const reward = 25 + n * 10;
     this.coins += reward;
     this.hud.setCoins(this.coins);
-    this.hud.banner("DEPLOY OK · WELLE " + n, "Build grün – +" + reward + " 🪙");
+    this.hud.banner("WELLE " + n + " CLEAR", "+" + reward + " 🪙 · nächste kommt…");
     this.guide.event("waveCleared");
     this.hud.toast("📝", "Patch Notes", PATCH_NOTES[Math.floor(Math.random() * PATCH_NOTES.length)]);
   }

@@ -90,8 +90,8 @@ export function createWorld(canvas) {
   //   1 = Drohne (3rd-Person hinter der Ente, action-reicher)
   let camMode = 0;
   const BIRDS = { y: 30, z: 11 };                  // hoch & steil
-  const DRONE = { dist: 13, y: 7.5, lookAhead: 6 }; // hinter der Ente
-  let camHeading = 0; // geglättete Blickrichtung (Drohne)
+  const DRONE = { dist: 17, y: 9.5, lookAhead: 7 }; // hinter der Ente, etwas weiter weg
+  let camDir = 0; // geglättete „Director"-Blickrichtung (Drohne)
 
   // Vorausschau (Flow): Kamera blickt leicht in Bewegungsrichtung.
   const lastTarget = new THREE.Vector3();
@@ -109,7 +109,7 @@ export function createWorld(canvas) {
   function updateCamera(targetPos, dt, heading = 0) {
     camT += dt;
 
-    if (!initialized) { lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z); initialized = true; camHeading = heading; }
+    if (!initialized) { lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z); initialized = true; camDir = heading; }
     const vx = (targetPos.x - lastTarget.x) / Math.max(dt, 1e-3);
     const vz = (targetPos.z - lastTarget.z) / Math.max(dt, 1e-3);
     lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z);
@@ -124,10 +124,11 @@ export function createWorld(canvas) {
     const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
     let lookX = focus.x, lookY = focus.y, lookZ = focus.z, camDist;
 
+    // Director-Richtung immer weich nachziehen (langsam → cinematisch, kein Whip).
+    camDir = angleDamp(camDir, heading, 3.2, dt);
     if (camMode === 1) {
-      // Drohne: hinter der Ente (Heading geglättet), leicht über die Schulter.
-      camHeading = angleDamp(camHeading, heading, 5, dt);
-      const fx = Math.sin(camHeading), fz = Math.cos(camHeading);
+      // Drohne: hinter der Ente entlang der Director-Richtung, über die Schulter.
+      const fx = Math.sin(camDir), fz = Math.cos(camDir);
       camera.position.set(
         focus.x - fx * DRONE.dist,
         focus.y + DRONE.y + hover,
@@ -187,6 +188,8 @@ export function createWorld(canvas) {
 
   // Kamera-Modus wechseln (Taste Q): Vogel ↔ Drohne.
   api.toggleCam = () => toggleCam();
+  api.isDrone = () => camMode === 1;       // Drohne aktiv?
+  api.camHeading = () => camDir;            // aktuelle Director-Blickrichtung
   // Zoom/feste Perspektiven gibt es nicht mehr (No-ops für Altaufrufe).
   api.zoom = () => {};
   api.resetZoom = () => {};
