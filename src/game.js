@@ -24,6 +24,7 @@ import { FORGE_MODS, FORGE_ORDER, forgeCost } from "./forge.js";
 import { RESEARCH, RESEARCH_ORDER, researchAvailable, researchMods, researchDropMult } from "./research.js";
 import { CHIP_TYPES, CHIP_ORDER, chipMods, chipFlags, normalizeGrid } from "./chips.js";
 import { FAB_ITEMS, FAB_ORDER, fabBySlot } from "./fabricator.js";
+import { SECTOR_MODS, rollSectorMod, DRAFTS, rollDrafts } from "./anomalies.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
 import { SKINS, SKIN_RIDDLES } from "./skins.js";
@@ -211,6 +212,60 @@ export class Game {
 
   _renderUpgrades() {
     this.hud.renderUpgrades(this.meta, (k) => this.buyUpgrade(k));
+  }
+
+  // Loot-Multiplikatoren = Forschung × aktive Sektor-Anomalie.
+  _computeDropMult() {
+    const base = researchDropMult(this.meta.research || {});
+    const lm = this.sectorMod?.lootMult || 1;
+    return { scrap: base.scrap * lm, data: base.data * lm };
+  }
+
+  // --- ROGUELITE: Sektor-Anomalien -----------------------------------------
+  // Beim Betreten eines neuen Sektors greift ein zufälliger Modifikator, der den
+  // Run verändert (Loot/Schaden/Hitze/HP). Jeder Durchlauf fühlt sich anders an.
+  _applySectorMod(sector) {
+    const mod = rollSectorMod(this._lastSectorModId);
+    this._lastSectorModId = mod.id;
+    this.sectorMod = mod;
+    this.sectorMods = mod.mods ? mergeMods(defaultMods(), mod.mods) : defaultMods();
+    this._sectorHeatGain = mod.heatGainMult || 1;
+    this._sectorHeatCool = mod.heatCoolMult || 1;
+    this._sectorCoinMult = mod.coinMult || 1;
+    this._dropMult = this._computeDropMult();
+    this._recomputeMods();
+    this._syncStats();
+    this.hud.setHp?.(this.player.hp, this.player.maxHp);
+    this.hud.banner("🌐 SEKTOR " + sector + " – ANOMALIE", mod.icon + " " + mod.name);
+    this.hud.toast?.(mod.icon, mod.name, mod.desc);
+    this.world.addShake(0.2);
+    this._updateObjective(this.waves?.wave || 1); // Anomalie in der Ziel-Zeile zeigen
+  }
+
+  // --- ROGUELITE: Run-Start-Draft (Build wählen) ----------------------------
+  _offerDraft() {
+    this.draftChoosing = true;
+    this.audio.levelUp?.();
+    this._draftChoices = rollDrafts(3);
+    this.hud.showDraft(this._draftChoices, (i) => this._pickDraft(i));
+  }
+
+  _pickDraft(i) {
+    const c = this._draftChoices?.[i];
+    if (!c) return;
+    if (c.weapon && WEAPONS[c.weapon]) {
+      this._setWeapon(c.weapon);
+    }
+    if (c.mods) this.draftMods = mergeMods(defaultMods(), c.mods);
+    this._recomputeMods();
+    this._syncStats();
+    this.hud.setHp(this.player.hp, this.player.maxHp);
+    this.audio.buy?.();
+    this.hud.banner("🎮 BUILD", c.icon + " " + c.name);
+    this.world.addShake(0.2);
+    this.draftChoosing = false;
+    this._draftPending = false;
+    this.hud.hideDraft();
   }
 
   // --- SCHMIEDE (Ost): Waffen-Mods aus Schrott bauen -----------------------
@@ -420,6 +475,8 @@ export class Game {
     mergeMods(m, researchMods(this.meta.research || {})); // Forschungs-Boni (Daten)
     mergeMods(m, chipMods(this.meta.chipGrid || [])); // Chip-Sockel-Boni (Chips)
     mergeMods(m, this._craftMods()); // permanente Schmiede-Mods (Schrott)
+    if (this.sectorMods) mergeMods(m, this.sectorMods); // Sektor-Anomalie (Run)
+    if (this.draftMods) mergeMods(m, this.draftMods); // Run-Start-Draft
     mergeMods(m, this.boonMods); // Run-Boons
     mergeMods(m, this.upgradeMods);
     mergeMods(m, this.equipMods);
@@ -529,8 +586,19 @@ export class Game {
     // Daten sind permanent (Forschungslabor) und liegen in meta.
     this.mats = { scrap: 0, chips: 0 };
     this._matsDirty = true;
-    this._dropMult = researchDropMult(this.meta.research || {}); // Loot-Boni aus Forschung
     this._chipFlags = chipFlags(this.meta.chipGrid || []); // Heatsink-Abkühlung etc.
+    // Roguelite: Sektor-Anomalien (pro Sektor 1 Modifikator) + Run-Start-Draft.
+    this.sectorMods = defaultMods();
+    this.sectorMod = null;
+    this._activeSector = 0;
+    this._lastSectorModId = null;
+    this._sectorHeatGain = 1;
+    this._sectorHeatCool = 1;
+    this._sectorCoinMult = 1;
+    this.draftMods = defaultMods();
+    this.draftChoosing = false;
+    this._draftPending = true; // beim ersten Playing-Frame Build wählen
+    this._dropMult = this._computeDropMult(); // Forschung × Sektor-Loot
     // Fabrikator: Verbrauchsgüter-Gürtel + laufender Druckauftrag (run-basiert).
     this.consumables = { heal: 0, shield: 0, cool: 0, purge: 0 };
     this._printJob = null; // { id, t, total }
@@ -914,13 +982,24 @@ export class Game {
     // (Perspektiven-Wechsel entfernt – nur noch Vogelperspektive.)
 
     if (this.bossIntro) { this._updateIntro(dt); return; }
+    // Run-Start-Draft: einmal pro Run den Build wählen (nach Onboarding).
+    if (this._draftPending && !this.draftChoosing && !this.levelingUp &&
+        !this.boonChoosing && !this.paused && !this.invOpen && !this.shopOpen && !this.guide?.active) {
+      this._offerDraft();
+    }
+    // Sektor-Anomalie bei Sektor-Wechsel anwenden.
+    const sec = Math.max(1, Math.ceil((this.waves?.wave || 1) / CONFIG.waves.bossEvery));
+    if (!this.draftChoosing && !this._draftPending && sec !== this._activeSector) {
+      this._activeSector = sec;
+      this._applySectorMod(sec);
+    }
     // Anstehenden Boon anbieten, sobald keine andere Auswahl offen ist.
-    if (this.boonPending && !this.levelingUp && !this.boonChoosing &&
+    if (this.boonPending && !this.levelingUp && !this.boonChoosing && !this.draftChoosing &&
         !this.paused && !this.invOpen && !this.shopOpen) {
       this.boonPending = false;
       this._offerBoon();
     }
-    if (this.paused || this.levelingUp || this.invOpen || this.shopOpen || this.boonChoosing) return;
+    if (this.paused || this.levelingUp || this.invOpen || this.shopOpen || this.boonChoosing || this.draftChoosing) return;
 
     // Hit-Stop: kurzes Einfrieren für spürbaren Impact.
     if (this.hitStop > 0) {
@@ -1220,9 +1299,9 @@ export class Game {
 
     // Heizen/Kühlen.
     if (this.overclock) {
-      this.heat = Math.min(H.max, this.heat + H.overclockGain * dt);
+      this.heat = Math.min(H.max, this.heat + H.overclockGain * (this._sectorHeatGain || 1) * dt);
     } else {
-      let cool = H.coolBase + (moving ? H.coolMove : 0) + (this.sinceShot > 0.5 ? H.coolIdle : 0) + (this._chipFlags?.heatCool || 0);
+      let cool = (H.coolBase + (moving ? H.coolMove : 0) + (this.sinceShot > 0.5 ? H.coolIdle : 0) + (this._chipFlags?.heatCool || 0)) * (this._sectorHeatCool || 1);
       this.heat = Math.max(0, this.heat - cool * dt);
     }
 
@@ -1328,8 +1407,8 @@ export class Game {
 
     this.fireTimer = this._fireInterval() * (this.ultActive ? 0.5 : 1);
 
-    // CPU-Hitze pro Schuss (im Overclock stärker).
-    this.heat = Math.min(CONFIG.heat.max, this.heat + CONFIG.heat.perShot * (this.overclock ? CONFIG.heat.overclockShotMult : 1));
+    // CPU-Hitze pro Schuss (im Overclock stärker; Sektor-Anomalie skaliert mit).
+    this.heat = Math.min(CONFIG.heat.max, this.heat + CONFIG.heat.perShot * (this.overclock ? CONFIG.heat.overclockShotMult : 1) * (this._sectorHeatGain || 1));
 
     const n = this._projCount();
     const spread = this.weapon.spread * this.mods.spreadMult;
@@ -1621,7 +1700,7 @@ export class Game {
 
     // Coins (Boon "Gierschlund" erhöht den Ertrag). Bewusst knapper als früher
     // (score/15 statt score/10), damit man auf die besseren Waffen hinsparen muss.
-    this.coins += Math.max(1, Math.round((e.def.score / 15) * this.boonFlags.coinMult));
+    this.coins += Math.max(1, Math.round((e.def.score / 15) * this.boonFlags.coinMult * (this._sectorCoinMult || 1)));
     this.hud.setCoins(this.coins);
 
     // Bau-Ressourcen: jeder Kill gibt etwas Schrott; Chips selten (Elite/Boss öfter);
@@ -1989,7 +2068,8 @@ export class Game {
     const sector = Math.min(sectors, Math.floor((n - 1) / be) + 1);
     const name = CONFIG.campaign.sectorNames[sector - 1] || ("Sektor " + sector);
     const nextBoss = Math.ceil(n / be) * be;
-    this.hud.setObjective(`🎯 Sektor ${sector}/${sectors} · ${name} · Boss Welle ${nextBoss}`);
+    const anom = this.sectorMod ? ` · ${this.sectorMod.icon} ${this.sectorMod.name}` : "";
+    this.hud.setObjective(`🎯 Sektor ${sector}/${sectors} · ${name} · Boss Welle ${nextBoss}${anom}`);
   }
 
   // Waffe im Armory-Raum kaufen + sofort ausrüsten (Run-Coins).

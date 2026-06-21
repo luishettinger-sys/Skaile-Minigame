@@ -114,6 +114,8 @@ export class HUD {
       victoryMenu: document.getElementById("victory-menu"),
       boonOverlay: document.getElementById("overlay-boon"),
       boonCards: document.getElementById("boon-cards"),
+      boonTitle: document.getElementById("boon-title"),
+      boonTagline: document.getElementById("boon-tagline"),
       objective: document.getElementById("objective"),
       boonbar: document.getElementById("boonbar"),
     };
@@ -587,6 +589,24 @@ export class HUD {
     this.el.boonOverlay?.classList.remove("hidden");
   }
   hideBoons() { this.el.boonOverlay?.classList.add("hidden"); }
+
+  // Run-Start-Draft: nutzt das Boon-Overlay, eigener Titel.
+  showDraft(choices, onPick) {
+    if (this.el.boonTitle) this.el.boonTitle.textContent = "🎮 WÄHLE DEINEN BUILD";
+    if (this.el.boonTagline) this.el.boonTagline.textContent = "Startwaffe + Perk für diesen Run – setzt den Grundcharakter";
+    this.showBoons(choices, onPick);
+  }
+  hideDraft() {
+    this.hideBoons();
+    if (this.el.boonTitle) this.el.boonTitle.textContent = "✨ BOON GEFUNDEN";
+    if (this.el.boonTagline) this.el.boonTagline.textContent = "Wähle eine Verstärkung für diesen Run – sie stapelt sich";
+  }
+
+  // Aktive Sektor-Anomalie als kleiner Dauer-Indikator (im Boon-Bar-Bereich).
+  setSectorMod(mod) {
+    if (!this.el.objective) return;
+    this._sectorMod = mod; // vom Objective-Update mit angezeigt
+  }
 
   setCoins(n) {
     this.el.coins.textContent = "🪙 " + n;
