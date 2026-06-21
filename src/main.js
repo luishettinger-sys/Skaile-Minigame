@@ -105,6 +105,43 @@ loadModel("./assets/props/duck_shrine.glb", { targetHeight: 4.6 }).then((obj) =>
   });
 });
 
+// KI-Hero-Props (Higgsfield→Blender) statt grober prozeduraler Formen: Stein-
+// Fackeln + Kandelaber. Ein GLB wird geladen und an mehrere Stellen geklont,
+// jeweils mit warmem Punktlicht + Glüh-Halo (Bloom) am Feuer.
+function placeFireProps(url, targetHeight, fireY, positions, withLight, haloR) {
+  loadModel(url, { targetHeight }).then((obj) => {
+    if (!obj) return;
+    positions.forEach((pos, i) => {
+      const [x, z, ry] = pos;
+      const inst = i === 0 ? obj : obj.clone(true);
+      inst.position.set(x, 0, z);
+      inst.rotation.y = ry || 0;
+      inst.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      world.scene.add(inst);
+      // Glüh-Halo am Feuer (für Bloom-Schein).
+      const halo = new THREE.Mesh(
+        new THREE.SphereGeometry(haloR, 12, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffb060, transparent: true, opacity: 0.5, depthWrite: false })
+      );
+      halo.position.set(x, fireY, z);
+      world.scene.add(halo);
+      if (withLight[i]) {
+        const light = new THREE.PointLight(0xffb060, 26, 30, 2);
+        light.position.set(x, fireY, z);
+        world.scene.add(light);
+      }
+    });
+  });
+}
+
+// 4 Stein-Fackeln an den Arena-Ecken (alle mit Licht).
+placeFireProps("./assets/props/brazier.glb", 5.6, 5.2,
+  [[21, 21], [21, -21], [-21, 21], [-21, -21]], [true, true, true, true], 1.1);
+
+// Kandelaber flankieren den Schrein (Nord) + Süd-Eingang; nur die Nord-Paare leuchten.
+placeFireProps("./assets/props/candelabra.glb", 4.4, 4.0,
+  [[-3.6, -15], [3.6, -15], [-3.6, 18], [3.6, 18]], [true, true, false, false], 0.7);
+
 // In Blender gebaute Waffenmodelle: an Armory-Podeste + getragene Waffe hängen.
 loadWeaponModels().then(() => {
   game.armory.populateModels();

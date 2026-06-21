@@ -23,17 +23,9 @@ export function buildDeskProps(scene) {
 
   group.add(ritualSigil(0, 0, 7.5));      // zentrales okkultes Sigill (flach, blockiert nicht)
 
-  // 4 Stein-Fackeln (Braziers) an den Arena-Ecken: Feuer + warmes Punktlicht +
-  // Schatten → klar symmetrisch, rahmt die Spielfläche (CotL-Ritualhof).
-  for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-    group.add(brazier(sx * 21, sz * 21));
-  }
-  // Akzent-Kerzen, die den Schrein (Norden) flankieren – nur Glühen.
-  group.add(candle(-3.4, -15, 2.2, false));
-  group.add(candle(3.4, -15, 2.2, false));
-  // Zwei Kerzen am Süd-Eingang für Symmetrie (eine mit Licht).
-  group.add(candle(-3.4, 18, 2.4, true));
-  group.add(candle(3.4, 18, 2.4, false));
+  // Hinweis: Die Stein-Fackeln (Braziers) und Kandelaber sind jetzt KI-Hero-Assets
+  // (Higgsfield→Blender), platziert in main.js inkl. warmem Punktlicht + Glühen.
+  // Hier bleiben nur Sigill + Wand-Banner.
 
   // Kult-Banner an den vier Wänden (über den Tür-Öffnungen, hängen hoch).
   group.add(banner(0, -27.4, 0));          // Nord

@@ -234,7 +234,26 @@
         </div>
       </div>
 
-      <!-- Story-Cutscene (Intro / Sektor-Zwischenszenen / Finale) -->
+      <!-- Onboarding: Chat mit Claude vor animierter Kampf-Cutscene -->
+      <div id="intro-chat" class="hidden">
+        <canvas id="intro-bg"></canvas>
+        <div class="ic-scrim"></div>
+        <div class="ic-panel">
+          <div class="ic-header">
+            <span class="cw-dot r"></span><span class="cw-dot y"></span><span class="cw-dot g"></span>
+            <span class="ic-title">✦ Claude Code — onboarding</span>
+          </div>
+          <div class="ic-log" id="ic-log"></div>
+          <div class="ic-status" id="ic-status">
+            <span class="ic-spin">✻</span>
+            <span class="ic-word" id="ic-word">Combobulating</span><span class="ic-dots">…</span>
+            <span class="ic-esc">(esc to interrupt)</span>
+          </div>
+        </div>
+        <div class="ic-hint">▸ <b>Leertaste</b> / Klick weiter &nbsp;·&nbsp; <b>ESC</b> überspringen</div>
+      </div>
+
+      <!-- Story-Cutscene (Sektor-Zwischenszenen / Finale) -->
       <div id="cutscene" class="hidden">
         <div class="cs-bar cs-bar-top"></div>
         <div class="cs-stage">
