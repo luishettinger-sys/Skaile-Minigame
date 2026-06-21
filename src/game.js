@@ -1117,10 +1117,13 @@ export class Game {
       this.hud.banner("🍀 LUCKY", item.icon + " " + item.name);
       if (this.invOpen) this._renderInv();
     } else {
-      const ids = WEAPON_IDS.filter((id) => id !== this.weaponId);
-      const id = ids[Math.floor(Math.random() * ids.length)];
-      this._setWeapon(id);
-      this.hud.banner("🍀 LUCKY-WAFFE", WEAPONS[id].name);
+      // Kein Zwangs-Waffentausch mehr: Lucky-Drops nehmen nie die gewaehlte Waffe
+      // weg. Stattdessen ein Coin-Jackpot – bleibt belohnend, aendert aber nichts
+      // an der Ausruestung.
+      const amt = 70 + Math.floor(Math.random() * 60);
+      this.coins += amt;
+      this.hud.setCoins(this.coins);
+      this.hud.banner("🍀 LUCKY-JACKPOT", "+" + amt + " Coins");
     }
   }
 
