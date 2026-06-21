@@ -550,6 +550,21 @@ body {
   20% { opacity: 1; }
   100% { opacity: 0; transform: translate(-50%, -160%) scale(1.1); }
 }
+/* Crit-/Kill-Zahlen: groß & fett mit Punch-Animation. */
+.popup.big {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  animation: critPop 0.9s ease-out forwards;
+}
+@keyframes critPop {
+  0% { opacity: 0; transform: translate(-50%, -40%) scale(0.4) rotate(-6deg); }
+  18% { opacity: 1; transform: translate(-50%, -55%) scale(1.35) rotate(2deg); }
+  35% { transform: translate(-50%, -70%) scale(1.0) rotate(0deg); }
+  100% { opacity: 0; transform: translate(-50%, -185%) scale(1.05); }
+}
+/* Schadenszahlen: klein & schnell. */
+.popup.dmg { font-size: 14px; font-weight: 800; }
 
 /* ------------------------------------------------------------ Overlays --- */
 .overlay {

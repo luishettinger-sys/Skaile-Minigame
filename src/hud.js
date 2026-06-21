@@ -255,15 +255,18 @@ export class HUD {
   }
 
   // Floating-Text an Bildschirm-Koordinaten (x,y in px).
-  popup(x, y, text, color = "#fff") {
+  popup(x, y, text, color = "#fff", kind = "") {
+    // DOM-Spam in dichten Schwärmen vermeiden (kleine Schadenszahlen zuerst droppen).
+    const max = kind === "big" ? 60 : 40;
+    if (this.el.popups.childElementCount > max) return;
     const d = document.createElement("div");
-    d.className = "popup";
+    d.className = kind ? "popup " + kind : "popup";
     d.textContent = text;
     d.style.left = x + "px";
     d.style.top = y + "px";
     d.style.color = color;
     this.el.popups.appendChild(d);
-    setTimeout(() => d.remove(), 820);
+    setTimeout(() => d.remove(), kind === "big" ? 900 : 720);
   }
 
   showStart() {

@@ -1045,10 +1045,10 @@ export class Game {
             e.mesh.position.x, e.mesh.position.z, e.def.glow,
             crit ? 11 : 5, crit ? 1.0 : 0.7
           );
-          if (crit) {
-            this._popup(e.mesh.position, "CRIT", "#ff5470");
-            this.world.addShake(0.14);
-          }
+          // Schadenszahl: Crit = große rote Zahl + Shake, normal = kleine helle Zahl.
+          this._popup(e.mesh.position, Math.round(dmg).toString(),
+            crit ? "#ff4d6a" : "#fff2c0", crit ? "big" : "dmg");
+          if (crit) this.world.addShake(0.14);
           if (killed) this._killEnemy(e);
 
           // --- Trefferbasierte Spezial-Effekte der kreativen Waffen ---------
@@ -1205,7 +1205,9 @@ export class Game {
   _killEnemy(e) {
     this.enemies.kill(e);
     this.audio.killSound(this.combo);
-    this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.color, e.def.isBoss ? 40 : 16, e.def.isBoss ? 1.8 : 1.1);
+    // Fetterer Kill-Effekt: Partikel-Pop + kurze Schockwelle (Bugs „zerplatzen").
+    this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.color, e.def.isBoss ? 44 : 20, e.def.isBoss ? 1.8 : 1.25);
+    if (!e.def.isBoss && e.def.radius >= 1.0) this.effects.shockwave(e.mesh.position.x, e.mesh.position.z, e.def.glow, e.def.radius * 2.5, e.def.radius * 7);
     this.world.addShake(e.def.isBoss ? 1.0 : 0.26);
 
     this.combo++;
@@ -1215,7 +1217,8 @@ export class Game {
     this.score += gained;
     this.hud.setScore(Math.floor(this.score));
     this.hud.setCombo(this.comboMult);
-    this._popup(e.mesh.position, "+" + gained, "#ffd23f");
+    // Score poppt groß, wenn ein Combo-Multiplikator aktiv ist (befriedigender).
+    this._popup(e.mesh.position, "+" + gained, "#ffd23f", this.comboMult > 1 ? "big" : "");
 
     // Boon: Vampir-Modus heilt pro Kill.
     if (this.boonFlags.lifesteal > 0 && this.player.alive && this.player.hp < this.player.maxHp) {
@@ -1302,9 +1305,17 @@ export class Game {
       this.pickups.spawnLoot(e.mesh.position.x - 2, e.mesh.position.z, rollItem());
       this.pickups.spawnLucky(e.mesh.position.x, e.mesh.position.z + 2);
 
-      // Großes Ziel: letzter Sektor gesäubert → Sieg (Run kann weiterlaufen).
+      // Meilenstein bei Welle 25 (Gebäude befreit), aber ENDLOS weiterspielen –
+      // Survival-Fokus: überlebe so viele Wellen wie möglich.
       if (this.waves.wave >= CONFIG.campaign.finalWave && !this.won) {
-        this._victory();
+        this.won = true;
+        this.meta.won = true;
+        this.meta.sectorsCleared = CONFIG.campaign.sectors;
+        this._saveMeta();
+        this.world.addShake(1.0);
+        this.hud.flash("#ffd23f", 0.6);
+        this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.duckBody, 26, 32);
+        this.hud.banner("🏆 GEBÄUDE BEFREIT!", "Endlos-Modus – überlebe so lange du kannst!");
       } else {
         // Sektor-Zwischenszene (einmal pro Sitzung), kurz nach dem Spektakel,
         // damit Boss-Tod, Loot & Banner noch sichtbar abklingen.
@@ -1769,10 +1780,10 @@ export class Game {
     this.hud.toast("📝", "Patch Notes", PATCH_NOTES[Math.floor(Math.random() * PATCH_NOTES.length)]);
   }
 
-  _popup(worldPos, text, color) {
+  _popup(worldPos, text, color, kind = "") {
     const v = new THREE.Vector3(worldPos.x, 1.5, worldPos.z).project(this.world.camera);
     const x = (v.x * 0.5 + 0.5) * window.innerWidth;
     const y = (-v.y * 0.5 + 0.5) * window.innerHeight;
-    this.hud.popup(x, y, text, color);
+    this.hud.popup(x, y, text, color, kind);
   }
 }
