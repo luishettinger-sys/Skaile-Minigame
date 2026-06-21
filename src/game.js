@@ -853,7 +853,10 @@ export class Game {
     }
     if (this.input.wasPressed("KeyF")) {
       if (this.carrying) {
-        this.throwables.throwItem(this.carrying, Math.sin(this.player.facing), Math.cos(this.player.facing));
+        // Auto-Aim: wirft im Bogen direkt auf den nächsten Gegner (trifft immer).
+        const t = this._nearestEnemy(70);
+        if (t) this.throwables.throwItemAt(this.carrying, t.mesh.position.x, t.mesh.position.z);
+        else this.throwables.throwItem(this.carrying, Math.sin(this.player.facing), Math.cos(this.player.facing));
         this.carrying = null;
         this.audio.shoot();
         this.world.addShake(0.1);

@@ -90,6 +90,7 @@ export function createWorld(canvas) {
   const BIRDS = { y: 36, z: 22 };       // Arena: stärker geneigt (dynamischer 3/4-Blick)
   const ROOM  = { y: 22, z: 14 };       // kleiner Raum (näher + geneigt)
   let camClose = 0, camCloseTarget = 0;
+  let bank = 0, yawSway = 0; // dynamische Roll-/Gier-Neigung
 
   // Vorausschau (Flow): Kamera blickt leicht in Bewegungsrichtung.
   const lastTarget = new THREE.Vector3();
@@ -138,6 +139,13 @@ export function createWorld(canvas) {
       camera.position.z += (Math.random() - 0.5) * s * 3.4;
     }
     camera.lookAt(lookX, lookY, lookZ);
+
+    // Banking: leichte Roll-Neigung in Lauf-/Lead-Richtung + sanftes Gieren →
+    // mehr Dynamik/Perspektive, ohne Übelkeit.
+    bank = damp(bank, leadX * 0.018, 4, dt);
+    yawSway = damp(yawSway, leadX * 0.01, 3, dt);
+    camera.rotation.z += clamp(bank, -0.1, 0.1);
+    camera.rotation.y += clamp(yawSway, -0.06, 0.06) + Math.sin(camT * 0.5) * 0.008;
   }
 
   function addShake(amount) {

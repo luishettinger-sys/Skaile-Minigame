@@ -41,6 +41,7 @@ export class ProjectileSystem {
     scene.add(this.group);
 
     this.geos = makeGeometries();
+    this.glowTex = makeProjGlow(); // additiver Schein um jedes Geschoss (fake Bloom)
     this.pools = {}; // style -> []
     this.active = [];
     this.trailPool = [];
@@ -55,8 +56,15 @@ export class ProjectileSystem {
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.castShadow = false;
+    // Additiver Glow-Halo → das Geschoss leuchtet sichtbar (kein Bloom mehr).
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: this.glowTex, color: 0xffffff, transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    glow.scale.set(style === "plasma" || style === "saw" ? 2.6 : 1.7, style === "plasma" || style === "saw" ? 2.6 : 1.7, 1);
+    mesh.add(glow);
     this.group.add(mesh);
-    return { mesh, vel: new THREE.Vector3(), life: 0, trailT: 0, hits: new Set(), style };
+    return { mesh, glow, vel: new THREE.Vector3(), life: 0, trailT: 0, hits: new Set(), style };
   }
 
   spawn(origin, dir, opts = {}) {
@@ -69,6 +77,7 @@ export class ProjectileSystem {
     p.color = color;
     p.mesh.material.color.setHex(color);
     p.mesh.material.emissive.setHex(color);
+    if (p.glow) p.glow.material.color.setHex(color);
     p.mesh.visible = true;
 
     const scale = opts.scale ?? 1;
@@ -323,4 +332,19 @@ export class ProjectileSystem {
     for (const t of this.trails) { t.spr.visible = false; this.trailPool.push(t); }
     this.trails = [];
   }
+}
+
+// Weicher radialer Glow-Sprite für Geschosse (additiv).
+function makeProjGlow() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const ctx = c.getContext("2d");
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.4, "rgba(255,255,255,0.7)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }

@@ -63,6 +63,16 @@ export class Throwables {
     return best;
   }
 
+  // Auto-Aim-Wurf: Bogen, der genau auf (tx,tz) landet (trifft immer).
+  throwItemAt(it, tx, tz) {
+    it.state = "thrown";
+    if (it.spr) it.spr.visible = false;
+    const T = 0.7, g = 24;
+    const sy = it.mesh.position.y;
+    it.vel.set((tx - it.mesh.position.x) / T, 0, (tz - it.mesh.position.z) / T);
+    it.vy = (0.5 * g * T * T - sy) / T; // landet bei y=0 nach ~T
+  }
+
   throwItem(it, dirx, dirz) {
     it.state = "thrown";
     const sp = 26;
