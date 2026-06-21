@@ -106,8 +106,8 @@ export function createWorld(canvas) {
     const vz = (targetPos.z - lastTarget.z) / Math.max(dt, 1e-3);
     lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z);
     const speed = Math.hypot(vx, vz);
-    leadX = damp(leadX, vx * 0.35, 5, dt); // dezente Vorausschau (weniger Kippeln)
-    leadZ = damp(leadZ, vz * 0.35, 5, dt);
+    leadX = damp(leadX, vx * 0.22, 5, dt); // minimale Vorausschau (kaum Kippeln)
+    leadZ = damp(leadZ, vz * 0.22, 5, dt);
 
     focus.x = damp(focus.x, targetPos.x + leadX, CONFIG.camera.followLerp, dt);
     focus.z = damp(focus.z, targetPos.z + leadZ, CONFIG.camera.followLerp, dt);
@@ -140,12 +140,10 @@ export function createWorld(canvas) {
     }
     camera.lookAt(lookX, lookY, lookZ);
 
-    // Banking: nur ein Hauch Roll-Neigung in Lauf-Richtung – stark abgeschwächt,
-    // damit das Bild beim Laufen nicht kippelt (verursachte Kopfschmerzen).
-    bank = damp(bank, leadX * 0.006, 4, dt);
-    yawSway = damp(yawSway, leadX * 0.003, 3, dt);
-    camera.rotation.z += clamp(bank, -0.03, 0.03);
-    camera.rotation.y += clamp(yawSway, -0.018, 0.018);
+    // Banking praktisch aus: nur ein winziger Rest-Roll, kein Gieren mehr →
+    // das Bild steht beim Laufen ruhig (Kippeln verursachte Kopfschmerzen).
+    bank = damp(bank, leadX * 0.002, 4, dt);
+    camera.rotation.z += clamp(bank, -0.01, 0.01);
   }
 
   function addShake(amount) {
