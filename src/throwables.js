@@ -10,7 +10,20 @@ export class Throwables {
     this.items = [];
     this.flying = []; // automatisch geworfene TNTs (mit Ziel-Bogen)
     this._t = 0;
-    this._spawnAll();
+    // Keine statischen Würfe mehr auf der Map – Granaten erscheinen gelegentlich
+    // während der Wellen (siehe spawnPickup), mit (F)-Hinweis.
+  }
+
+  // Eine aufhebbare Granate an (x,z) spawnen, mit schwebendem „[F]"-Hinweis.
+  spawnPickup(x, z) {
+    if (this.items.filter((i) => i.state === "idle").length >= 3) return; // nicht zumüllen
+    const mesh = makeTNT();
+    mesh.position.set(x, 0, z);
+    this.group.add(mesh);
+    const spr = makeFLabel();
+    spr.position.set(x, 2.5, z);
+    this.group.add(spr);
+    this.items.push({ kind: "tnt", mesh, spr, state: "idle", home: { x, z }, vel: new THREE.Vector3(), vy: 0 });
   }
 
   // Automatisch eine TNT von 'from' auf 'target' werfen (schöner Bogen).
@@ -79,7 +92,8 @@ export class Throwables {
       }
     }
 
-    for (const it of this.items) {
+    for (let i = this.items.length - 1; i >= 0; i--) {
+      const it = this.items[i];
       if (it.state === "thrown") {
         it.vy -= 24 * dt;
         it.mesh.position.x += it.vel.x * dt;
@@ -88,32 +102,62 @@ export class Throwables {
         it.mesh.rotation.x += dt * 9;
         it.mesh.rotation.z += dt * 7;
         if (it.mesh.position.y <= 0) {
-          it.mesh.position.y = 0;
-          it.mesh.rotation.set(0, it.mesh.rotation.y, 0);
-          it.state = "idle";
-          it.vy = 0;
-          onImpact(it.mesh.position.x, it.mesh.position.z);
+          onImpact(it.mesh.position.x, it.mesh.position.z); // explodiert
+          this.group.remove(it.mesh);                       // verbraucht
+          this.items.splice(i, 1);
+          continue;
         }
       } else if (it.state === "idle") {
         it.mesh.rotation.y += dt * 0.5;
         it.mesh.position.y = Math.sin(this._t * 2 + it.home.x) * 0.05;
       }
-      // TNT-Zündschnur funkelt (pulsierende Größe).
+      // (F)-Hinweis nur im idle-Zustand sichtbar, schwebt über der Granate.
+      if (it.spr) {
+        it.spr.visible = it.state === "idle";
+        if (it.state === "idle") it.spr.position.set(it.mesh.position.x, 2.5 + Math.sin(this._t * 3) * 0.12, it.mesh.position.z);
+      }
       const spark = it.mesh.userData.spark;
       if (spark) spark.scale.setScalar(0.8 + Math.sin(this._t * 12 + it.home.x) * 0.35);
     }
   }
 
   reset() {
-    for (const it of this.items) {
-      it.state = "idle";
-      it.vy = 0;
-      it.mesh.position.set(it.home.x, 0, it.home.z);
-      it.mesh.rotation.set(0, 0, 0);
-    }
+    for (const it of this.items) { this.group.remove(it.mesh); if (it.spr) this.group.remove(it.spr); }
+    this.items = [];
     for (const f of this.flying) this.group.remove(f.mesh);
     this.flying = [];
   }
+}
+
+// Schwebendes „[F]"-Hinweis-Label (über aufhebbaren Granaten).
+function makeFLabel() {
+  const c = document.createElement("canvas");
+  c.width = 128; c.height = 64;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "rgba(20,24,34,0.85)";
+  roundRect(ctx, 6, 8, 116, 48, 12); ctx.fill();
+  ctx.strokeStyle = "#ffd23f"; ctx.lineWidth = 3;
+  roundRect(ctx, 6, 8, 116, 48, 12); ctx.stroke();
+  ctx.fillStyle = "#ffd23f";
+  ctx.font = "bold 34px sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("[F] 💣", 64, 34);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false }));
+  spr.scale.set(2.6, 1.3, 1);
+  spr.renderOrder = 999;
+  return spr;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 function makeTNT() {

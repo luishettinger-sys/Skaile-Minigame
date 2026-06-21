@@ -285,13 +285,15 @@ export class Player {
       obj.rotation.set(0, 0, 0);
       this.handBone.add(obj);
     } else {
+      // Hand-Anker vor der Brust, rechts: die Waffe wird klar VOR dem Körper
+      // gehalten (nicht im Körper), Lauf zeigt nach vorn (+Z = Blickrichtung).
       if (!this.weaponAnchor) {
         this.weaponAnchor = new THREE.Group();
-        this.weaponAnchor.position.set(0.58, 0.78, 0.5);
+        this.weaponAnchor.position.set(0.42, 0.95, 0.95);
         this.root.add(this.weaponAnchor);
       }
       obj.scale.setScalar(targetLen / len);
-      obj.position.set(0, 0, 0);
+      obj.position.set(0, 0, 0.35); // Waffe nach vorn versetzt → Lauf ragt heraus
       this.weaponAnchor.add(obj);
     }
     this.weaponModel = obj;
@@ -303,10 +305,19 @@ export class Player {
     this._kick = Math.min(1.5, (this._kick || 0) + amount);
   }
 
-  // Muzzle-Position für Projektile (leicht vor der Ente).
-  muzzle() {
-    return new THREE.Vector3(this.pos.x, 1.0, this.pos.z);
+  // Muzzle-Position: die Spitze der getragenen Waffe in Weltkoordinaten →
+  // Projektile kommen aus dem Lauf, nicht aus dem Körper.
+  muzzleWorld() {
+    const a = this.weaponAnchor;
+    if (!a) return new THREE.Vector3(this.pos.x, 1.0, this.pos.z + 0.8);
+    a.updateMatrixWorld(true);
+    const p = new THREE.Vector3().setFromMatrixPosition(a.matrixWorld);
+    // von der Hand aus in Blickrichtung bis zur Laufspitze.
+    p.x += Math.sin(this.facing) * 1.0;
+    p.z += Math.cos(this.facing) * 1.0;
+    return p;
   }
+  muzzle() { return this.muzzleWorld(); }
 
   reset() {
     this.pos.set(0, 0, 0);

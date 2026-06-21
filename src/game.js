@@ -329,6 +329,7 @@ export class Game {
     this.activeGadget = null;
     this.carrying = null; // aktuell getragenes Wurfobjekt
     this.bonusT = 22; // Timer bis zum nächsten Bonus-Bug
+    this._throwT = 12; // Timer bis zur nächsten Granate
     this.tipT = 14; // Timer bis zum nächsten Rubber-Duck-Tipp
     this.magnetBoost = 0; // Sekunden Riesen-Magnet (nach Level-Up)
     this.autoTntT = 6; // Timer bis zum nächsten automatischen TNT-Wurf
@@ -750,6 +751,18 @@ export class Game {
       this.hud.banner("💰 BONUS BUG", "Schnapp ihn dir!");
     }
 
+    // Granate erscheint gelegentlich während der Wellen (wie ein Energiefeld),
+    // mit [F]-Hinweis: hingehen, F = aufheben, F = werfen (Flächenschaden).
+    this._throwT -= dt;
+    if (this.defenseLoop && this._throwT <= 0) {
+      this._throwT = 16 + Math.random() * 14;
+      const half = this.world.arenaHalf;
+      const x = (Math.random() * 2 - 1) * (half - 5);
+      const z = (Math.random() * 2 - 1) * (half - 5);
+      this.throwables.spawnPickup(x, z);
+      this.hud.toast("💣", "Granate aufgetaucht", "[F] aufheben & werfen!");
+    }
+
     // Riesen-Magnet nach Level-Up läuft ab.
     if (this.magnetBoost > 0) this.magnetBoost = Math.max(0, this.magnetBoost - dt);
 
@@ -1018,26 +1031,21 @@ export class Game {
       ? Math.atan2(this.aimTarget.mesh.position.x - this.player.pos.x,
           this.aimTarget.mesh.position.z - this.player.pos.z)
       : this.player.facing;
+    // Projektile starten an der Waffenspitze (nicht am Körper).
+    const mz = this.player.muzzleWorld();
     for (let i = 0; i < n; i++) {
       const off = n === 1 ? 0 : (i - (n - 1) / 2) * spread;
       const ang = baseAng + off;
       const dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
-      const origin = {
-        x: this.player.pos.x + dir.x * fwd,
-        z: this.player.pos.z + dir.z * fwd,
-      };
+      const origin = { x: mz.x, z: mz.z };
       // Orbit-Waffen: Geschosse gleichmäßig auf den Kreis verteilen.
       if (w.behavior === "orbit") opts.orbitAng = (i / n) * Math.PI * 2 + baseAng;
       this.projectiles.spawn(origin, dir, opts);
     }
     this.audio.weapon(this.weapon.sound);
     this.player.kickWeapon(); // Rückstoß der getragenen Waffe (Wucht/„Feel")
-    // Mündungsblitz in Waffenfarbe (glühender Funke).
-    this.effects.burst(
-      this.player.pos.x + Math.sin(this.player.facing) * fwd,
-      this.player.pos.z + Math.cos(this.player.facing) * fwd,
-      this.weapon.color, 6, 0.55
-    );
+    // Mündungsblitz an der Waffenspitze.
+    this.effects.burst(mz.x, mz.z, this.weapon.color, 6, 0.55);
     this.player.recoil?.(); // Waffe zurückstoßen + Aim-Pose
     this.world.addShake(0.05);
   }
