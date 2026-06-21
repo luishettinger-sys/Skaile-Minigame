@@ -12,8 +12,13 @@ export class PickupSystem {
     scene.add(this.group);
     this.items = [];
 
-    this.gemGeo = new THREE.OctahedronGeometry(0.34, 0);
-    this.gemMat = new THREE.MeshBasicMaterial({ color: 0x6ee7ff });
+    // XP-Gem: heller Kristall-Kern + additiver Glüh-Halo + Boden-Glühen → hebt
+    // sich klar vom Boden ab und ist satisfying. (Glühen gefakt per Sprite, da
+    // kein Bloom mehr.)
+    this.gemGeo = new THREE.OctahedronGeometry(0.32, 0);
+    this.gemMat = new THREE.MeshBasicMaterial({ color: 0xcaf7ff }); // fast weiß-cyan, leuchtend
+    this._glowTex = makeGlowTexture();
+    this.gemHaloMat = new THREE.SpriteMaterial({ map: this._glowTex, color: 0x4fe8ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
     this.healGeo = new THREE.BoxGeometry(0.55, 0.55, 0.55);
     this.healMat = new THREE.MeshBasicMaterial({ color: 0x80ed99 });
     this.lootGeo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
@@ -51,7 +56,15 @@ export class PickupSystem {
 
   _spawn(kind, x, z, value) {
     let mesh;
-    if (kind === "gem") mesh = new THREE.Mesh(this.gemGeo, this.gemMat);
+    if (kind === "gem") {
+      // Gruppe: leuchtender Kristall-Kern + additiver Glüh-Halo (Sprite, zur Kamera).
+      mesh = new THREE.Group();
+      const core = new THREE.Mesh(this.gemGeo, this.gemMat);
+      const halo = new THREE.Sprite(this.gemHaloMat);
+      halo.scale.set(1.8, 1.8, 1);
+      mesh.add(halo, core);
+      mesh.userData.core = core;
+    }
     else if (kind === "loot") mesh = new THREE.Mesh(this.lootGeo, this.lootMat);
     else if (kind === "coin") mesh = new THREE.Mesh(this.coinGeo, this.coinMat);
     else if (kind === "lucky") mesh = new THREE.Mesh(this.luckyGeo, this.luckyMat);
@@ -109,4 +122,21 @@ export class PickupSystem {
     for (const it of this.items) this.group.remove(it.mesh);
     this.items = [];
   }
+}
+
+// Weicher radialer Glüh-Sprite (weiß → transparent) für additive Halos.
+function makeGlowTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.25, "rgba(255,255,255,0.85)");
+  g.addColorStop(0.55, "rgba(255,255,255,0.3)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
