@@ -164,17 +164,17 @@ export const CONFIG = {
   camera: {
     // Cult-of-the-Lamb-Blick: steil & ruhig von oben, flaches FOV → storybook-haft,
     // wenig Perspektiv-Verzerrung, Fokus klar auf der Ente.
-    offset: { x: 0, y: 22, z: 14 }, // steiler (≈58° von der Waagerechten) + weiter weg
-    followLerp: 6, // träge → ruhig, kein Zittern
-    fov: 42, // flacher Blick, fast „2.5D" – CotL-Look
-    hover: 0.08, // kaum Schweben → ruhige, gesetzte Kamera
-    hoverSpeed: 1.0,
+    offset: { x: 0, y: 17, z: 17 }, // flacher 3/4-Blick (~45°) → Entengesicht & Brille sichtbar, Waffe liest sich
+    followLerp: 9, // snappier → Kamera bleibt dicht am Flow, kein Nachhinken
+    fov: 44, // minimal weiter → mehr Tempo-Gefühl
+    hover: 0.16, // spürbares Schweben → dynamische, atmende Kamera
+    hoverSpeed: 1.25,
   },
 
   colors: {
-    bg: 0x140b18, // okkultes Dunkel-Violett (Cult-of-the-Lamb-Stimmung)
-    fog: 0x140b18,
-    floor: 0x12151d,
+    bg: 0x271833, // wärmeres, helleres Violett → Stimmung statt Tristesse
+    fog: 0x2c1b3a,
+    floor: 0x1c2030,
     gridMain: 0x4a2c54, // okkultes Violett statt Blau
     gridSub: 0x251830,
     border: 0x6ee7ff,

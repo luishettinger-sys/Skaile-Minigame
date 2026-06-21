@@ -209,7 +209,7 @@ export class Player {
     if (!this.weaponAnchor) {
       // Anker an der rechten Seite, vorn & auf Hüfthöhe; Lauf zeigt +Z.
       this.weaponAnchor = new THREE.Group();
-      this.weaponAnchor.position.set(0.72, 0.9, 0.35);
+      this.weaponAnchor.position.set(0.58, 0.78, 0.5);
       this.root.add(this.weaponAnchor);
     }
     if (this.weaponModel) {
@@ -222,7 +222,7 @@ export class Player {
     const size = new THREE.Vector3();
     box.getSize(size);
     const len = Math.max(size.x, size.y, size.z) || 1;
-    const targetLen = Math.min(2.8, Math.max(2.0, len)); // 2.0–2.8 Welt-Einheiten (gut sichtbar)
+    const targetLen = Math.min(1.35, Math.max(1.0, len)); // handlich: kleiner als die Ente, verdeckt sie nicht
     obj.scale.setScalar(targetLen / len);
     this.weaponModel = obj;
     this._kick = 0;

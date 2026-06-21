@@ -19,20 +19,20 @@ export function createWorld(canvas) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.92; // dunkler → moodiger, okkulter Kontrast
+  renderer.toneMappingExposure = 1.18; // heller, lebendiger – Stimmung ohne Tristesse
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(CONFIG.colors.bg);
-  // Enger Fog → die Ränder fallen ins okkulte Dunkel, die Ente steht im Lichtkegel
-  // (Cult-of-the-Lamb-Fokus auf die Bildmitte).
-  scene.fog = new THREE.Fog(CONFIG.colors.fog, 24, 64);
+  // Fog erst weiter hinten → der Nahbereich um die Ente bleibt farbig & klar,
+  // nur die fernen Ränder fallen weich ins Dunkel (kein milchiger Washout mehr).
+  scene.fog = new THREE.Fog(CONFIG.colors.fog, 42, 120);
 
   // Image-Based-Lighting: gibt allen PBR-Materialien Reflexionen → „echt"
   // statt flach. Erzeugt aus einer prozeduralen Raum-Umgebung.
   const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.28).texture;
 
   const camera = new THREE.PerspectiveCamera(
     CONFIG.camera.fov,
@@ -45,11 +45,11 @@ export function createWorld(canvas) {
 
   // --- Licht (Cult-of-the-Lamb-Stimmung: düster, kerzenwarm, okkulte Rims) ----
   // Schwaches violettes Umgebungslicht von oben, fast schwarz von unten.
-  const hemi = new THREE.HemisphereLight(0x6a4a72, 0x080406, 0.30);
+  const hemi = new THREE.HemisphereLight(0x9c7aac, 0x1a1420, 0.62);
   scene.add(hemi);
 
-  // Warmes „Kerzen"-Key-Light statt neutralem Weiß (gedimmt → moodig, Boden bleibt dunkel).
-  const key = new THREE.DirectionalLight(0xffd2a1, 0.85);
+  // Warmes „Kerzen"-Key-Light statt neutralem Weiß (heller → die Ente strahlt).
+  const key = new THREE.DirectionalLight(0xffd9b0, 1.15);
   key.position.set(14, 40, 16);
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024); // 1024 statt 2048: deutlich weniger Stutter
@@ -63,12 +63,12 @@ export function createWorld(canvas) {
   scene.add(key);
 
   // Okkulter Magenta-Rim aus dem Rücken → ritueller Kontursaum.
-  const rim = new THREE.DirectionalLight(0xc2487a, 0.45);
+  const rim = new THREE.DirectionalLight(0xe06aa0, 0.6);
   rim.position.set(-18, 12, -16);
   scene.add(rim);
 
   // Zweiter, magenta-violetter Fülllichtschein von der Seite (Tiefe + Vibe).
-  const fill = new THREE.DirectionalLight(0x6a3a64, 0.22);
+  const fill = new THREE.DirectionalLight(0x8a5a84, 0.35);
   fill.position.set(20, 10, -6);
   scene.add(fill);
 
@@ -116,8 +116,8 @@ export function createWorld(canvas) {
     const vz = (targetPos.z - lastTarget.z) / Math.max(dt, 1e-3);
     lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z);
     const speed = Math.hypot(vx, vz);
-    leadX = damp(leadX, vx * 0.32, 3.5, dt); // ~0.3s vorausblicken
-    leadZ = damp(leadZ, vz * 0.32, 3.5, dt);
+    leadX = damp(leadX, vx * 0.5, 5, dt); // weiter & schneller vorausblicken → Flow
+    leadZ = damp(leadZ, vz * 0.5, 5, dt);
 
     focus.x = damp(focus.x, targetPos.x + leadX, CONFIG.camera.followLerp, dt);
     focus.z = damp(focus.z, targetPos.z + leadZ, CONFIG.camera.followLerp, dt);
@@ -134,7 +134,7 @@ export function createWorld(canvas) {
     const eff = zoom * heightZoom;
 
     // Dezentes Speed-FOV für mehr Tempo-Gefühl (Flow).
-    curFov = damp(curFov, baseFov + Math.min(7, speed * 0.45), 3, dt);
+    curFov = damp(curFov, baseFov + Math.min(11, speed * 0.6), 4, dt);
     if (Math.abs(camera.fov - curFov) > 0.01) {
       camera.fov = curFov;
       camera.updateProjectionMatrix();
