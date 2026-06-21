@@ -107,6 +107,67 @@ export class Building {
     base.position.set(0, -0.06, 0);
     base.receiveShadow = true;
     this.group.add(base);
+
+    // --- Verschlossene Türen (Geld-Sink: Räume mit Coins freischalten) ---------
+    // Start frei: Arena (Start) + Shop (lebenswichtig). Alles andere ist hinter
+    // einer Tür gesperrt und wird Stück für Stück mit Coins aufgeschlossen → die
+    // Basis "waechst". Die Box sitzt genau in der jeweiligen Tuerluecke/Korridor.
+    this.doors = [];
+    const DOORS = [
+      { name: "lounge", label: "Lounge",        price: 60,  box: { minX: -32, maxX: -28, minZ: -5, maxZ: 5 } },
+      { name: "puzzle", label: "Rätselraum",    price: 80,  box: { minX: 28,  maxX: 32,  minZ: -5, maxZ: 5 } },
+      { name: "lab",    label: "Labor",         price: 140, box: { minX: -5,  maxX: 5,    minZ: -60, maxZ: -56 } },
+      { name: "vault",  label: "Vault (oben)",  price: 220, box: { minX: -5,  maxX: 5,    minZ: 28,  maxZ: 34 } },
+      { name: "server", label: "Serverraum",    price: 260, box: { minX: -64, maxX: -60, minZ: -5, maxZ: 5 } },
+      { name: "armory", label: "Waffenkammer",  price: 300, box: { minX: 60,  maxX: 64,  minZ: -5, maxZ: 5 } },
+    ];
+    for (const d of DOORS) this._addDoor(d);
+  }
+
+  // Eine verschlossene Tür: Mesh (sichtbare Sperre) + Kollisions-AABB in der
+  // Tuerluecke. Freischalten entfernt beides.
+  _addDoor(d) {
+    const b = d.box;
+    const w = b.maxX - b.minX, dp = b.maxZ - b.minZ;
+    const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+    const door = new THREE.Mesh(
+      new THREE.BoxGeometry(w, 3.6, dp),
+      new THREE.MeshStandardMaterial({ color: 0x2a1320, emissive: 0xff3355, emissiveIntensity: 0.3, roughness: 0.6, metalness: 0.3 })
+    );
+    door.position.set(cx, 1.8, cz);
+    door.castShadow = true;
+    door.receiveShadow = true;
+    const sign = new THREE.Sprite(makeDoorIcon("🔒"));
+    sign.scale.set(2.4, 2.4, 1);
+    sign.position.set(cx, 4.0, cz);
+    this.group.add(door, sign);
+    const wallBox = { ...b };
+    this.walls.push(wallBox); // blockiert das Durchlaufen
+    this.doors.push({ name: d.name, label: d.label, price: d.price, mesh: door, sign, wallBox, locked: true, cx, cz, r: Math.max(w, dp) / 2 + 4 });
+  }
+
+  // Tür in Reichweite (für Prompt/Interaktion); null wenn keine gesperrte nah.
+  lockedDoorNear(x, z) {
+    for (const d of this.doors || []) {
+      if (d.locked && Math.hypot(x - d.cx, z - d.cz) <= d.r) return d;
+    }
+    return null;
+  }
+
+  // Tür öffnen: Kollisions-Wand + Mesh entfernen. Gibt true bei Erfolg.
+  unlockDoor(name) {
+    const d = (this.doors || []).find((e) => e.name === name);
+    if (!d || !d.locked) return false;
+    d.locked = false;
+    const i = this.walls.indexOf(d.wallBox);
+    if (i >= 0) this.walls.splice(i, 1);
+    this.group.remove(d.mesh, d.sign);
+    return true;
+  }
+
+  // Beim Spielstart bereits gekaufte Räume (aus Meta) ohne Kosten öffnen.
+  applyUnlocked(names = []) {
+    for (const n of names) this.unlockDoor(n);
   }
 
   // ------------------------------------------------------------- Bau-Helfer --
