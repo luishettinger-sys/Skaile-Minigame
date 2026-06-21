@@ -10,6 +10,7 @@ import { damp } from "./utils.js";
 import { buildOffice, buildBackdrop, setBackdropTexture } from "./environment.js";
 import { buildOffice2 } from "./furnish.js";
 import { buildDeskProps } from "./deskprops.js";
+import { buildRoomDecor } from "./roomdecor.js";
 import { Building } from "./building.js";
 import { clamp } from "./utils.js";
 
@@ -90,6 +91,10 @@ export function createWorld(canvas) {
   // Schreibtisch-Thema: überdimensionale Büro-Utensilien als Deko in der Arena
   // (Lampe, Stifte, Tastatur, Tasse, Haftnotizen, Quietsche-Buddy, Sukkulente …).
   buildDeskProps(scene);
+
+  // Themen-Einrichtung der freischaltbaren Räume (Lounge, Labor, Rätsel, Server,
+  // Vault, Armory) – aufgeräumt & symmetrisch, macht das Freischalten lohnend.
+  buildRoomDecor(scene, building.rooms);
 
   // --- Kamera-Rig (Follow + Screenshake) -------------------------------------
   const focus = new THREE.Vector3(0, 0, 0); // worauf die Kamera schaut
