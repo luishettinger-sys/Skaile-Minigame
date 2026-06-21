@@ -83,27 +83,32 @@ export const CONFIG = {
       label: "Race Condition",
       hp: 2, speed: 6.4, radius: 0.8, damage: 9, score: 25,
       color: 0x00f5d4, glow: 0x8ffff0, scale: 0.95, splits: 2,
+      strafe: 0.9, // webt unberechenbar quer (race = nicht-deterministisch)
     },
     memoryleak: {
       label: "Memory Leak",
       hp: 3, speed: 2.4, radius: 1.0, damage: 10, score: 20,
       color: 0x80ed99, glow: 0xc6ffd4, scale: 1.15, leaksTrail: true,
+      trailInterval: 0.5, // hinterlässt giftige Speicher-Pfützen (Schaden)
     },
     heisenbug: {
       label: "Heisenbug",
       hp: 1, speed: 5.6, radius: 0.85, damage: 14, score: 50,
       color: 0xff6ec7, glow: 0xffc2ec, scale: 1.0, flickers: true, fly: true,
+      blink: true, // teleportiert in Sprüngen statt smooth zu laufen
     },
     infinite: {
       label: "Infinite Loop",
       hp: 2, speed: 4.6, radius: 0.9, damage: 10, score: 30,
       color: 0x9b5de5, glow: 0xc8a2ff, scale: 1.0,
+      orbit: true, orbitRange: 22, // umkreist den Spieler (Endlosschleife)
     },
     nullptr: {
       label: "Null Pointer",
       hp: 2, speed: 4.4, radius: 0.85, damage: 12, score: 35,
       color: 0x4a5bff, glow: 0x9bb0ff, scale: 1.0, fly: true,
       ranged: true, shootInterval: 2.0, shootRange: 32, // schießt Void-Bolts
+      kite: 22, // hält Abstand und feuert (Kiting)
     },
     boss: {
       label: "Kernel Panic",

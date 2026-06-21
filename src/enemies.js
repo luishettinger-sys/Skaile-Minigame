@@ -21,6 +21,28 @@ export class EnemySystem {
       color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.4,
     });
     this._pupilMat = new THREE.MeshBasicMaterial({ color: 0x10131a });
+
+    // Giftige Speicher-Pfützen (Memory-Leak-Spur) – schaden dem Spieler.
+    this.hazards = [];
+    this._puddleGeo = new THREE.CircleGeometry(1.4, 18);
+    this._puddleMat = new THREE.MeshBasicMaterial({
+      color: 0x80ed99, transparent: true, opacity: 0.45, depthWrite: false,
+    });
+  }
+
+  _spawnPuddle(x, z) {
+    const gy = this.terrain ? this.terrain.heightAt(x, z) : 0;
+    const mesh = new THREE.Mesh(this._puddleGeo, this._puddleMat.clone());
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(x, gy + 0.08, z);
+    this.group.add(mesh);
+    this.hazards.push({ x, z, r: 1.5, ttl: 4, mesh });
+  }
+
+  // Steht der Spieler in einer Gift-Pfütze? (für Schaden in game.js)
+  hazardAt(x, z) {
+    for (const h of this.hazards) if (Math.hypot(x - h.x, z - h.z) < h.r) return true;
+    return false;
   }
 
   // AI-Modell für einen Bug-Typ registrieren (wird je Spawn geklont).
@@ -83,6 +105,27 @@ export class EnemySystem {
       const nx = (dx / len) * sign, nz = (dz / len) * sign;
       e._t += dt;
 
+      // --- Typ-spezifischer Bewegungsstil → Gegner sind klar unterscheidbar ---
+      let mx = nx, mz = nz;          // default: direkt zum Ziel
+      const perpx = -nz, perpz = nx; // senkrecht zur Anflugrichtung
+      if (e.def.kite) {
+        // Null Pointer: hält Abstand und feuert (zu nah → zurück, zu weit → ran,
+        // dazwischen → umkreisen).
+        const w = e.def.kite;
+        if (len < w - 3) { mx = -nx; mz = -nz; }
+        else if (len > w + 5) { mx = nx; mz = nz; }
+        else { mx = perpx; mz = perpz; }
+      } else if (e.def.orbit && len < (e.def.orbitRange ?? 22)) {
+        // Infinite Loop: umkreist den Spieler (tangential + leicht nach innen).
+        mx = perpx + nx * 0.32; mz = perpz + nz * 0.32;
+        const m = Math.hypot(mx, mz) || 1; mx /= m; mz /= m;
+      } else if (e.def.strafe) {
+        // Race Condition: webt unberechenbar quer zur Anflugrichtung.
+        const s = Math.sin(e._t * 6.5 + e.phase) * e.def.strafe;
+        mx = nx + perpx * s; mz = nz + perpz * s;
+        const m = Math.hypot(mx, mz) || 1; mx /= m; mz /= m;
+      }
+
       // --- Fernkampf: schießen ---
       if (e.def.ranged && attack && e.visible) {
         e.atkT -= dt;
@@ -124,14 +167,35 @@ export class EnemySystem {
         }
       }
 
-      // --- Normale Bewegung (außer beim Telegraph/Lunge) ---
-      if (e.lungeState !== "tele" && !lunging) {
+      // --- Heisenbug: teleportiert in kurzen Sprüngen statt smooth zu laufen ---
+      if (e.def.blink) {
+        e.blinkT = (e.blinkT ?? 0.4) - dt;
+        if (e.blinkT <= 0 && e.visible) {
+          e.blinkT = 0.45 + Math.random() * 0.4;
+          const jump = 3 + Math.random() * 3.5;
+          const ja = Math.atan2(nx, nz) + (Math.random() - 0.5) * 1.3;
+          p.x += Math.sin(ja) * jump;
+          p.z += Math.cos(ja) * jump;
+          e.flash = Math.max(e.flash, 0.6); // kurzer Blink-Punch
+        }
+      }
+      // --- Normale Bewegung (außer Telegraph/Lunge/Blink) ---
+      else if (e.lungeState !== "tele" && !lunging) {
         const step = e.speed * dt;
-        p.x += nx * step;
-        p.z += nz * step;
+        p.x += mx * step;
+        p.z += mz * step;
       }
 
       e.mesh.rotation.y = Math.atan2(dx, dz);
+
+      // Memory Leak: hinterlässt giftige Speicher-Pfützen.
+      if (e.def.leaksTrail && e.visible) {
+        e.trailT = (e.trailT ?? 0) - dt;
+        if (e.trailT <= 0) {
+          e.trailT = e.def.trailInterval ?? 0.6;
+          this._spawnPuddle(p.x, p.z);
+        }
+      }
 
       // Lebendige Bewegung: Hüpfen, Wackeln, Stufen-Klettern, Flieger schweben.
       e.phase += dt * (6 + e.speed);
@@ -160,6 +224,14 @@ export class EnemySystem {
         }
       }
     }
+    // Gift-Pfützen altern + ausblenden.
+    for (let i = this.hazards.length - 1; i >= 0; i--) {
+      const h = this.hazards[i];
+      h.ttl -= dt;
+      h.mesh.material.opacity = 0.45 * Math.min(1, h.ttl / 1.2);
+      if (h.ttl <= 0) { this.group.remove(h.mesh); this.hazards.splice(i, 1); }
+    }
+
     this.cull(); // u.a. abgelaufene Bonus-Bugs entfernen
   }
 
@@ -191,6 +263,8 @@ export class EnemySystem {
       disposeMesh(e.mesh);
     }
     this.enemies = [];
+    for (const h of this.hazards) this.group.remove(h.mesh);
+    this.hazards = [];
   }
 
   // Error-Label-Sprite (Material je Typ gecacht).

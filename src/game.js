@@ -1070,6 +1070,15 @@ export class Game {
   }
 
   _handleEnemyContact() {
+    // Gift-Pfützen (Memory-Leak-Spur): Schaden beim Drinstehen (Invuln begrenzt's).
+    if (this.enemies.hazardAt(this.player.pos.x, this.player.pos.z)) {
+      if (this.player.takeDamage(6)) {
+        this.audio.playerHurt?.();
+        this.hud.setHp(this.player.hp, this.player.maxHp);
+        this.hud.flash("#80ed99", 0.25);
+        if (!this.player.alive) { this.gameOver(); return; }
+      }
+    }
     for (const e of this.enemies.enemies) {
       if (!e.alive || e.def.damage <= 0) continue; // Bonus-Bug tut nichts
       const hitR = CONFIG.player.radius + e.radius;
