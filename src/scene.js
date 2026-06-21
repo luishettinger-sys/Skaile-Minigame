@@ -9,6 +9,7 @@ import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
 import { buildOffice, buildBackdrop, setBackdropTexture } from "./environment.js";
 import { buildOffice2 } from "./furnish.js";
+import { buildDeskProps } from "./deskprops.js";
 import { Building } from "./building.js";
 import { clamp } from "./utils.js";
 
@@ -85,6 +86,10 @@ export function createWorld(canvas) {
 
   // Das begehbare Gebäude: Böden, Wände, Rampe, Räume.
   const building = new Building(scene);
+
+  // Schreibtisch-Thema: überdimensionale Büro-Utensilien als Deko in der Arena
+  // (Lampe, Stifte, Tastatur, Tasse, Haftnotizen, Quietsche-Buddy, Sukkulente …).
+  buildDeskProps(scene);
 
   // --- Kamera-Rig (Follow + Screenshake) -------------------------------------
   const focus = new THREE.Vector3(0, 0, 0); // worauf die Kamera schaut

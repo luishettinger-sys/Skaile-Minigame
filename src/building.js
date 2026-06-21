@@ -53,7 +53,7 @@ export class Building {
 
     // --- Böden je Raum (PBR-Textur + Raum-Tint, eigene Themen) ---
     // Okkulte CotL-Palette: Arena violett, Sektoren mit eigener Leitfarbe.
-    this._floor(ARENA, 0x381a3e, true, "tech"); // Arena: okkultes Violett + Code-Grid
+    this._floor(ARENA, 0x4a3526, true, "tech"); // Arena: warmer Holz-Schreibtisch-Ton + Code-Grid
     this._floor(SHOP, 0x3a2418, false, "carpet"); // Shop: warmer Teppich
     this._floor(LAB, 0x142a2e, false, "tech"); // Labor: dunkles Petrol
     this._floor(PUZZLE, 0x163024, false, "tech"); // Rätsel: giftiges Grün
