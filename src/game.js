@@ -8,6 +8,7 @@ import { ProjectileSystem } from "./projectiles.js";
 import { EnemySystem, edgeSpawn } from "./enemies.js";
 import { Effects } from "./effects.js";
 import { WaveManager } from "./waves.js";
+import { Guide } from "./guide.js";
 import { Progression } from "./progression.js";
 import { PickupSystem } from "./pickups.js";
 import { WEAPONS, WEAPON_IDS, WEAPON_PRICE } from "./weapons.js";
@@ -56,6 +57,7 @@ export class Game {
     this.input = input;
     this.hud = hud;
     this.audio = audio;
+    this.guide = new Guide(hud); // Rubber-Duck-Mentor
 
     this.player = new Player(world.scene);
     this.projectiles = new ProjectileSystem(world.scene);
@@ -99,7 +101,7 @@ export class Game {
   }
 
   _loadMeta() {
-    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false, unlockedRooms: [] };
+    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false, unlockedRooms: [], guideSeen: false };
     let m;
     try { m = JSON.parse(localStorage.getItem("duckdebug_meta")) || {}; }
     catch (e) { m = {}; }
@@ -390,6 +392,12 @@ export class Game {
     this.world.resetCamera();
     this.world.setBackdrop("./assets/textures/office_bg.png");
     this.world.setMood(CONFIG.colors.fog); // Tint auf Default zurück
+    // Rubber-Duck-Guide nur beim allerersten Run zeigen.
+    if (!this.meta.guideSeen) {
+      this.guide.start(() => { this.meta.guideSeen = true; this._saveMeta(); });
+    } else {
+      this.guide.stop();
+    }
     this.state = STATE.PLAYING;
 
     // Onboarding-Chat mit Claude (vor animierter Kampf-Cutscene): einmal pro
@@ -612,6 +620,10 @@ export class Game {
     this._autoAim(dt);
     this._autoCamera(dt);
     const move = this.input.moveVector();
+    if (move.x !== 0 || move.z !== 0) this.guide.event("move");
+    // Näherungs-Ereignisse für den Guide (Terminal / verschlossene Tür).
+    if (this.stations.deployNear(this.player.pos)) this.guide.event("nearDeploy");
+    if (this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z)) this.guide.event("nearDoor");
 
     // Energie regeneriert nach kurzer Verzögerung seit dem letzten Schuss.
     this.sinceShot += dt;
@@ -1396,6 +1408,7 @@ export class Game {
       this._saveMeta();
     }
     this.audio.buy?.();
+    this.guide.event("roomUnlocked");
     this.hud.banner("RAUM FREIGESCHALTET", door.label);
     this.effects.burst(door.cx, door.cz, CONFIG.colors.cyan, 26, 1.5);
     this.world.addShake(0.25);
@@ -1570,6 +1583,7 @@ export class Game {
     if (this.defenseActive || this.bossIntro) return;
     this.defenseActive = true;
     this.waves.beginNow();
+    this.guide.event("deployStarted");
     this.audio.buy?.();
     this.world.addShake(0.15);
     this.hud.flash("#2bd4ff", 0.3);
@@ -1586,6 +1600,7 @@ export class Game {
     this.coins += reward;
     this.hud.setCoins(this.coins);
     this.hud.banner("DEPLOY OK · WELLE " + n, "Build grün – +" + reward + " 🪙");
+    this.guide.event("waveCleared");
     this.hud.toast("📝", "Patch Notes", PATCH_NOTES[Math.floor(Math.random() * PATCH_NOTES.length)]);
   }
 
