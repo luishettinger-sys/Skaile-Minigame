@@ -52,16 +52,17 @@ export class Building {
     const GALLERY = R.gallery = { minX: -20, maxX: 20, minZ: -128, maxZ: -104, y: 6 };
 
     // --- Böden je Raum (PBR-Textur + Raum-Tint, eigene Themen) ---
-    this._floor(ARENA, 0x2a3550, true, "tech"); // Arena: Tech-Platten + Code-Grid
-    this._floor(SHOP, 0x3a2a18, false, "carpet"); // Shop: warmer Teppich
-    this._floor(LAB, 0x123036, false, "tech"); // Labor: Petrol-Platten
-    this._floor(PUZZLE, 0x123626, false, "tech"); // Rätsel: Grün
-    this._floor(ARMORY, 0x361a1a, false, "tech"); // Waffenkammer: Rot
+    // Okkulte CotL-Palette: Arena violett, Sektoren mit eigener Leitfarbe.
+    this._floor(ARENA, 0x381a3e, true, "tech"); // Arena: okkultes Violett + Code-Grid
+    this._floor(SHOP, 0x3a2418, false, "carpet"); // Shop: warmer Teppich
+    this._floor(LAB, 0x142a2e, false, "tech"); // Labor: dunkles Petrol
+    this._floor(PUZZLE, 0x163024, false, "tech"); // Rätsel: giftiges Grün
+    this._floor(ARMORY, 0x3a1620, false, "tech"); // Waffenkammer: Blutrot
     this._floor(LOUNGE, 0x2a1838, false, "carpet"); // Lounge: violetter Teppich
-    this._floor(SERVER, 0x102440, false, "tech"); // Server: Blau
-    this._floor(VAULT, 0x37310f, false, "tech"); // Vault: Gold
-    this._floor(ROOF, 0x121c2c, false, "tech"); // Dach: Nacht
-    this._floor(GALLERY, 0x222640, false, "tech"); // Galerie
+    this._floor(SERVER, 0x161a3a, false, "tech"); // Server: tiefes Indigo
+    this._floor(VAULT, 0x342a10, false, "tech"); // Vault: Gold/Ritual
+    this._floor(ROOF, 0x1a1228, false, "tech"); // Dach: Mitternacht-Violett
+    this._floor(GALLERY, 0x261c3a, false, "tech"); // Galerie: Violett
 
     // --- Korridore (Verbinder durch die Türöffnungen) ---
     this._connector(-D, D, -32, -28, 0); // Arena -> Shop
@@ -100,7 +101,7 @@ export class Building {
     // Großer Büro-Teppichboden unter allem (verbindet die Räume optisch zum Büro).
     const base = new THREE.Mesh(
       new THREE.PlaneGeometry(320, 360),
-      makeFloorMaterial("carpet", 0x3a4258, 320, 360)
+      makeFloorMaterial("carpet", 0x2c2438, 320, 360)
     );
     base.rotation.x = -Math.PI / 2;
     base.position.set(0, -0.06, 0);

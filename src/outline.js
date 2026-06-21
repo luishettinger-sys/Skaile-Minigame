@@ -22,7 +22,7 @@ export function createOutline(renderer, width, height) {
       texel: { value: new THREE.Vector2(1 / width, 1 / height) },
       thickness: { value: 1.7 }, // Linienbreite in Texeln (dicker → Comic)
       edgeLo: { value: 0.40 }, // unter diesem Kanten-Wert: keine Linie
-      edgeHi: { value: 1.05 }, // darüber: volle Linie (früher → mehr Linien)
+      edgeHi: { value: 1.05 }, // darüber: volle Linie
       strength: { value: 1.0 }, // Deckkraft der Linie (voll)
       outlineColor: { value: new THREE.Color(0x080310) }, // tiefdunkles Violett statt hartem Schwarz
     },
@@ -66,6 +66,10 @@ export function createOutline(renderer, width, height) {
   };
 
   const pass = new ShaderPass(shader);
+  // WICHTIG: ShaderPass klont die Uniforms und setzt RenderTarget-Texturen dabei
+  // auf null (isRenderTargetTexture lässt sich nicht klonen) → Normalen-Textur
+  // nach dem Klonen wieder explizit zuweisen.
+  pass.uniforms.tNormal.value = normalRT.texture;
 
   function setSize(w, h) {
     normalRT.setSize(w, h);

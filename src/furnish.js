@@ -62,7 +62,7 @@ function buildShell(group) {
   }
 
   // Deckenleisten-Leuchten am Rand (lassen das Zentrum für die Top-Down-Kamera frei).
-  const panelMat = new THREE.MeshBasicMaterial({ color: 0xdfeaff, fog: false });
+  const panelMat = new THREE.MeshBasicMaterial({ color: 0x3a2a1a, fog: false }); // dezent warm statt hell-blau (kein Bloom-Wash)
   const ring = [
     [0, EXT.minZ + 16, EXT.maxX - EXT.minX - 30, 3],
     [0, EXT.maxZ - 16, EXT.maxX - EXT.minX - 30, 3],

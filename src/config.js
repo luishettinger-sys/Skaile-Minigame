@@ -175,8 +175,8 @@ export const CONFIG = {
     bg: 0x140b18, // okkultes Dunkel-Violett (Cult-of-the-Lamb-Stimmung)
     fog: 0x140b18,
     floor: 0x12151d,
-    gridMain: 0x2b3550,
-    gridSub: 0x191d2b,
+    gridMain: 0x4a2c54, // okkultes Violett statt Blau
+    gridSub: 0x251830,
     border: 0x6ee7ff,
     cyan: 0x6ee7ff,
     red: 0xff5470,

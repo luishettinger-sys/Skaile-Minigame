@@ -19,7 +19,7 @@ export function createWorld(canvas) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0; // etwas dunkler → moodiger, okkulter Kontrast
+  renderer.toneMappingExposure = 0.92; // dunkler → moodiger, okkulter Kontrast
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -45,11 +45,11 @@ export function createWorld(canvas) {
 
   // --- Licht (Cult-of-the-Lamb-Stimmung: düster, kerzenwarm, okkulte Rims) ----
   // Schwaches violettes Umgebungslicht von oben, fast schwarz von unten.
-  const hemi = new THREE.HemisphereLight(0x6a4a72, 0x080406, 0.55);
+  const hemi = new THREE.HemisphereLight(0x6a4a72, 0x080406, 0.30);
   scene.add(hemi);
 
-  // Warmes „Kerzen"-Key-Light statt neutralem Weiß.
-  const key = new THREE.DirectionalLight(0xffd2a1, 1.2);
+  // Warmes „Kerzen"-Key-Light statt neutralem Weiß (gedimmt → moodig, Boden bleibt dunkel).
+  const key = new THREE.DirectionalLight(0xffd2a1, 0.85);
   key.position.set(14, 40, 16);
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024); // 1024 statt 2048: deutlich weniger Stutter
@@ -63,12 +63,12 @@ export function createWorld(canvas) {
   scene.add(key);
 
   // Okkulter Magenta-Rim aus dem Rücken → ritueller Kontursaum.
-  const rim = new THREE.DirectionalLight(0xc2487a, 0.7);
+  const rim = new THREE.DirectionalLight(0xc2487a, 0.45);
   rim.position.set(-18, 12, -16);
   scene.add(rim);
 
-  // Zweiter, kühl-violetter Fülllichtschein von der Seite (Tiefe + Vibe).
-  const fill = new THREE.DirectionalLight(0x7a4ad6, 0.35);
+  // Zweiter, magenta-violetter Fülllichtschein von der Seite (Tiefe + Vibe).
+  const fill = new THREE.DirectionalLight(0x6a3a64, 0.22);
   fill.position.set(20, 10, -6);
   scene.add(fill);
 
@@ -172,9 +172,9 @@ export function createWorld(canvas) {
 
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.6, // strength: kräftiger Neon-Schein, aber nicht überstrahlt
+    0.5, // strength: gezielter Neon-/Ritual-Schein
     0.45, // radius
-    0.85 // threshold: Neon (Rahmen/Geschosse/Monitor/TNT-Funke) glüht; matte Ente bleibt ruhig
+    1.0 // threshold höher → helle Office-Panels überstrahlen die Szene nicht mehr
   );
   composer.addPass(bloom);
 

@@ -28,5 +28,11 @@ await page.screenshot({ path: "/tmp/shot_play.png" });
 await page.waitForTimeout(5000);
 await page.screenshot({ path: "/tmp/shot_play2.png" });
 
+// Zoom-Clip auf die Bildmitte (Ente) → Outlines/Schatten beurteilen.
+await page.screenshot({
+  path: "/tmp/shot_zoom.png",
+  clip: { x: 1366 / 2 - 220, y: 768 / 2 - 160, width: 440, height: 320 },
+});
+
 console.log("ERRORS:\n" + (errors.length ? errors.slice(0, 25).join("\n") : "(keine)"));
 await browser.close();
