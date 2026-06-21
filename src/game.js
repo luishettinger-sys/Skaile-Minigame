@@ -972,17 +972,18 @@ export class Game {
       );
     }
 
-    // Coins (Boon "Gierschlund" erhöht den Ertrag).
-    this.coins += Math.max(1, Math.round((e.def.score / 10) * this.boonFlags.coinMult));
+    // Coins (Boon "Gierschlund" erhöht den Ertrag). Bewusst knapper als früher
+    // (score/15 statt score/10), damit man auf die besseren Waffen hinsparen muss.
+    this.coins += Math.max(1, Math.round((e.def.score / 15) * this.boonFlags.coinMult));
     this.hud.setCoins(this.coins);
 
     // Bonus-Bug erwischt → fette Belohnung.
     if (e.type === "bonus") {
-      this.coins += 100;
+      this.coins += 60;
       this.hud.setCoins(this.coins);
       this.pickups.spawnLucky(e.mesh.position.x, e.mesh.position.z);
       this.hud.flash("#ffd23f", 0.4);
-      this.hud.banner("💰 BONUS!", "+100 Coins");
+      this.hud.banner("💰 BONUS!", "+60 Coins");
     }
 
     if (e.def.isBoss) {
