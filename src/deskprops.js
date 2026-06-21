@@ -19,19 +19,17 @@ export function buildDeskProps(scene) {
 
   group.add(ritualSigil(0, 0, 7.5));      // zentrales okkultes Sigill (flach, blockiert nicht)
 
-  // Kerzen in zwei konzentrischen Quadraten → klar symmetrisch, nicht zufällig.
-  // Diagonale Positionen meiden die Tür-Öffnungen an den Wand-Mitten.
-  const inner = 11, outer = 21;
-  const corners = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
-  let lit = 0;
-  for (const [sx, sz] of corners) {
-    group.add(candle(sx * inner, sz * inner, 2.6, lit++ < 2)); // 2 echte Lichter innen
-    group.add(candle(sx * outer, sz * outer, 3.6, false));
+  // 4 Stein-Fackeln (Braziers) an den Arena-Ecken: Feuer + warmes Punktlicht +
+  // Schatten → klar symmetrisch, rahmt die Spielfläche (CotL-Ritualhof).
+  for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    group.add(brazier(sx * 21, sz * 21));
   }
-  // Mittelpunkte der Kanten – nach innen versetzt, damit Türen frei bleiben.
-  for (const [x, z] of [[0, -18], [0, 18], [18, 0], [-18, 0]]) {
-    group.add(candle(x, z, 3.0, (x === 18 || z === 18))); // 2 weitere Lichter
-  }
+  // Akzent-Kerzen, die den Schrein (Norden) flankieren – nur Glühen.
+  group.add(candle(-3.4, -15, 2.2, false));
+  group.add(candle(3.4, -15, 2.2, false));
+  // Zwei Kerzen am Süd-Eingang für Symmetrie (eine mit Licht).
+  group.add(candle(-3.4, 18, 2.4, true));
+  group.add(candle(3.4, 18, 2.4, false));
 
   // Kult-Banner an den vier Wänden (über den Tür-Öffnungen, hängen hoch).
   group.add(banner(0, -27.4, 0));          // Nord
@@ -87,6 +85,39 @@ function candle(x, z, height, withLight) {
     light.position.set(0, 0.4 + height + 0.3, 0);
     g.add(light);
   }
+  g.position.set(x, 0, z);
+  return g;
+}
+
+// --- Stein-Fackel (Brazier): Säule + Feuerschale + Flammen + warmes Licht ---
+function brazier(x, z) {
+  const g = new THREE.Group();
+  const st = stone(0x271d2c);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.9, 0.7, 12), st);
+  base.position.y = 0.35;
+  const col = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.05, 3.3, 12), st);
+  col.position.y = 2.1;
+  const bowl = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.0, 1.0, 16, 1, true), stone(0x14100e));
+  bowl.position.y = 4.0;
+  g.add(base, col, bowl);
+  // Flammen: gestapelte emissive Kegel (Bloom greift sie auf).
+  const fireCols = [0xff7a1e, 0xff9d3a, 0xffc24a];
+  for (let i = 0; i < 6; i++) {
+    const f = new THREE.Mesh(
+      new THREE.ConeGeometry(0.62 - i * 0.06, 1.7 - i * 0.16, 8),
+      new THREE.MeshBasicMaterial({ color: fireCols[i % 3] })
+    );
+    const a = (i / 6) * Math.PI * 2;
+    f.position.set(Math.cos(a) * 0.35, 4.5 + i * 0.16, Math.sin(a) * 0.35);
+    f.rotation.x = Math.cos(a) * 0.18;
+    f.rotation.z = Math.sin(a) * 0.18;
+    g.add(f);
+  }
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 10), glowMat(0xffb060));
+  halo.position.y = 4.7;
+  const light = new THREE.PointLight(0xffa64d, 30, 32, 2);
+  light.position.y = 4.8;
+  g.add(halo, light);
   g.position.set(x, 0, z);
   return g;
 }
