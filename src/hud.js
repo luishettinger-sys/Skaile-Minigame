@@ -12,6 +12,9 @@ export class HUD {
       combo: document.getElementById("combo"),
       hpFill: document.getElementById("hp-fill"),
       ultFill: document.getElementById("ult-fill"),
+      heat: document.getElementById("heat"),
+      heatFill: document.getElementById("heat-fill"),
+      heatLabel: document.getElementById("heat-label"),
       enFill: document.getElementById("en-fill"),
       ult: document.getElementById("ult"),
       banner: document.getElementById("banner"),
@@ -340,6 +343,23 @@ export class HUD {
   setUltimate(ratio, ready) {
     this.el.ultFill.style.width = Math.min(100, ratio * 100) + "%";
     this.el.ult.classList.toggle("ready", ready);
+  }
+
+  // CPU-Temperatur: Balkenbreite + Farbe (grün→gelb→rot), Zustände overclock/throttle.
+  setHeat(ratio, overclock = false, throttled = false) {
+    if (!this.el.heatFill) return;
+    const r = Math.max(0, Math.min(1, ratio));
+    this.el.heatFill.style.width = (r * 100).toFixed(1) + "%";
+    // Farbe: kühl cyan → warm gelb → heiß rot.
+    const hue = 190 - r * 190; // 190 (cyan) .. 0 (rot)
+    this.el.heatFill.style.background = `hsl(${hue}, 90%, 55%)`;
+    if (this.el.heat) {
+      this.el.heat.classList.toggle("overclock", overclock);
+      this.el.heat.classList.toggle("throttled", throttled);
+    }
+    if (this.el.heatLabel) {
+      this.el.heatLabel.textContent = throttled ? "🔥 ÜBERHITZT" : overclock ? "⚡ OVERCLOCK" : "🌡️ CPU-TEMP";
+    }
   }
 
   banner(main, sub = "") {

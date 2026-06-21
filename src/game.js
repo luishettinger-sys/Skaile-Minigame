@@ -374,10 +374,14 @@ export class Game {
 
   // Effektive Kampfwerte aus Waffe + Mods.
   _fireInterval() {
-    return this.weapon.fireInterval * this.mods.fireMult * (this.buffs.rapid > 0 ? 0.5 : 1);
+    const H = CONFIG.heat;
+    const oc = this.overclock ? H.ocFireMult : 1;
+    const th = this.throttled ? H.throttleFireMult : 1;
+    return this.weapon.fireInterval * this.mods.fireMult * (this.buffs.rapid > 0 ? 0.5 : 1) * oc * th;
   }
   _damage() {
-    return (this.weapon.damage + this.mods.dmgAdd) * this.mods.dmgMult * (this.buffs.double > 0 ? 2 : 1);
+    const oc = this.overclock ? CONFIG.heat.ocDmgMult : 1;
+    return (this.weapon.damage + this.mods.dmgAdd) * this.mods.dmgMult * (this.buffs.double > 0 ? 2 : 1) * oc;
   }
   _projCount() { return this.weapon.projCount + this.mods.projAdd; }
   _pierce() { return this.weapon.pierce + this.mods.pierceAdd; }
@@ -418,6 +422,11 @@ export class Game {
     this.mats = { scrap: 0, chips: 0 };
     this._matsDirty = true;
     this._dropMult = researchDropMult(this.meta.research || {}); // Loot-Boni aus Forschung
+    // CPU-Temperatur (Signatur-Mechanik).
+    this.heat = 0;
+    this.overclock = false;
+    this.throttled = false;
+    this._heatWarned = false;
     this.bossIntro = false;
     this.intro = null;
     this.buffs = { rapid: 0, double: 0, shield: 0, slow: 0 };
@@ -812,6 +821,9 @@ export class Game {
       this.hud.setEnergy(this.energy / CONFIG.energy.max);
     }
 
+    // CPU-Temperatur aktualisieren (Overclock halten, abkühlen, überhitzen).
+    this._updateHeat(dt, move.x !== 0 || move.z !== 0);
+
     if (this.input.wasPressed("ShiftLeft") || this.input.wasPressed("ShiftRight")) {
       if (this.player.tryDash(this._dashCd())) {
         this.audio.dash();
@@ -1049,6 +1061,50 @@ export class Game {
   }
 
   // Auto-Ausrichten: Ente schwenkt sanft auf den nächsten Gegner.
+  // CPU-Temperatur: Overclock ([C] halten) heizt rasant + boostet DPS; Feuern
+  // heizt (in _fireWeapon); Bewegen/Pausen kühlt. Überhitzung drosselt die Waffe
+  // und kostet HP, bis die Temp unter "recover" fällt (Hysterese).
+  _updateHeat(dt, moving) {
+    const H = CONFIG.heat;
+    // Overclock nur halten, wenn nicht überhitzt und am Leben.
+    const wantOC = this.input.isDown("KeyC") && !this.throttled && this.player.alive;
+    if (wantOC && !this.overclock) this.audio.dash?.(); // kurzes Anwerf-Geräusch
+    this.overclock = wantOC;
+
+    // Heizen/Kühlen.
+    if (this.overclock) {
+      this.heat = Math.min(H.max, this.heat + H.overclockGain * dt);
+    } else {
+      let cool = H.coolBase + (moving ? H.coolMove : 0) + (this.sinceShot > 0.5 ? H.coolIdle : 0);
+      this.heat = Math.max(0, this.heat - cool * dt);
+    }
+
+    // Überhitzung einleiten.
+    if (!this.throttled && this.heat >= H.max) {
+      this.throttled = true;
+      this.overclock = false;
+      this.audio.playerHurt?.();
+      this.hud.flash?.("#ff3b30", 0.5);
+      this.hud.banner?.("🔥 ÜBERHITZT!", "Bewegen & abkühlen lassen");
+      this.world.addShake(0.4);
+    }
+    // Während Throttle: HP-Schaden, bis genug abgekühlt (Hysterese).
+    if (this.throttled) {
+      if (this.player.alive) {
+        this.player.hp = Math.max(0, this.player.hp - H.overheatDmg * dt);
+        this.hud.setHp(this.player.hp, this.player.maxHp);
+        if (this.player.hp <= 0) { this.player.alive = false; this.gameOver(); return; }
+      }
+      if (this.heat <= H.recover) {
+        this.throttled = false;
+        this.hud.banner?.("❄️ ABGEKÜHLT", "Waffe wieder bereit");
+      }
+    }
+
+    // HUD-Temperaturbalken (Farbe via Ratio in hud.setHeat).
+    this.hud.setHeat?.(this.heat / H.max, this.overclock, this.throttled);
+  }
+
   // Blickrichtung: standardmäßig in Laufrichtung. Beim Schießen dreht sich die
   // Ente kurz zum nächsten Gegner (damit Schüsse treffen), danach zurück zur
   // Laufrichtung – kein „läuft geradeaus, guckt aber zur Seite".
@@ -1124,6 +1180,9 @@ export class Game {
     this.hud.setEnergy(this.energy / CONFIG.energy.max);
 
     this.fireTimer = this._fireInterval() * (this.ultActive ? 0.5 : 1);
+
+    // CPU-Hitze pro Schuss (im Overclock stärker).
+    this.heat = Math.min(CONFIG.heat.max, this.heat + CONFIG.heat.perShot * (this.overclock ? CONFIG.heat.overclockShotMult : 1));
 
     const n = this._projCount();
     const spread = this.weapon.spread * this.mods.spreadMult;

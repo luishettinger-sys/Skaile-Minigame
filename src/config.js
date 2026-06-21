@@ -186,6 +186,24 @@ export const CONFIG = {
     growth: 4, // zusätzlicher XP-Bedarf pro Level
   },
 
+  // Signatur-Mechanik: CPU-Temperatur. Feuern/Overclock heizt auf, Bewegen/Pausen
+  // kühlt. Überhitzung drosselt die Waffe und kostet HP (Hysterese bis "recover").
+  // Overclock ([C] halten) gibt massive DPS, treibt die Temp aber rasant hoch.
+  heat: {
+    max: 100,
+    perShot: 4.2,         // Grund-Hitze pro Schuss
+    overclockShotMult: 2.0, // im Overclock heizen Schüsse doppelt
+    coolBase: 16,         // Abkühlung/Sek (Grundwert)
+    coolMove: 9,          // zusätzlich beim Bewegen
+    coolIdle: 16,         // zusätzlich, wenn ~0.5s nicht gefeuert
+    overclockGain: 26,    // passive Heizrate/Sek beim Overclock-Halten
+    overheatDmg: 5,       // HP/Sek während Überhitzung
+    recover: 55,          // Throttle endet erst unter diesem Wert (Hysterese)
+    ocFireMult: 0.5,      // Overclock: Feuer-Intervall halbiert (2x Feuerrate)
+    ocDmgMult: 1.6,       // Overclock: +60 % Schaden
+    throttleFireMult: 3.5,// Überhitzt: Feuer-Intervall ×3.5 (fast lahmgelegt)
+  },
+
   pickups: {
     magnet: 10, // großer Einsammel-Radius → Drops liegen nicht lange rum (Übersicht)
     collectRadius: 1.7,

@@ -766,6 +766,27 @@ kbd {
   background: rgba(43, 212, 255, 0.12);
 }
 
+/* CPU-Temperatur-Balken (Signatur-Mechanik) */
+#heat-hint {
+  float: right;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #6b7689;
+  opacity: 0.8;
+}
+#heat .bar-fill { transition: width 0.08s linear, background 0.2s; }
+#heat.overclock { animation: ocPulse 0.5s infinite; }
+#heat.overclock #heat-hint { color: var(--yellow); opacity: 1; }
+#heat.throttled { animation: throttleFlash 0.4s infinite; }
+@keyframes ocPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 210, 63, 0); }
+  50% { box-shadow: 0 0 14px rgba(255, 210, 63, 0.55); }
+}
+@keyframes throttleFlash {
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 59, 48, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(255, 59, 48, 0.9); }
+}
+
 /* Log-Fragment-Reveal (Story beim Erforschen) */
 #lore-pop {
   position: fixed;
