@@ -87,8 +87,8 @@ export function createWorld(canvas) {
 
   // Nur EINE Perspektive: Vogelperspektive (steil von oben). In den kleinen
   // Seitenräumen rückt die Kamera etwas näher an die Ente (camClose 0→1).
-  const BIRDS = { y: 30, z: 11 };       // Arena (großer Überblick)
-  const ROOM  = { y: 19, z: 7 };        // kleiner Raum (näher dran)
+  const BIRDS = { y: 40, z: 14 };       // Arena (großer Überblick – höher für mehr Sicht)
+  const ROOM  = { y: 24, z: 9 };        // kleiner Raum (näher dran)
   let camClose = 0, camCloseTarget = 0;
 
   // Vorausschau (Flow): Kamera blickt leicht in Bewegungsrichtung.

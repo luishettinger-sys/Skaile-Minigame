@@ -9,7 +9,7 @@ export const CONFIG = {
 
   // Sicht-Radius (Fog of War): wie weit man sehen kann; der Rest ist schwarz und
   // deckt sich beim Näherkommen auf. Per Level-Up erweiterbar.
-  vision: { base: 40, perLevel: 6, max: 95 },
+  vision: { base: 62, perLevel: 6, max: 120 }, // größerer Sicht-Radius → mehr Überblick
 
   arena: {
     half: 22, // halbe Spawn-Kantenlänge (kompakter Hauptraum ±26)
@@ -153,11 +153,11 @@ export const CONFIG = {
   },
 
   waves: {
-    startBudget: 14, // "Punkte" Gegner-Wert in Welle 1 (mehr Monster)
-    budgetGrowth: 11, // +Budget pro Welle (deutlich steiler → Schwärme)
-    spawnInterval: 0.35, // schnelle Spawns → viele kleine Bugs gleichzeitig
-    breakTime: 2.2, // Pause zwischen Wellen
-    maxAlive: 65, // Obergrenze gleichzeitiger Gegner (kompakte Arena)
+    startBudget: 14, // "Punkte" Gegner-Wert in Welle 1
+    budgetGrowth: 14, // +Budget pro Welle (steile Eskalation → Farming-Loop wird hart)
+    spawnInterval: 0.3, // schnelle Spawns → dichte Schwärme
+    breakTime: 1.8, // kurze Pause → die Schleife bleibt dicht
+    maxAlive: 75, // Obergrenze gleichzeitiger Gegner
     bossEvery: 5, // alle N Wellen erscheint ein Boss
   },
 
@@ -174,9 +174,9 @@ export const CONFIG = {
 
   // Skalierung pro Welle – das Spiel wird spürbar schwerer und größer.
   difficulty: {
-    hpPerWave: 0.16, // +16 % Gegner-HP pro Welle
-    speedPerWave: 0.03, // +3 % Gegner-Tempo pro Welle
-    speedMax: 1.7, // Tempo-Deckel
+    hpPerWave: 0.22, // +22 % Gegner-HP pro Welle (zäher mit jeder Welle)
+    speedPerWave: 0.04, // +4 % Gegner-Tempo pro Welle
+    speedMax: 2.1, // Tempo-Deckel höher → späte Wellen flott
     arenaGrowth: 0, // Arena wächst nicht mehr (kompakt halten)
     arenaMax: 24, // maximale Halbkante (innerhalb der Arena-Wände ±26)
   },
