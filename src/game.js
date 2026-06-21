@@ -101,7 +101,7 @@ export class Game {
   }
 
   _loadMeta() {
-    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false, unlockedRooms: [], guideSeen: false };
+    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false, unlockedRooms: [], guideSeen: false, data: 0, research: {}, craftedMods: [], chipGrid: [] };
     let m;
     try { m = JSON.parse(localStorage.getItem("duckdebug_meta")) || {}; }
     catch (e) { m = {}; }
@@ -117,6 +117,11 @@ export class Game {
     m.sectorsCleared = Math.max(0, Math.min(CONFIG.campaign.sectors, m.sectorsCleared | 0));
     m.won = !!m.won;
     if (!Array.isArray(m.unlockedRooms)) m.unlockedRooms = [];
+    // Bau-System: Daten (permanent), Forschungs-Level, gebaute Mods, Chip-Raster.
+    m.data = Math.max(0, m.data | 0);
+    if (!m.research || typeof m.research !== "object") m.research = {};
+    if (!Array.isArray(m.craftedMods)) m.craftedMods = [];
+    if (!Array.isArray(m.chipGrid)) m.chipGrid = [];
     return m;
   }
 
@@ -327,6 +332,10 @@ export class Game {
     this.shopOpen = false;
     this.shopOffers = [];
     this.coins = this._startCoins(); // Startkapital aus permanentem Ausbau
+    // Bau-Ressourcen: Schrott + Chips sind run-basiert (droppen aus Bugs);
+    // Daten sind permanent (Forschungslabor) und liegen in meta.
+    this.mats = { scrap: 0, chips: 0 };
+    this._matsDirty = true;
     this.bossIntro = false;
     this.intro = null;
     this.buffs = { rapid: 0, double: 0, shield: 0, slow: 0 };
@@ -780,6 +789,12 @@ export class Game {
         this._challengeActive = false;
         this.hud.banner("CHALLENGE VORBEI", "Gut gedebuggt! 🐞");
       }
+    }
+
+    // Bau-Ressourcen-HUD nur bei Änderung aktualisieren (nicht jeden Kill einzeln).
+    if (this._matsDirty) {
+      this._matsDirty = false;
+      this.hud.setMats(this.mats.scrap, this.mats.chips, this.meta.data);
     }
 
     // Gelegentlicher Rubber-Duck-Tipp.
@@ -1319,6 +1334,20 @@ export class Game {
     this.coins += Math.max(1, Math.round((e.def.score / 15) * this.boonFlags.coinMult));
     this.hud.setCoins(this.coins);
 
+    // Bau-Ressourcen: jeder Kill gibt etwas Schrott; Chips selten (Elite/Boss öfter);
+    // Daten sammeln sich permanent fürs Forschungslabor. Direkt gutgeschrieben
+    // (kein Boden-Loot → kein Gewusel), mit gelegentlichem Popup als Feedback.
+    const big = e.def.isBoss || e.def.radius >= 1.1;
+    const scrap = e.def.isBoss ? 25 : big ? 3 : 1;
+    this.mats.scrap += scrap;
+    let gotChip = 0;
+    const chipChance = e.def.isBoss ? 1 : big ? 0.12 : 0.02;
+    if (Math.random() < chipChance) { gotChip = e.def.isBoss ? 3 : 1; this.mats.chips += gotChip; }
+    this.meta.data += e.def.isBoss ? 10 : big ? 2 : 1;
+    this._matsDirty = true; // HUD/Meta-Speicher am Frame-Ende aktualisieren
+    if (gotChip) this._popup(e.mesh.position, "+" + gotChip + " 🧩", "#c792ea", "dmg");
+    else if (big) this._popup(e.mesh.position, "+" + scrap + " 🔩", "#9fb4d4", "dmg");
+
     // Bonus-Bug erwischt → fette Belohnung.
     if (e.type === "bonus") {
       this.coins += 60;
@@ -1832,6 +1861,7 @@ export class Game {
     this.hud.banner("WELLE " + n + " CLEAR", "+" + reward + " 🪙 · nächste kommt…");
     this.guide.event("waveCleared");
     this.hud.toast("📝", "Patch Notes", PATCH_NOTES[Math.floor(Math.random() * PATCH_NOTES.length)]);
+    this._saveMeta(); // gesammelte Daten (permanent) sichern
   }
 
   _popup(worldPos, text, color, kind = "") {

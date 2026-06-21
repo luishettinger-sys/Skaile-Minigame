@@ -47,6 +47,7 @@ export class HUD {
       invSort: document.getElementById("inv-sort"),
       invClose: document.getElementById("inv-close"),
       coins: document.getElementById("coins"),
+      mats: document.getElementById("mats"),
       prompt: document.getElementById("prompt"),
       guide: document.getElementById("guide"),
       guideText: document.getElementById("guide-text"),
@@ -372,6 +373,17 @@ export class HUD {
 
   setCoins(n) {
     this.el.coins.textContent = "🪙 " + n;
+  }
+
+  // Bau-Ressourcen (Schrott / Chips / Daten) im HUD. 0-Werte werden ausgeblendet,
+  // damit die Leiste am Anfang ruhig bleibt.
+  setMats(scrap = 0, chips = 0, data = 0) {
+    if (!this.el.mats) return;
+    const parts = [];
+    if (scrap) parts.push("🔩 " + scrap);
+    if (chips) parts.push("🧩 " + chips);
+    if (data) parts.push("📡 " + data);
+    this.el.mats.textContent = parts.join("  ");
   }
 
   setGadget(text) {
