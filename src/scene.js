@@ -23,9 +23,11 @@ export function createWorld(canvas) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(CONFIG.colors.bg);
-  // Fog erst weiter hinten → der Nahbereich um die Ente bleibt farbig & klar,
-  // nur die fernen Ränder fallen weich ins Dunkel (kein milchiger Washout mehr).
-  scene.fog = new THREE.Fog(CONFIG.colors.fog, 42, 120);
+  // Fog of War: enger schwarzer Nebel um die Kamera → nur ein Sicht-Radius um die
+  // Ente ist hell, der Rest fällt ins Schwarze und deckt sich beim Näherkommen auf.
+  // near/far werden in updateCamera dynamisch an Kamera-Distanz + Sichtweite gesetzt.
+  scene.fog = new THREE.Fog(CONFIG.colors.fog, 20, 60);
+  let visionRange = CONFIG.vision?.base ?? 30;
 
   // Image-Based-Lighting: gibt allen PBR-Materialien Reflexionen → „echt"
   // statt flach. Erzeugt aus einer prozeduralen Raum-Umgebung.
@@ -154,6 +156,14 @@ export function createWorld(canvas) {
       focus.z + o.z * eff
     );
 
+    // Fog of War: Nebel-Band relativ zur aktuellen Kamera-Distanz → Sicht-Radius
+    // bleibt konstant, egal wie stark gezoomt wird; deckt beim Bewegen auf.
+    const camDist = Math.hypot(o.x * eff, o.y * eff + hover, o.z * eff);
+    // Nahbereich (Ente + Umkreis) bleibt klar; dahinter ramp ins Schwarze.
+    scene.fog.near = camDist + visionRange * 0.12;
+    scene.fog.far = camDist + visionRange * 0.75;
+
+
     if (shake > 0.0001) {
       shake = Math.max(0, shake - dt * 1.6);
       const s = shake * shake; // quadratisch → spürbarer Punch, schnelles Abklingen
@@ -204,10 +214,15 @@ export function createWorld(canvas) {
   api.render = () => {
     renderer.render(scene, camera); // direkt, ohne Post-Processing → flüssig
   };
-  // Stimmungs-Tint (Fog + Hintergrundfarbe) je Map-Tier.
+  // Sicht-Radius setzen (Fog of War, per Level-Up erweiterbar).
+  api.setVision = (range) => { visionRange = Math.max(8, range); };
+
+  // Stimmungs-Tint je Map-Tier – stark abgedunkelt, damit der Fog-of-War-Void
+  // schwarz bleibt (nur ein Hauch Sektor-Farbe im Nebel).
   api.setMood = (hex) => {
-    scene.fog.color.setHex(hex);
-    scene.background.setHex(hex);
+    const c = new THREE.Color(hex).multiplyScalar(0.12);
+    scene.fog.color.copy(c);
+    scene.background.copy(c);
   };
 
   // Das Gebäude ist fest; die Arena „wächst" nicht mehr. Bleibt als No-op,

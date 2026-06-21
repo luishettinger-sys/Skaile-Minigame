@@ -393,6 +393,7 @@ export class Game {
     this.world.resetCamera();
     this.world.setBackdrop("./assets/textures/office_bg.png");
     this.world.setMood(CONFIG.colors.fog); // Tint auf Default zurück
+    this._applyVision(); // Sicht-Radius auf Basis (Fog of War)
     // Rubber-Duck-Guide nur beim allerersten Run zeigen.
     if (!this.meta.guideSeen) {
       this.guide.start(() => { this.meta.guideSeen = true; this._saveMeta(); });
@@ -1400,10 +1401,18 @@ export class Game {
     this.pendingLevels += n;
     this.audio.levelUp();
     this.magnetBoost = 3; // 3s Riesen-Magnet: zieht alle Drops zum Spieler
+    this._applyVision(); // Level-Up erweitert den Sicht-Radius (Fog of War)
     // Kosmetik nach Level-Meilensteinen freischalten.
     if (this.progression.level >= 5) this._unlock(() => this.player.addShades(), "SHADES");
     if (this.progression.level >= 10) this._unlock(() => this.player.addCape(), "CAPE");
     if (!this.levelingUp) this._openLevelUp();
+  }
+
+  // Sicht-Radius aus dem Level berechnen und setzen (Fog of War, upgradebar).
+  _applyVision() {
+    const v = CONFIG.vision || { base: 30, perLevel: 4, max: 80 };
+    const range = Math.min(v.max, v.base + (this.progression.level - 1) * v.perLevel);
+    this.world.setVision?.(range);
   }
 
   // Kosmetik freischalten: fn() gibt true zurück, wenn neu → Effekt + Banner.

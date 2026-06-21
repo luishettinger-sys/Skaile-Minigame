@@ -8,6 +8,10 @@ export const CONFIG = {
   // Ente & Gegner gleich groß bleiben → deutlich mehr Raum zum Erkunden.
   buildScale: 1.8,
 
+  // Sicht-Radius (Fog of War): wie weit man sehen kann; der Rest ist schwarz und
+  // deckt sich beim Näherkommen auf. Per Level-Up erweiterbar.
+  vision: { base: 40, perLevel: 6, max: 95 },
+
   arena: {
     half: 40, // halbe Spawn-Kantenlänge (passt zur skalierten Arena ±50)
     grid: 64, // mehr Grid-Linien für die größere Fläche
@@ -176,8 +180,8 @@ export const CONFIG = {
   },
 
   colors: {
-    bg: 0xcdd8e6, // helles, luftiges Büro-Blau (ORAS-Stil)
-    fog: 0xc6d2e0,
+    bg: 0x05060a, // Void-Schwarz: außerhalb der Sichtweite (Fog of War)
+    fog: 0x05060a,
     floor: 0x3a4250,
     gridMain: 0x4a2c54, // okkultes Violett statt Blau
     gridSub: 0x251830,
