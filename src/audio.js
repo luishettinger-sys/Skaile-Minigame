@@ -24,6 +24,19 @@ export class Audio {
     this.master.connect(comp);
     comp.connect(this.ctx.destination);
 
+    // SFX-Bus mit kurzem Hall → Raumtiefe, satter & „satisfying" statt trocken.
+    // Alle Effekt-Sounds laufen über sfxBus (dry → master + ein wenig in den Hall).
+    this.sfxBus = this.ctx.createGain();
+    this.sfxBus.gain.value = 1;
+    this.sfxBus.connect(this.master);
+    this.reverb = this.ctx.createConvolver();
+    this.reverb.buffer = this._makeImpulse(0.5, 3.2);
+    this.reverbSend = this.ctx.createGain();
+    this.reverbSend.gain.value = 0.09; // dezent
+    this.sfxBus.connect(this.reverbSend);
+    this.reverbSend.connect(this.reverb);
+    this.reverb.connect(this.master);
+
     // Eigener Bus für die Musik (leiser als SFX, aber wahrnehmbar).
     this.musicGain = this.ctx.createGain();
     this.musicGain.gain.value = 0.72;
@@ -68,9 +81,24 @@ export class Audio {
     const g = this.ctx.createGain();
     g.gain.value = gain;
     src.connect(g);
-    g.connect(this.master);
+    g.connect(this._dest());
     src.start();
     return true;
+  }
+
+  // Ziel-Knoten für SFX (Bus mit Hall, falls vorhanden, sonst Master).
+  _dest() { return this.sfxBus || this.master; }
+
+  // Synthetische Impulsantwort (Rausch-Schweif) für den Convolver-Hall.
+  _makeImpulse(dur = 0.5, decay = 3) {
+    const rate = this.ctx.sampleRate;
+    const len = Math.max(1, Math.floor(rate * dur));
+    const buf = this.ctx.createBuffer(2, len, rate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+    return buf;
   }
 
   resume() {
@@ -148,7 +176,7 @@ export class Audio {
     g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(g);
-    g.connect(this.master);
+    g.connect(this._dest());
     osc.start(t0);
     osc.stop(t0 + dur + 0.02);
   }
@@ -159,11 +187,13 @@ export class Audio {
     this._tone({ type: "sawtooth", from: 300, to: 180, dur: 0.1, gain: 0.12, delay: 0.05 });
   }
 
-  // Waffenschuss: knackiger Laser-"Pew" mit kleinem Enten-Quak-Oberton.
+  // Waffenschuss: knackiger Laser-"Pew" mit Klick-Transient + Sub-Körper.
+  // Schichtung Transient → Ton → Sub gibt mehr „Punch" und Tiefe.
   shoot() {
-    this._tone({ type: "square", from: 900, to: 180, dur: 0.11, gain: 0.16 });
-    this._tone({ type: "sawtooth", from: 520, to: 130, dur: 0.09, gain: 0.1, delay: 0.005 });
-    this._tone({ type: "sawtooth", from: 680, to: 320, dur: 0.06, gain: 0.07 });
+    this._noise({ dur: 0.012, gain: 0.16, type: "highpass", freq: 3500 }); // Klick-Attack
+    this._tone({ type: "square", from: 1050, to: 190, dur: 0.10, gain: 0.14 });
+    this._tone({ type: "sawtooth", from: 560, to: 120, dur: 0.08, gain: 0.09, delay: 0.004 });
+    this._tone({ type: "sine", from: 190, to: 58, dur: 0.07, gain: 0.10 }); // Sub-Thump
   }
 
   // Gefilterter Rausch-Burst (für Schrot, Explosionen, Cracks).
@@ -182,7 +212,7 @@ export class Audio {
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(gain, t0);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    src.connect(filt); filt.connect(g); g.connect(this.master);
+    src.connect(filt); filt.connect(g); g.connect(this._dest());
     src.start(t0); src.stop(t0 + dur);
   }
 
@@ -203,47 +233,60 @@ export class Audio {
   }
 
   shotgun() {
-    this._noise({ dur: 0.18, gain: 0.28, type: "bandpass", freq: 1400 });
-    this._tone({ type: "square", from: 300, to: 70, dur: 0.16, gain: 0.16 });
+    this._noise({ dur: 0.02, gain: 0.30, type: "highpass", freq: 4200 });  // scharfer Crack
+    this._noise({ dur: 0.22, gain: 0.30, type: "bandpass", freq: 1100 });   // Schrot-Wumms
+    this._tone({ type: "square", from: 290, to: 58, dur: 0.18, gain: 0.17 });
+    this._tone({ type: "sine", from: 150, to: 44, dur: 0.18, gain: 0.14 });  // Sub-Boom
   }
 
   smg() {
-    this._tone({ type: "square", from: 820, to: 240, dur: 0.05, gain: 0.1 });
-    this._noise({ dur: 0.04, gain: 0.06, type: "highpass", freq: 2000 });
+    this._noise({ dur: 0.008, gain: 0.10, type: "highpass", freq: 3200 }); // Klick
+    this._tone({ type: "square", from: 880, to: 230, dur: 0.05, gain: 0.10 });
+    this._tone({ type: "sine", from: 160, to: 70, dur: 0.04, gain: 0.06 }); // Mini-Sub
   }
 
   minigun() {
-    this._tone({ type: "sawtooth", from: 700, to: 300, dur: 0.04, gain: 0.08 });
-    this._noise({ dur: 0.03, gain: 0.05, type: "bandpass", freq: 1800 });
+    this._noise({ dur: 0.007, gain: 0.08, type: "highpass", freq: 3600 });
+    this._tone({ type: "sawtooth", from: 720, to: 280, dur: 0.04, gain: 0.08 });
+    this._tone({ type: "sine", from: 150, to: 68, dur: 0.035, gain: 0.06 });
   }
 
   rail() {
-    this._tone({ type: "sawtooth", from: 1500, to: 200, dur: 0.3, gain: 0.18 });
-    this._tone({ type: "sine", from: 400, to: 1700, dur: 0.26, gain: 0.12, delay: 0.02 });
+    this._noise({ dur: 0.015, gain: 0.14, type: "highpass", freq: 5000 }); // Entlade-Knack
+    this._tone({ type: "sawtooth", from: 1600, to: 180, dur: 0.30, gain: 0.18 });
+    this._tone({ type: "sine", from: 400, to: 1800, dur: 0.26, gain: 0.12, delay: 0.02 }); // Schimmer
+    this._tone({ type: "sine", from: 120, to: 50, dur: 0.16, gain: 0.10 }); // Sub
   }
 
   sniper() {
-    this._noise({ dur: 0.05, gain: 0.3, type: "highpass", freq: 3000 });
-    this._tone({ type: "sawtooth", from: 1200, to: 120, dur: 0.28, gain: 0.2 });
+    this._noise({ dur: 0.05, gain: 0.32, type: "highpass", freq: 3000 });  // Peitschen-Crack
+    this._tone({ type: "sawtooth", from: 1300, to: 110, dur: 0.28, gain: 0.20 });
+    this._tone({ type: "sine", from: 180, to: 45, dur: 0.22, gain: 0.14 }); // tiefer Nachschlag
   }
 
   pulse() {
-    this._tone({ type: "sine", from: 240, to: 700, dur: 0.18, gain: 0.18 });
-    this._tone({ type: "triangle", from: 500, to: 180, dur: 0.16, gain: 0.12, delay: 0.02 });
+    this._noise({ dur: 0.01, gain: 0.08, type: "bandpass", freq: 2400 });
+    this._tone({ type: "sine", from: 240, to: 760, dur: 0.18, gain: 0.18 });
+    this._tone({ type: "triangle", from: 520, to: 170, dur: 0.16, gain: 0.12, delay: 0.02 });
+    this._tone({ type: "sine", from: 150, to: 60, dur: 0.10, gain: 0.08 });
   }
 
   cannon() {
-    this._noise({ dur: 0.3, gain: 0.3, type: "lowpass", freq: 320 });
-    this._tone({ type: "square", from: 130, to: 42, dur: 0.34, gain: 0.26 });
+    this._noise({ dur: 0.03, gain: 0.22, type: "highpass", freq: 2600 }); // Mündungs-Crack
+    this._noise({ dur: 0.32, gain: 0.30, type: "lowpass", freq: 300 });   // Donner
+    this._tone({ type: "square", from: 130, to: 40, dur: 0.34, gain: 0.24 });
+    this._tone({ type: "sine", from: 90, to: 30, dur: 0.36, gain: 0.18 }); // tiefer Sub-Boom
   }
 
   hit() {
-    this._tone({ type: "square", from: 420, to: 220, dur: 0.06, gain: 0.12 });
+    this._noise({ dur: 0.018, gain: 0.10, type: "bandpass", freq: 2600 }); // knackiger Impakt
+    this._tone({ type: "square", from: 480, to: 200, dur: 0.05, gain: 0.10 });
   }
 
   bugDeath() {
-    this._tone({ type: "triangle", from: 200, to: 60, dur: 0.18, gain: 0.2 });
-    this._tone({ type: "square", from: 520, to: 90, dur: 0.12, gain: 0.1 });
+    this._noise({ dur: 0.04, gain: 0.10, type: "lowpass", freq: 1200 }); // matschiger Squish
+    this._tone({ type: "triangle", from: 220, to: 55, dur: 0.18, gain: 0.20 });
+    this._tone({ type: "square", from: 520, to: 80, dur: 0.12, gain: 0.10 });
   }
 
   playerHurt() {
