@@ -2,6 +2,7 @@
 import { SKINS, SKIN_ORDER } from "./skins.js";
 import { META_UPGRADES, META_ORDER, metaPrice } from "./metaupgrades.js";
 import { FORGE_MODS, FORGE_ORDER, forgeCost } from "./forge.js";
+import { RESEARCH, RESEARCH_ORDER, researchAvailable } from "./research.js";
 
 export class HUD {
   constructor() {
@@ -78,6 +79,15 @@ export class HUD {
       forgeGrid: document.getElementById("forge-grid"),
       forgeScrap: document.getElementById("forge-scrap"),
       forgeClose: document.getElementById("forge-close"),
+      researchOverlay: document.getElementById("overlay-research"),
+      researchGrid: document.getElementById("research-grid"),
+      researchData: document.getElementById("research-data"),
+      researchClose: document.getElementById("research-close"),
+      lorePop: document.getElementById("lore-pop"),
+      loreIcon: document.getElementById("lore-icon"),
+      loreTitle: document.getElementById("lore-title"),
+      loreText: document.getElementById("lore-text"),
+      loreCard: document.getElementById("lore-card"),
       spPips: document.getElementById("sp-pips"),
       spLabel: document.getElementById("sp-label"),
       victoryOverlay: document.getElementById("overlay-victory"),
@@ -161,6 +171,48 @@ export class HUD {
       if (!maxed) card.onclick = () => onCraft(id);
       grid.appendChild(card);
     }
+  }
+
+  // --- Forschungslabor (Tech-Baum + Story) ----------------------------------
+  showResearch() { this.el.researchOverlay?.classList.remove("hidden"); }
+  hideResearch() { this.el.researchOverlay?.classList.add("hidden"); }
+
+  // done = { id: true }, data = Zahl, onResearch(id).
+  renderResearch(done, data, onResearch) {
+    const grid = this.el.researchGrid;
+    if (!grid) return;
+    if (this.el.researchData) this.el.researchData.textContent = (data | 0).toLocaleString("de-DE");
+    grid.innerHTML = "";
+    for (const id of RESEARCH_ORDER) {
+      const n = RESEARCH[id];
+      if (!n) continue;
+      const got = !!done[id];
+      const avail = !got && researchAvailable(done, id);
+      const affordable = avail && data >= n.cost;
+      const card = document.createElement("div");
+      card.className = "skin-card up-card " + (got ? "equipped" : affordable ? "affordable owned" : "locked");
+      const reqTxt = n.req.length ? n.req.map((r) => RESEARCH[r]?.icon || "?").join(" ") + " → " : "";
+      const status = got ? "✓ Erforscht" : avail ? `${n.cost.toLocaleString("de-DE")} 📡` : `🔒 ${reqTxt}`.trim();
+      card.innerHTML =
+        `<div class="skin-emoji">${n.icon}</div>` +
+        `<div class="skin-name">${n.name}</div>` +
+        `<div class="up-desc">${got ? "entschlüsselt" : "Log-Fragment + Bonus"}</div>` +
+        `<div class="skin-status">${status}</div>`;
+      if (!got && avail) card.onclick = () => onResearch(id);
+      grid.appendChild(card);
+    }
+  }
+
+  // Story-Fragment groß einblenden (beim Erforschen). Klick schließt.
+  showLore(icon, title, text, final = false) {
+    if (!this.el.lorePop) return;
+    this.el.loreIcon.textContent = icon || "✦";
+    this.el.loreTitle.textContent = title || "";
+    this.el.loreText.textContent = text || "";
+    this.el.loreCard?.classList.toggle("final", !!final);
+    this.el.lorePop.classList.remove("hidden");
+    const close = () => { this.el.lorePop.classList.add("hidden"); this.el.lorePop.removeEventListener("click", close); };
+    this.el.lorePop.addEventListener("click", close);
   }
 
   // --- Skin-Shop -------------------------------------------------------------

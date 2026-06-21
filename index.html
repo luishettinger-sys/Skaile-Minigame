@@ -147,6 +147,26 @@
         </div>
       </div>
 
+      <!-- Forschungslabor (Tech-Baum + Story, aus Daten) -->
+      <div class="overlay hidden" id="overlay-research">
+        <div class="overlay-card">
+          <h1 class="skins-title">🔬 FORSCHUNGSLABOR</h1>
+          <p class="tagline">Daten: <span id="research-data">0</span> 📡 &middot; entschlüssle Logs &amp; finde heraus, warum</p>
+          <div id="research-grid" class="skin-grid up-grid"></div>
+          <button class="btn small" id="research-close">SCHLIESSEN</button>
+          <p class="hint">Jeder Knoten gibt einen dauerhaften Bonus &amp; enthüllt ein Log-Fragment</p>
+        </div>
+      </div>
+
+      <!-- Log-Fragment-Reveal (Story-Schnipsel beim Erforschen) -->
+      <div class="hidden" id="lore-pop">
+        <div id="lore-card">
+          <div id="lore-head"><span id="lore-icon">✦</span> <span id="lore-title"></span></div>
+          <p id="lore-text"></p>
+          <div id="lore-hint">[ klicken zum Schließen ]</div>
+        </div>
+      </div>
+
       <!-- Lab-Ausbau (permanente Meta-Upgrades, aus der Bank) -->
       <div class="overlay hidden" id="overlay-upgrades">
         <div class="overlay-card">

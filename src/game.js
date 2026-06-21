@@ -21,6 +21,7 @@ import { EnemyShots } from "./enemyshots.js";
 import { Throwables } from "./throwables.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { FORGE_MODS, FORGE_ORDER, forgeCost } from "./forge.js";
+import { RESEARCH, RESEARCH_ORDER, researchAvailable, researchMods, researchDropMult } from "./research.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
 import { SKINS, SKIN_RIDDLES } from "./skins.js";
@@ -239,6 +240,38 @@ export class Game {
     this.hud.toast?.(def.icon, def.name + " Lv." + (lvl + 1), def.desc(lvl + 1));
   }
 
+  // --- FORSCHUNGSLABOR (Süd): Daten -> Tech-Baum + Story-Fragmente -----------
+  openResearch() {
+    this._renderResearch();
+    this.hud.showResearch();
+  }
+  closeResearch() { this.hud.hideResearch(); }
+
+  _renderResearch() {
+    this.hud.renderResearch(this.meta.research || {}, this.meta.data | 0, (id) => this.doResearch(id));
+  }
+
+  doResearch(id) {
+    const n = RESEARCH[id];
+    if (!n) return;
+    const done = this.meta.research || (this.meta.research = {});
+    if (done[id]) return;
+    if (!researchAvailable(done, id)) { this.hud.toast?.("🔒", "Gesperrt", "Erst Voraussetzungen erforschen"); return; }
+    if ((this.meta.data | 0) < n.cost) { this.hud.toast?.("📡", "Nicht genug Daten", `${n.name} kostet ${n.cost} 📡`); this.audio.playerHurt?.(); return; }
+    this.meta.data -= n.cost;
+    done[id] = true;
+    this._saveMeta();
+    this.audio.levelUp?.();
+    this.world.addShake(0.12);
+    this._recomputeMods();
+    this._syncStats();
+    this._dropMult = researchDropMult(done);
+    this._matsDirty = true;
+    this._renderResearch();
+    // Log-Fragment enthüllen: der "höhere Sinn" tropft hier Stück für Stück rein.
+    this.hud.showLore(n.icon, n.name, n.lore, !!n.effect.final);
+  }
+
   buyUpgrade(key) {
     const def = META_UPGRADES[key];
     if (!def) return;
@@ -277,6 +310,7 @@ export class Game {
   _recomputeMods() {
     const m = defaultMods();
     mergeMods(m, this._metaMods()); // permanente Lab-Ausbauten zuerst
+    mergeMods(m, researchMods(this.meta.research || {})); // Forschungs-Boni (Daten)
     mergeMods(m, this._craftMods()); // permanente Schmiede-Mods (Schrott)
     mergeMods(m, this.boonMods); // Run-Boons
     mergeMods(m, this.upgradeMods);
@@ -383,6 +417,7 @@ export class Game {
     // Daten sind permanent (Forschungslabor) und liegen in meta.
     this.mats = { scrap: 0, chips: 0 };
     this._matsDirty = true;
+    this._dropMult = researchDropMult(this.meta.research || {}); // Loot-Boni aus Forschung
     this.bossIntro = false;
     this.intro = null;
     this.buffs = { rapid: 0, double: 0, shield: 0, slow: 0 };
@@ -733,7 +768,7 @@ export class Game {
       else if (pad && !this.shopOpen) this._buyWeapon(pad);
       else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) this.openForge();
       else if (door && !this.shopOpen) this._buyRoom(door);
-      else if (!this.shopOpen && this._stationNear("vault")) this._useVault();
+      else if (!this.shopOpen && this._stationNear("vault")) this.openResearch();
       else if (!this.shopOpen && this._stationNear("powerups")) this._usePowerupShop();
       else if (!this.shopOpen && this._stationNear("spawner")) this._useSpawner();
       else if (!this.shopOpen && this.stations.skinsNear(this.player.pos)) this.openSkins("riddle");
@@ -954,7 +989,7 @@ export class Game {
       const d = this.world.building.lockedDoorNear(this.player.pos.x, this.player.pos.z);
       this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
     }
-    else if (this._stationNear("vault")) this.hud.showPrompt(`[E] 🏦 Skin-Vault: ${this.coins} 🪙 einzahlen + Skins`);
+    else if (this._stationNear("vault")) this.hud.showPrompt(`[E] 🔬 FORSCHUNG – Daten erforschen (${this.meta.data | 0} 📡)`);
     else if (this._stationNear("powerups")) this.hud.showPrompt("[E] ⚡ Power-Up kaufen (40 🪙)");
     else if (this._stationNear("spawner")) this.hud.showPrompt("[E] 🐛 Bug-Farm: Bugs spawnen für XP (30 🪙)");
     else if (this.stations.deployNear(this.player.pos)) {
@@ -1387,12 +1422,13 @@ export class Game {
     // Daten sammeln sich permanent fürs Forschungslabor. Direkt gutgeschrieben
     // (kein Boden-Loot → kein Gewusel), mit gelegentlichem Popup als Feedback.
     const big = e.def.isBoss || e.def.radius >= 1.1;
-    const scrap = e.def.isBoss ? 25 : big ? 3 : 1;
+    const dm = this._dropMult || { scrap: 1, data: 1 };
+    const scrap = Math.round((e.def.isBoss ? 25 : big ? 3 : 1) * dm.scrap);
     this.mats.scrap += scrap;
     let gotChip = 0;
     const chipChance = e.def.isBoss ? 1 : big ? 0.12 : 0.02;
     if (Math.random() < chipChance) { gotChip = e.def.isBoss ? 3 : 1; this.mats.chips += gotChip; }
-    this.meta.data += e.def.isBoss ? 10 : big ? 2 : 1;
+    this.meta.data += Math.round((e.def.isBoss ? 10 : big ? 2 : 1) * dm.data);
     this._matsDirty = true; // HUD/Meta-Speicher am Frame-Ende aktualisieren
     if (gotChip) this._popup(e.mesh.position, "+" + gotChip + " 🧩", "#c792ea", "dmg");
     else if (big) this._popup(e.mesh.position, "+" + scrap + " 🔩", "#9fb4d4", "dmg");
