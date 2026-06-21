@@ -7,6 +7,8 @@ import { Audio } from "./audio.js";
 import { Game } from "./game.js";
 import { loadModel } from "./assets.js";
 import { loadWeaponModels } from "./weaponmodels.js";
+import { CONFIG } from "./config.js";
+const S = CONFIG.buildScale || 1; // Gebäude-Skalierung
 
 const canvas = document.getElementById("game");
 const world = createWorld(canvas);
@@ -92,7 +94,7 @@ loadModel("./assets/shopkeeper.glb", { targetHeight: 2.6 }).then((obj) => {
 // als Arena-Mittelpunkt. Steht nördlich des Ritual-Sigills, wirft Schatten.
 loadModel("./assets/props/duck_shrine.glb", { targetHeight: 4.6 }).then((obj) => {
   if (!obj) return;
-  obj.position.set(0, 0, -15);
+  obj.position.set(0, 0, -15 * S);
   obj.rotation.y = Math.PI; // Vorderseite (Ente) zur Arena
   obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   world.scene.add(obj);

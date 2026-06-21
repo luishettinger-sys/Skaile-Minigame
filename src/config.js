@@ -4,9 +4,13 @@
 // ============================================================================
 
 export const CONFIG = {
+  // Globaler Gebäude-Skalierungsfaktor: macht ALLE Räume/Wände größer, während
+  // Ente & Gegner gleich groß bleiben → deutlich mehr Raum zum Erkunden.
+  buildScale: 1.8,
+
   arena: {
-    half: 22, // halbe Kantenlänge → größeres Spielfeld
-    grid: 44, // Anzahl Grid-Linien (Code-Grid-Optik)
+    half: 40, // halbe Spawn-Kantenlänge (passt zur skalierten Arena ±50)
+    grid: 64, // mehr Grid-Linien für die größere Fläche
   },
 
   player: {
@@ -136,8 +140,8 @@ export const CONFIG = {
     hpPerWave: 0.16, // +16 % Gegner-HP pro Welle
     speedPerWave: 0.03, // +3 % Gegner-Tempo pro Welle
     speedMax: 1.7, // Tempo-Deckel
-    arenaGrowth: 2.2, // +Einheiten Arena-Halbkante pro Welle
-    arenaMax: 60, // maximale Halbkante
+    arenaGrowth: 1.5, // +Einheiten Arena-Halbkante pro Welle
+    arenaMax: 48, // maximale Halbkante (innerhalb der skalierten Arena-Wände ±50)
   },
 
   progression: {

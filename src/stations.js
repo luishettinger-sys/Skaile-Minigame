@@ -1,6 +1,9 @@
 // Temporäres Energiefeld: erscheint selten an zufälliger Stelle, blinkt am Ende
 // und verschwindet wieder. (Keine Dauer-Pads mehr.)
 import * as THREE from "three";
+import { CONFIG } from "./config.js";
+
+const S = CONFIG.buildScale || 1; // Gebäude-Skalierung → Stände mitziehen
 
 export class Stations {
   constructor(scene) {
@@ -18,7 +21,7 @@ export class Stations {
   // Deploy-Terminal in der Arena: Hier startest DU eine Bug-Welle ("git push" →
   // CI/CD baut → Bugs kommen rein). Macht die Wellen opt-in statt automatisch.
   _buildDeploy() {
-    const x = 9, z = -6;
+    const x = 9 * S, z = -6 * S;
     const base = new THREE.Mesh(
       new THREE.BoxGeometry(2.4, 1.5, 1.4),
       new THREE.MeshStandardMaterial({ color: 0x1c2740, roughness: 0.5, metalness: 0.35 })
@@ -42,7 +45,7 @@ export class Stations {
   }
 
   _buildShop() {
-    const x = 0, z = -50; // im Shop-Raum (Norden), unter dem Build-Monitor
+    const x = 0, z = -50 * S; // im Shop-Raum (Norden), unter dem Build-Monitor
     const counter = new THREE.Mesh(
       new THREE.BoxGeometry(5, 1.6, 2.2),
       new THREE.MeshStandardMaterial({ color: 0x6b3f1d, roughness: 0.7 })

@@ -24,6 +24,21 @@ export class Building {
     this.rooms = {}; // name -> {minX,maxX,minZ,maxZ, y}
 
     this._build();
+    this._scaleBuilding(CONFIG.buildScale || 1);
+  }
+
+  // Skaliert das gesamte Gebäude (Mesh-Gruppe + alle Kollisions-/Raum-Daten) um
+  // den Faktor S. Ente & Gegner bleiben gleich groß → mehr Raum zum Erkunden.
+  _scaleBuilding(S) {
+    if (!S || S === 1) return;
+    this.group.scale.setScalar(S);
+    const sc = (o, keys) => { for (const k of keys) if (k in o && typeof o[k] === "number") o[k] *= S; };
+    for (const w of this.walls) sc(w, ["minX", "maxX", "minZ", "maxZ"]);
+    for (const s of this.slabs) sc(s, ["minX", "maxX", "minZ", "maxZ", "y"]);
+    for (const r of this.ramps) sc(r, ["minX", "maxX", "minZ", "maxZ", "yMinZ", "yMaxZ"]);
+    for (const k in this.rooms) sc(this.rooms[k], ["minX", "maxX", "minZ", "maxZ", "y"]);
+    // Tür-Hitboxen (wallBox) sind bereits in this.walls enthalten → nur Zentren/Radien.
+    for (const d of this.doors || []) { d.cx *= S; d.cz *= S; d.r *= S; }
   }
 
   // ----------------------------------------------------------------- Layout --
