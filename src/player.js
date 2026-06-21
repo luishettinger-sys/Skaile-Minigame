@@ -136,41 +136,38 @@ export class Player {
   // --- Kosmetik (freischaltbar) --------------------------------------------
   addHelmet() {
     if (this.cosmetics.helmet) return false;
-    const mat = new THREE.MeshStandardMaterial({ color: 0x3a86ff, roughness: 0.35, metalness: 0.4 });
+    // Dezent: kleine flache Kappe, die knapp auf dem Scheitel sitzt (misst die
+    // echte Modellhöhe, schwebt also nicht). Verdeckt die Ente nicht.
+    const top = this.duckTopY || 1.9;
+    const mat = new THREE.MeshStandardMaterial({ color: 0x3a86ff, roughness: 0.4, metalness: 0.35 });
     const g = new THREE.Group();
     const dome = new THREE.Mesh(
-      new THREE.SphereGeometry(0.56, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat
+      new THREE.SphereGeometry(0.28, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2.2), mat
     );
-    dome.position.y = 2.05;
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.09, 8, 20), mat);
-    rim.rotation.x = Math.PI / 2;
-    rim.position.y = 2.0;
-    g.add(dome, rim);
+    g.add(dome);
+    g.position.set(0, top - 0.12, 0.08); // knapp auf dem Kopf, minimal nach vorn
     this.cosmetics.helmet = g;
     this.root.add(g);
     return true;
   }
 
+  // Zusatz-Brille entfernt: Das Enten-Modell hat bereits eine Brille; die alte
+  // prozedurale Brille saß an Platzhalter-Koordinaten und schwebte vor dem Modell
+  // (verdeckte die Waffe). Bleibt als No-op, damit Unlock-Banner weiter feuern.
   addShades() {
-    if (this.cosmetics.shades) return false;
-    const mat = new THREE.MeshBasicMaterial({ color: 0x10131a });
-    const g = new THREE.Group();
-    for (const sx of [-0.22, 0.22]) {
-      const lens = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 0.06), mat);
-      lens.position.set(sx, 1.6, 0.92);
-      g.add(lens);
-    }
-    this.cosmetics.shades = g;
-    this.root.add(g);
     return true;
   }
 
   addCape() {
     if (this.cosmetics.cape) return false;
-    const mat = new THREE.MeshStandardMaterial({ color: 0xff5470, roughness: 0.6, side: THREE.DoubleSide });
-    const cape = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.6), mat);
-    cape.position.set(0, 1.0, -0.9);
-    cape.rotation.x = 0.25;
+    // Dezent: kurzes Cape eng am Rücken, halbtransparent → Ente bleibt erkennbar.
+    const top = this.duckTopY || 1.9;
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xff5470, roughness: 0.6, side: THREE.DoubleSide, transparent: true, opacity: 0.82,
+    });
+    const cape = new THREE.Mesh(new THREE.PlaneGeometry(0.85, top * 0.55), mat);
+    cape.position.set(0, top * 0.5, -(this.duckDepth || 0.7) * 0.7);
+    cape.rotation.x = 0.18;
     this.cosmetics.cape = cape;
     this.root.add(cape);
     return true;
@@ -262,6 +259,11 @@ export class Player {
     this.placeholder.visible = false;
     this.model = object3d;
     this.root.add(object3d);
+
+    // Echte Modell-Maße merken → Accessoires sitzen am Kopf statt in der Luft.
+    const box = new THREE.Box3().setFromObject(object3d);
+    this.duckTopY = box.max.y || 1.9; // Scheitel
+    this.duckDepth = box.max.z || 0.7; // Vorderkante (Blickrichtung +Z)
 
     const clips = object3d.userData.gltfAnimations || [];
     if (clips.length) {
