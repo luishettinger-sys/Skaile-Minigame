@@ -37,6 +37,19 @@ export class Player {
     // (nicht als Kind der Ente, damit Squash/Stretch ihn nicht verzerrt).
     this.shadow = makeBlob(1.05, 0.92);
     scene.add(this.shadow);
+
+    // Hero-Markierung: hebt den Maincharacter klar vom Boden, von Bugs, Coins
+    // und XP-Gems ab. Warmer Unter-Glow + kühler, pulsierender Kontrast-Ring.
+    this.baseScale = 1.12; // einen Tick größer → mehr Präsenz
+    this.smoothVel = new THREE.Vector3();
+    this._t = 0;
+    this.hero = buildHeroRing();
+    scene.add(this.hero.group);
+
+    // Speed-Trail (nachziehende Schemen beim Dash).
+    this._trail = [];
+    this._trailPool = [];
+    this._trailT = 0;
   }
 
   // Dash auslösen (Ausweichen mit i-Frames). Gibt true zurück, wenn erfolgreich.
@@ -75,37 +88,58 @@ export class Player {
 
     // Blickrichtung wird extern via Maus-Zielen gesetzt (this.facing).
     const moving = move.x !== 0 || move.z !== 0;
+    this._t += dt;
     this.root.rotation.y = this.facing;
 
-    // Lebendige Bewegung: Waddle, Bob, Lean, Squash & Stretch, Idle-Atmen.
-    this.phase += dt * (moving ? 16 : 3);
+    // Geglättete Geschwindigkeit (nur für die Optik) → die Ente lehnt sich weich
+    // in Lauf-/Strafe-Richtung statt hart umzuspringen. Steuerung bleibt direkt.
+    const sm = 1 - Math.exp(-10 * dt);
+    this.smoothVel.x += (this.vel.x - this.smoothVel.x) * sm;
+    this.smoothVel.z += (this.vel.z - this.smoothVel.z) * sm;
+
+    // Bewegung in den lokalen Achsen der Ente (relativ zur Blickrichtung):
+    // forward = Lauf nach vorn/hinten, right = seitliches Straffen.
+    const sf = Math.sin(this.facing), cf = Math.cos(this.facing);
+    const ref = Math.max(1, (moveSpeed || 1) * CONFIG.player.dash.mult);
+    const fwdL = (this.smoothVel.x * sf + this.smoothVel.z * cf) / ref;
+    const rgtL = (this.smoothVel.x * cf - this.smoothVel.z * sf) / ref;
+
+    // Lebendige Bewegung: kräftiges Waddle, Bob/Hop, Lean/Banking, Squash&Stretch.
+    this.phase += dt * (moving ? 17 : 3.2);
     const swing = Math.sin(this.phase);
-    const bob = moving ? Math.abs(swing) * 0.18 : Math.abs(swing) * 0.04;
+    const hop = moving ? Math.abs(swing) * 0.30 : Math.abs(swing) * 0.05; // deutlicher Hop
 
     if (this.mixer) {
-      // Echte Skelett-Animation treibt die Pose; nur leichte Geschwindigkeit.
       this.mixer.update(dt * (moving ? 1.6 : 0.8));
     } else {
-      // Prozedurale Animation (Platzhalter / nicht-gerigged).
-      this.root.rotation.z = moving ? swing * 0.22 : swing * 0.03;
-      this.root.rotation.x = moving ? 0.14 : 0;
-      const squash = 1 - Math.abs(swing) * (moving ? 0.09 : 0.02);
-      const stretch = 1 / Math.sqrt(squash);
-      this.root.scale.set(stretch, squash, stretch);
+      const waddle = moving ? 0.30 : 0.04; // stärkeres Wackeln als zuvor
+      // Waddle + Banking ins Straffen + leichtes Kopfnicken beim Hop.
+      this.root.rotation.z = swing * waddle - rgtL * 0.6;
+      this.root.rotation.x = fwdL * 0.3 + (moving ? 0.06 : Math.sin(this._t * 1.6) * 0.02);
+      let squash = 1 - Math.abs(swing) * (moving ? 0.13 : 0.025);
+      let stretch = 1 / Math.sqrt(squash);
+      let sx = stretch, sy = squash, sz = stretch;
+      if (dashing) { sz *= 1.28; sx *= 0.88; sy *= 0.9; } // in Flugrichtung strecken
+      const B = this.baseScale;
+      this.root.scale.set(sx * B, sy * B, sz * B);
     }
 
-    // Höhe: auf Plattformen/Stufen steigen (weich nachziehen).
+    // Höhe: auf Plattformen/Stufen steigen (weich nachziehen) + Hop.
     const groundY = this.terrain ? this.terrain.heightAt(this.pos.x, this.pos.z) : 0;
-    const targetY = groundY + bob;
+    const targetY = groundY + hop;
     this.pos.y += (targetY - this.pos.y) * (1 - Math.exp(-14 * dt));
 
     // Bodenschatten flach unter der Ente halten (folgt x/z + Bodenhöhe).
     if (this.shadow) {
       this.shadow.position.set(this.pos.x, groundY + 0.06, this.pos.z);
-      // schrumpft leicht beim „Abheben" (Bob) → lebendiger
-      const s = 1 - Math.min(0.3, bob * 0.8);
+      const s = 1 - Math.min(0.3, hop * 0.8);
       this.shadow.scale.set(s, s, s);
     }
+
+    // Hero-Markierung + Speed-Trail aktualisieren.
+    this._updateHero(dt, groundY, moving, dashing);
+    if (dashing) this._emitTrail(groundY);
+    this._updateTrail(dt);
 
     // Waffen-Rückstoß abklingen lassen (Wucht beim Schießen).
     if (this.weaponModel) {
@@ -250,6 +284,12 @@ export class Player {
     this._clearCosmetics();
     this.setGadget(null);
     this._setVisible(true);
+    // Speed-Trail leeren.
+    if (this._trail) {
+      for (const p of this._trail) { p.visible = false; this._trailPool.push(p); }
+      this._trail.length = 0;
+    }
+    this.smoothVel?.set(0, 0, 0);
   }
 
   // Tauscht das Platzhalter-Mesh gegen ein geladenes GLB-Modell.
@@ -314,6 +354,59 @@ export class Player {
     });
   }
 
+  // Hero-Markierung: Unter-Glow + pulsierender, drehender Ring; flart beim Dash.
+  _updateHero(dt, groundY, moving, dashing) {
+    const h = this.hero;
+    if (!h) return;
+    h.group.position.set(this.pos.x, groundY + 0.05, this.pos.z);
+    h.ring.rotation.z += dt * (dashing ? 6 : 1.4);
+    const pulse = 1 + Math.sin(this._t * 4) * 0.06 + (moving ? 0.04 : 0);
+    const flare = dashing ? 1.35 : 1;
+    h.ring.scale.setScalar(pulse * flare);
+    h.ring.material.opacity = (dashing ? 0.85 : 0.5) + Math.sin(this._t * 5) * 0.05;
+    h.glow.material.opacity = (dashing ? 0.4 : 0.26) + Math.sin(this._t * 3) * 0.03;
+    h.glow.scale.setScalar(flare);
+  }
+
+  // Speed-Trail: in Intervallen einen verblassenden Schemen am Boden hinterlassen.
+  _emitTrail(groundY) {
+    this._trailT -= 1 / 60;
+    if (this._trailT > 0) return;
+    this._trailT = 0.03;
+    let p = this._trailPool.pop();
+    if (!p) {
+      p = new THREE.Mesh(
+        new THREE.CircleGeometry(0.7, 20),
+        new THREE.MeshBasicMaterial({
+          map: glowTexture(), color: 0xffe08a, transparent: true,
+          depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+        })
+      );
+      p.rotation.x = -Math.PI / 2;
+      this.scene.add(p);
+    }
+    p.position.set(this.pos.x, groundY + 0.08, this.pos.z);
+    p.material.opacity = 0.5;
+    p.scale.setScalar(1);
+    p.visible = true;
+    p.life = 0.32;
+    this._trail.push(p);
+  }
+
+  _updateTrail(dt) {
+    for (let i = this._trail.length - 1; i >= 0; i--) {
+      const p = this._trail[i];
+      p.life -= dt;
+      p.material.opacity *= Math.exp(-9 * dt);
+      p.scale.multiplyScalar(1 + dt * 1.6);
+      if (p.life <= 0) {
+        p.visible = false;
+        this._trail.splice(i, 1);
+        this._trailPool.push(p);
+      }
+    }
+  }
+
   _setVisible(v) {
     this.root.visible = v;
   }
@@ -367,4 +460,55 @@ function buildDuck() {
   g.add(tail);
 
   return g;
+}
+
+// Weiche, runde Glow-Textur (radial weiß → transparent) für Aura/Trail.
+let _glowTex = null;
+function glowTexture() {
+  if (_glowTex) return _glowTex;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  const g = ctx.createRadialGradient(64, 64, 2, 64, 64, 62);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.5, "rgba(255,255,255,0.5)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  _glowTex = new THREE.CanvasTexture(c);
+  _glowTex.colorSpace = THREE.SRGBColorSpace;
+  return _glowTex;
+}
+
+// Hero-Markierung am Boden: warmer Unter-Glow (passt zur goldenen Ente, hebt sie
+// vom dunklen Boden) + kühler, kontrastreicher Ring (klar von Bugs/Coins/Gems
+// unterscheidbar). Liegt waagerecht und wird der Ente nachgeführt.
+function buildHeroRing() {
+  const group = new THREE.Group();
+
+  const glow = new THREE.Mesh(
+    new THREE.CircleGeometry(2.0, 28),
+    new THREE.MeshBasicMaterial({
+      map: glowTexture(), color: 0xffd87a, transparent: true,
+      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    })
+  );
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.y = 0.01;
+  glow.renderOrder = -1;
+  group.add(glow);
+
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(1.15, 1.4, 40),
+    new THREE.MeshBasicMaterial({
+      color: 0x8ff0ff, transparent: true, opacity: 0.55,
+      depthWrite: false, blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide, toneMapped: false,
+    })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.04;
+  group.add(ring);
+
+  return { group, glow, ring };
 }
