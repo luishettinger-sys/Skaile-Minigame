@@ -4,17 +4,16 @@
 // ============================================================================
 
 export const CONFIG = {
-  // Globaler Gebäude-Skalierungsfaktor: macht ALLE Räume/Wände größer, während
-  // Ente & Gegner gleich groß bleiben → deutlich mehr Raum zum Erkunden.
-  buildScale: 1.8,
+  // Gebäude-Skalierung: 1 = kompakter Hauptraum (kein langes Rumlaufen).
+  buildScale: 1,
 
   // Sicht-Radius (Fog of War): wie weit man sehen kann; der Rest ist schwarz und
   // deckt sich beim Näherkommen auf. Per Level-Up erweiterbar.
   vision: { base: 40, perLevel: 6, max: 95 },
 
   arena: {
-    half: 40, // halbe Spawn-Kantenlänge (passt zur skalierten Arena ±50)
-    grid: 64, // mehr Grid-Linien für die größere Fläche
+    half: 22, // halbe Spawn-Kantenlänge (kompakter Hauptraum ±26)
+    grid: 44, // Grid-Linien (Schaltkreis-Look)
   },
 
   player: {
@@ -178,8 +177,8 @@ export const CONFIG = {
     hpPerWave: 0.16, // +16 % Gegner-HP pro Welle
     speedPerWave: 0.03, // +3 % Gegner-Tempo pro Welle
     speedMax: 1.7, // Tempo-Deckel
-    arenaGrowth: 1.5, // +Einheiten Arena-Halbkante pro Welle
-    arenaMax: 48, // maximale Halbkante (innerhalb der skalierten Arena-Wände ±50)
+    arenaGrowth: 0, // Arena wächst nicht mehr (kompakt halten)
+    arenaMax: 24, // maximale Halbkante (innerhalb der Arena-Wände ±26)
   },
 
   progression: {

@@ -536,6 +536,29 @@ export class Game {
     this.openSkins("bank"); // mit Bank-Coins Skins kaufen/anlegen
   }
 
+  // POWER-UPS (West): zufälliges Power-Up für Coins kaufen (sofort aktiv).
+  _usePowerupShop() {
+    const price = 40;
+    if (this.coins < price) { this.hud.toast("⚡", "Power-Up", `Kostet ${price} 🪙`); this.audio.error?.(); return; }
+    this.coins -= price; this.hud.setCoins(this.coins);
+    const id = POWER_IDS[Math.floor(Math.random() * POWER_IDS.length)];
+    this._activatePower(id);
+  }
+
+  // BUG-FARM (Nord): Coins zahlen → schwache Bugs spawnen, die man für XP killt.
+  _useSpawner() {
+    const price = 30;
+    if (this.coins < price) { this.hud.toast("🐛", "Bug-Farm", `Kostet ${price} 🪙`); this.audio.error?.(); return; }
+    this.coins -= price; this.hud.setCoins(this.coins);
+    for (let i = 0; i < 8; i++) {
+      const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 12;
+      this.enemies.spawn("syntax", this.player.pos.x + Math.cos(a) * r, this.player.pos.z + Math.sin(a) * r);
+    }
+    this.hud.banner("🐛 BUG-FARM", "Bugs gespawnt – killen für XP!");
+    this.audio.buy?.();
+    this.world.addShake(0.15);
+  }
+
   // RÄTSELRAUM: Debug-Challenge – fliehende Bug-Ziele spawnen, die man für
   // Bonus-Coins abschießt. Cooldown verhindert Dauer-Farmen. Macht den Raum nützlich.
   _startChallenge() {
@@ -646,7 +669,8 @@ export class Game {
       else if (pad && !this.shopOpen) this._buyWeapon(pad);
       else if (door && !this.shopOpen) this._buyRoom(door);
       else if (!this.shopOpen && this._stationNear("vault")) this._useVault();
-      else if (!this.shopOpen && this._stationNear("puzzle")) this._startChallenge();
+      else if (!this.shopOpen && this._stationNear("powerups")) this._usePowerupShop();
+      else if (!this.shopOpen && this._stationNear("spawner")) this._useSpawner();
       else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
       else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
     }
@@ -830,8 +854,9 @@ export class Game {
       const d = this.world.building.lockedDoorNear(this.player.pos.x, this.player.pos.z);
       this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
     }
-    else if (this._stationNear("vault")) this.hud.showPrompt(`[E] 🏦 Bank: ${this.coins} 🪙 einzahlen + Skins`);
-    else if (this._stationNear("puzzle")) this.hud.showPrompt(this._challengeActive ? "🐞 Debug-Challenge läuft!" : "[E] 🐞 Debug-Challenge starten (Bonus-Coins)");
+    else if (this._stationNear("vault")) this.hud.showPrompt(`[E] 🏦 Skin-Vault: ${this.coins} 🪙 einzahlen + Skins`);
+    else if (this._stationNear("powerups")) this.hud.showPrompt("[E] ⚡ Power-Up kaufen (40 🪙)");
+    else if (this._stationNear("spawner")) this.hud.showPrompt("[E] 🐛 Bug-Farm: Bugs spawnen für XP (30 🪙)");
     else if (this.stations.deployNear(this.player.pos)) {
       this.hud.showPrompt(this.defenseActive ? "🚀 Deploy läuft… Bugs abwehren!" : "[E] 🚀 DEPLOY – Bug-Welle starten (Coins)");
     }

@@ -45,7 +45,7 @@ export class Stations {
   }
 
   _buildShop() {
-    const x = 0, z = -50 * S; // im Shop-Raum (Norden), unter dem Build-Monitor
+    const x = -15, z = 15; // Arena-Ecke (Süd-West) – allgemeiner Vendor
     const counter = new THREE.Mesh(
       new THREE.BoxGeometry(5, 1.6, 2.2),
       new THREE.MeshStandardMaterial({ color: 0x6b3f1d, roughness: 0.7 })
