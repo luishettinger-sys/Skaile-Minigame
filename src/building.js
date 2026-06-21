@@ -363,6 +363,20 @@ export class Building {
   }
 }
 
+// Emoji-Sprite-Material (für Tür-Schloss-Icon).
+function makeDoorIcon(emoji) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  ctx.font = "96px serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(emoji, 64, 70);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+}
+
 // Komplement der gegebenen Lücken [from,to] im Intervall [a,b] → Liste von Segmenten.
 function complement(a, b, gaps) {
   const sorted = [...gaps].sort((p, q) => p[0] - q[0]);

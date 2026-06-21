@@ -82,13 +82,15 @@ export class Game {
     this.achievements = new Achievements();
     this.highscore = Number(localStorage.getItem(HISCORE_KEY)) || 0;
     this.meta = this._loadMeta();
+    // Dauerhaft gekaufte Räume öffnen (Basis waechst über Runs hinweg).
+    this.world.building?.applyUnlocked?.(this.meta.unlockedRooms);
     this._showMetaLine();
     this.state = STATE.MENU;
     this._resetRun();
   }
 
   _loadMeta() {
-    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false };
+    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false, unlockedRooms: [] };
     let m;
     try { m = JSON.parse(localStorage.getItem("duckdebug_meta")) || {}; }
     catch (e) { m = {}; }
@@ -103,6 +105,7 @@ export class Game {
     }
     m.sectorsCleared = Math.max(0, Math.min(CONFIG.campaign.sectors, m.sectorsCleared | 0));
     m.won = !!m.won;
+    if (!Array.isArray(m.unlockedRooms)) m.unlockedRooms = [];
     return m;
   }
 
@@ -550,8 +553,10 @@ export class Game {
     if (this.input.wasPressed("KeyE")) {
       const autoPad = this.automation.nearest(this.player.pos);
       const pad = this.armory.nearest(this.player.pos);
+      const door = this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z);
       if (autoPad && !this.shopOpen) this._buyAutomation(autoPad);
       else if (pad && !this.shopOpen) this._buyWeapon(pad);
+      else if (door && !this.shopOpen) this._buyRoom(door);
       else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
       else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
     }
@@ -715,6 +720,10 @@ export class Game {
       this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)` : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙`);
     }
     else if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] SHOP");
+    else if (this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z)) {
+      const d = this.world.building.lockedDoorNear(this.player.pos.x, this.player.pos.z);
+      this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
+    }
     else if (this.stations.deployNear(this.player.pos)) {
       this.hud.showPrompt(this.defenseActive ? "🚀 Deploy läuft… Bugs abwehren!" : "[E] 🚀 DEPLOY – Bug-Welle starten (Coins)");
     }
@@ -1331,6 +1340,29 @@ export class Game {
   // noch nicht geladen → wird nach dem Laden via main.js nachgeholt).
   _refreshHeldWeapon() {
     this.player.setWeaponModel(cloneWeaponModel(this.weaponId));
+  }
+
+  // Einen gesperrten Raum mit Coins freischalten (Geld-Sink: die Basis waechst).
+  // Bezahlt aus den Run-Coins (aus Deploys verdient); bleibt dauerhaft offen.
+  _buyRoom(door) {
+    if (!door || !door.locked) return;
+    if (this.coins < door.price) {
+      this.hud.toast("🪙", "Nicht genug Coins", `${door.label} kostet ${door.price} – starte einen Deploy`);
+      this.audio.error?.();
+      return;
+    }
+    if (!this.world.building.unlockDoor(door.name)) return;
+    this.coins -= door.price;
+    this.hud.setCoins(this.coins);
+    if (!this.meta.unlockedRooms.includes(door.name)) {
+      this.meta.unlockedRooms.push(door.name); // dauerhaft merken
+      this._saveMeta();
+    }
+    this.audio.buy?.();
+    this.hud.banner("RAUM FREIGESCHALTET", door.label);
+    this.effects.burst(door.cx, door.cz, CONFIG.colors.cyan, 26, 1.5);
+    this.world.addShake(0.25);
+    this.hud.flash("#6ee7ff", 0.3);
   }
 
   // ----------------------------------------------------------------- Boons --
