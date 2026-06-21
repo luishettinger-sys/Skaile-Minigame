@@ -134,13 +134,14 @@ function placeFireProps(url, targetHeight, fireY, positions, withLight, haloR) {
   });
 }
 
-// 4 Stein-Fackeln an den Arena-Ecken (alle mit Licht).
+// 4 Stein-Fackeln an den Arena-Ecken; nur 2 (diagonal) mit echtem Licht → Rest
+// glüht nur (Bloom-Halo). Spart GPU-Last bei voller Optik.
 placeFireProps("./assets/props/brazier.glb", 5.6, 5.2,
-  [[21, 21], [21, -21], [-21, 21], [-21, -21]], [true, true, true, true], 1.1);
+  [[21, 21], [21, -21], [-21, 21], [-21, -21]], [true, false, false, true], 1.1);
 
-// Kandelaber flankieren den Schrein (Nord) + Süd-Eingang; nur die Nord-Paare leuchten.
+// Kandelaber flankieren den Schrein (Nord) + Süd-Eingang; Halo-Glühen statt Licht.
 placeFireProps("./assets/props/candelabra.glb", 4.4, 4.0,
-  [[-3.6, -15], [3.6, -15], [-3.6, 18], [3.6, 18]], [true, true, false, false], 0.7);
+  [[-3.6, -15], [3.6, -15], [-3.6, 18], [3.6, 18]], [false, false, false, false], 0.7);
 
 // In Blender gebaute Waffenmodelle: an Armory-Podeste + getragene Waffe hängen.
 loadWeaponModels().then(() => {

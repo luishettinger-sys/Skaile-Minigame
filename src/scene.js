@@ -16,8 +16,8 @@ import { clamp } from "./utils.js";
 
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-  // Pixelratio bis 2 (Retina scharf statt unscharf); darüber gedeckelt für GPU.
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // Pixelratio 1.5 (Balance Schärfe/Performance); MSAA übernimmt die Kanten-Glättung.
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -179,7 +179,7 @@ export function createWorld(canvas) {
   const msaaRT = new THREE.WebGLRenderTarget(
     Math.floor(window.innerWidth * dpr),
     Math.floor(window.innerHeight * dpr),
-    { type: THREE.HalfFloatType, samples: 4 }
+    { type: THREE.HalfFloatType, samples: 2 }
   );
   const composer = new EffectComposer(renderer, msaaRT);
   composer.addPass(new RenderPass(scene, camera));
