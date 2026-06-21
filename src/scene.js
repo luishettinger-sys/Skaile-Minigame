@@ -80,6 +80,10 @@ export function createWorld(canvas) {
   // Motherboard-Wand, 3D-Drucker, Forschungs-Mainframe) statt leerer Räume.
   const decor = buildRoomDecor(scene, building.rooms);
 
+  // Fließende Daten: glühende Pakete wandern über die Leiterbahnen der Arena →
+  // lebendiges "Inneres-eines-PCs"-Gefühl (additive Sprites, achsen-parallel).
+  const dataFlow = buildDataFlow(scene, building.arenaHalf ?? CONFIG.arena.half);
+
   // --- Kamera-Rig (Follow + Screenshake) -------------------------------------
   const focus = new THREE.Vector3(0, 0, 0); // worauf die Kamera schaut
   let shake = 0;
@@ -182,10 +186,12 @@ export function createWorld(canvas) {
   // Sicht-Radius setzen (Fog of War, per Level-Up erweiterbar).
   api.setVision = (range) => { visionRange = Math.max(8, range); };
 
-  // Maschinen-Animation (blinkende Chips, fahrender Druckkopf, glühende Esse …).
-  api.updateDecor = (t) => {
+  // Maschinen-Animation (blinkende Chips, fahrender Druckkopf, glühende Esse …)
+  // + fließende Daten-Pakete über die Platine.
+  api.updateDecor = (t, dt) => {
     const a = decor?.userData?.animated;
     if (a) for (const it of a) it.fn(t);
+    dataFlow?.update(dt || 0.016);
   };
 
   // Stimmungs-Tint je Map-Tier – stark abgedunkelt, damit der Fog-of-War-Void
@@ -201,4 +207,62 @@ export function createWorld(canvas) {
   api.setArena = () => { api.arenaHalf = half; };
 
   return api;
+}
+
+// Fließende Daten-Pakete: glühende additive Sprites, die achsen-parallel über den
+// Arena-Boden wandern (wie Signale auf Leiterbahnen) und am Rand neu starten.
+function buildDataFlow(scene, half) {
+  const group = new THREE.Group();
+  scene.add(group);
+  const tex = makeGlowSprite();
+  const COLORS = [0x2bd4ff, 0x39ff9a, 0xff8c1a, 0xc792ea];
+  const packets = [];
+  const N = 46;
+  const lim = half - 1.5;
+  const mk = () => {
+    const axis = Math.random() < 0.5 ? "x" : "z";
+    const lane = Math.round((Math.random() * 2 - 1) * lim / 2) * 2; // gerasterte Spuren
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    const speed = 8 + Math.random() * 14;
+    const col = COLORS[(Math.random() * COLORS.length) | 0];
+    const mat = new THREE.SpriteMaterial({ map: tex, color: col, transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const spr = new THREE.Sprite(mat);
+    spr.scale.set(1.1, 1.1, 1);
+    spr.position.y = 0.12;
+    group.add(spr);
+    return { spr, axis, lane, dir, speed, pos: (Math.random() * 2 - 1) * lim };
+  };
+  for (let i = 0; i < N; i++) packets.push(mk());
+  return {
+    update(dt) {
+      for (const p of packets) {
+        p.pos += p.dir * p.speed * dt;
+        if (p.pos > lim || p.pos < -lim) {
+          // neu einsetzen mit frischer Spur/Farbe.
+          p.pos = -p.dir * lim;
+          p.lane = Math.round((Math.random() * 2 - 1) * lim / 2) * 2;
+          p.axis = Math.random() < 0.5 ? "x" : "z";
+        }
+        if (p.axis === "x") { p.spr.position.x = p.pos; p.spr.position.z = p.lane; }
+        else { p.spr.position.x = p.lane; p.spr.position.z = p.pos; }
+        // am Rand ein-/ausblenden (kein hartes Ploppen).
+        const edge = 1 - Math.abs(p.pos) / lim;
+        p.spr.material.opacity = Math.min(0.85, edge * 1.6);
+      }
+    },
+  };
+}
+
+// Kleine radiale Glow-Textur für additive Sprites.
+function makeGlowSprite() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const ctx = c.getContext("2d");
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.4, "rgba(255,255,255,0.6)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  return tex;
 }

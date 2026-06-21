@@ -939,6 +939,34 @@ export class Game {
     this._showMetaLine();
   }
 
+  // Ergebnis als teilbaren Text in die Zwischenablage kopieren (Community-Hook).
+  shareResult() {
+    const score = Math.floor(this.score);
+    const sector = Math.min(CONFIG.campaign.sectors, this.meta.sectorsCleared + (this.won ? 0 : 1));
+    const kills = this.runStats?.kills || 0;
+    const wave = this.waves?.wave || 1;
+    const url = (typeof location !== "undefined" && location.origin + location.pathname) || "";
+    const text =
+      `🦆 SKAILE Building Challenge\n` +
+      `${this.won ? "🏆 MAINBOARD BEFREIT! " : ""}Score ${score.toLocaleString("de-DE")} · Welle ${wave} · Sektor ${sector}/${CONFIG.campaign.sectors} · ${kills} Bugs gedebuggt\n` +
+      `Schaffst du mehr? ${url}`.trim();
+    const done = () => this.hud.toast?.("📋", "Kopiert!", "Ergebnis ist in der Zwischenablage – einfügen & teilen");
+    try {
+      if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done, () => this._shareFallback(text));
+      else this._shareFallback(text);
+    } catch (e) { this._shareFallback(text); }
+  }
+
+  _shareFallback(text) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy");
+      document.body.removeChild(ta);
+      this.hud.toast?.("📋", "Kopiert!", "Ergebnis ist in der Zwischenablage");
+    } catch (e) { this.hud.toast?.("📋", "Teilen", text); }
+  }
+
   gameOver() {
     this.state = STATE.OVER;
     this.audio.gameOver();

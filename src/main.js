@@ -29,6 +29,8 @@ function beginGame() {
 
 hud.el.startBtn.addEventListener("click", beginGame);
 hud.el.restartBtn.addEventListener("click", beginGame);
+document.getElementById("share-btn")?.addEventListener("click", () => game.shareResult());
+document.getElementById("victory-share")?.addEventListener("click", () => game.shareResult());
 hud.el.resumeBtn.addEventListener("click", () => game.resume());
 hud.el.invClose.addEventListener("click", () => game.toggleInventory());
 hud.el.invSort.addEventListener("click", () => game.sortInventory());
@@ -159,7 +161,7 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 0.05); // Spikes kappen
   game.update(dt);
   _decorT += dt;
-  world.updateDecor?.(_decorT); // Maschinen-Animation (immer, auch im Menü)
+  world.updateDecor?.(_decorT, dt); // Maschinen + Daten-Flow (immer, auch im Menü)
   world.render();
   input.endFrame();
   requestAnimationFrame(frame);
