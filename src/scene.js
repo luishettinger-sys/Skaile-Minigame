@@ -99,15 +99,13 @@ export function createWorld(canvas) {
   let shake = 0;
   let camT = 0;
 
-  // Dynamische Kamera-Perspektive: aktueller Versatz blendet zum Ziel-Versatz.
-  const baseOffset = { ...CONFIG.camera.offset };
-  const curOffset = { ...baseOffset };
-  let targetOffset = { ...baseOffset };
-
-  // Zoom (Tasten N/M): skaliert den Kamera-Abstand. <1 = näher an der Ente,
-  // >1 = mehr von der Map sichtbar.
-  let zoom = 1, targetZoom = 1;
-  const ZOOM_MIN = 0.45, ZOOM_MAX = 5.5; // großes Gebäude: weit rauszoombar
+  // Zwei Kamera-Modi (Taste Q wechselt):
+  //   0 = Vogelperspektive (steil von oben, großer Überblick)
+  //   1 = Drohne (3rd-Person hinter der Ente, action-reicher)
+  let camMode = 0;
+  const BIRDS = { y: 30, z: 11 };                  // hoch & steil
+  const DRONE = { dist: 13, y: 7.5, lookAhead: 6 }; // hinter der Ente
+  let camHeading = 0; // geglättete Blickrichtung (Drohne)
 
   // Vorausschau (Flow): Kamera blickt leicht in Bewegungsrichtung.
   const lastTarget = new THREE.Vector3();
@@ -115,64 +113,69 @@ export function createWorld(canvas) {
   const baseFov = CONFIG.camera.fov;
   let curFov = baseFov;
 
-  function updateCamera(targetPos, dt) {
+  // Winkel weich nachziehen (mit Wrap-around).
+  function angleDamp(cur, target, lambda, dt) {
+    let d = ((target - cur + Math.PI) % (Math.PI * 2)) - Math.PI;
+    if (d < -Math.PI) d += Math.PI * 2;
+    return cur + d * (1 - Math.exp(-lambda * dt));
+  }
+
+  function updateCamera(targetPos, dt, heading = 0) {
     camT += dt;
 
-    // Bewegungs-Vorausschau aus der Spielerbewegung schätzen.
-    if (!initialized) { lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z); initialized = true; }
+    if (!initialized) { lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z); initialized = true; camHeading = heading; }
     const vx = (targetPos.x - lastTarget.x) / Math.max(dt, 1e-3);
     const vz = (targetPos.z - lastTarget.z) / Math.max(dt, 1e-3);
     lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z);
     const speed = Math.hypot(vx, vz);
-    leadX = damp(leadX, vx * 0.5, 5, dt); // weiter & schneller vorausblicken → Flow
-    leadZ = damp(leadZ, vz * 0.5, 5, dt);
+    leadX = damp(leadX, vx * 0.4, 5, dt);
+    leadZ = damp(leadZ, vz * 0.4, 5, dt);
 
     focus.x = damp(focus.x, targetPos.x + leadX, CONFIG.camera.followLerp, dt);
     focus.z = damp(focus.z, targetPos.z + leadZ, CONFIG.camera.followLerp, dt);
     focus.y = damp(focus.y, targetPos.y || 0, CONFIG.camera.followLerp, dt);
 
-    // Perspektive sanft überblenden.
-    curOffset.x = damp(curOffset.x, targetOffset.x, 2.6, dt);
-    curOffset.y = damp(curOffset.y, targetOffset.y, 2.6, dt);
-    curOffset.z = damp(curOffset.z, targetOffset.z, 2.6, dt);
-    zoom = damp(zoom, targetZoom, 6, dt);
+    const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
+    let lookX = focus.x, lookY = focus.y, lookZ = focus.z, camDist;
 
-    // Höhenabhängiger Abstand: in oberen Etagen etwas weiter weg → Ebene sichtbar.
-    const heightZoom = 1 + Math.max(0, focus.y) * 0.05;
-    const eff = zoom * heightZoom;
+    if (camMode === 1) {
+      // Drohne: hinter der Ente (Heading geglättet), leicht über die Schulter.
+      camHeading = angleDamp(camHeading, heading, 5, dt);
+      const fx = Math.sin(camHeading), fz = Math.cos(camHeading);
+      camera.position.set(
+        focus.x - fx * DRONE.dist,
+        focus.y + DRONE.y + hover,
+        focus.z - fz * DRONE.dist
+      );
+      lookX = focus.x + fx * DRONE.lookAhead;
+      lookZ = focus.z + fz * DRONE.lookAhead;
+      lookY = focus.y + 1.4;
+      camDist = Math.hypot(DRONE.dist, DRONE.y);
+    } else {
+      // Vogelperspektive: steil von oben.
+      camera.position.set(focus.x, focus.y + BIRDS.y + hover, focus.z + BIRDS.z);
+      camDist = Math.hypot(BIRDS.y, BIRDS.z);
+    }
 
     // Dezentes Speed-FOV für mehr Tempo-Gefühl (Flow).
     curFov = damp(curFov, baseFov + Math.min(11, speed * 0.6), 4, dt);
-    if (Math.abs(camera.fov - curFov) > 0.01) {
-      camera.fov = curFov;
-      camera.updateProjectionMatrix();
-    }
+    if (Math.abs(camera.fov - curFov) > 0.01) { camera.fov = curFov; camera.updateProjectionMatrix(); }
 
-    const o = curOffset;
-    const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
-    camera.position.set(
-      focus.x + o.x * eff,
-      (o.y * eff) + focus.y + hover,
-      focus.z + o.z * eff
-    );
-
-    // Fog of War: Nebel-Band relativ zur aktuellen Kamera-Distanz → Sicht-Radius
-    // bleibt konstant, egal wie stark gezoomt wird; deckt beim Bewegen auf.
-    const camDist = Math.hypot(o.x * eff, o.y * eff + hover, o.z * eff);
-    // Nahbereich (Ente + Umkreis) bleibt klar; dahinter ramp ins Schwarze.
+    // Fog of War relativ zur Kamera-Distanz.
     scene.fog.near = camDist + visionRange * 0.12;
-    scene.fog.far = camDist + visionRange * 0.75;
-
+    scene.fog.far = camDist + visionRange * 0.85;
 
     if (shake > 0.0001) {
       shake = Math.max(0, shake - dt * 1.6);
-      const s = shake * shake; // quadratisch → spürbarer Punch, schnelles Abklingen
+      const s = shake * shake;
       camera.position.x += (Math.random() - 0.5) * s * 6;
       camera.position.y += (Math.random() - 0.5) * s * 4;
       camera.position.z += (Math.random() - 0.5) * s * 6;
     }
-    camera.lookAt(focus.x, focus.y, focus.z);
+    camera.lookAt(lookX, lookY, lookZ);
   }
+
+  function toggleCam() { camMode = camMode === 0 ? 1 : 0; return camMode; }
 
   function addShake(amount) {
     shake = Math.min(1, shake + amount);
@@ -196,20 +199,13 @@ export function createWorld(canvas) {
     building,
   };
 
-  // Zoom-Steuerung (N = näher → negativer Delta, M = weiter → positiver Delta).
-  // delta wird direkt aufaddiert; der Aufrufer skaliert mit dt für sanften Flow.
-  api.zoom = (delta) => { targetZoom = clamp(targetZoom + delta, ZOOM_MIN, ZOOM_MAX); };
-  api.resetZoom = () => { targetZoom = 1; };
-
-  // Kamera-Perspektive setzen / zurücksetzen (sanfte Überblendung).
-  api.setCamera = (off) => {
-    targetOffset = {
-      x: off.x ?? baseOffset.x,
-      y: off.y ?? baseOffset.y,
-      z: off.z ?? baseOffset.z,
-    };
-  };
-  api.resetCamera = () => { targetOffset = { ...baseOffset }; };
+  // Kamera-Modus wechseln (Taste Q): Vogel ↔ Drohne.
+  api.toggleCam = () => toggleCam();
+  // Zoom/feste Perspektiven gibt es nicht mehr (No-ops für Altaufrufe).
+  api.zoom = () => {};
+  api.resetZoom = () => {};
+  api.setCamera = () => {};
+  api.resetCamera = () => {};
   api.setBackdrop = (url) => setBackdropTexture(backdrop, url);
   api.render = () => {
     renderer.render(scene, camera); // direkt, ohne Post-Processing → flüssig

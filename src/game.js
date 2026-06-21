@@ -364,6 +364,7 @@ export class Game {
     this.waves.reset();
     this.defenseActive = false; // Wellen sind opt-in: erst per Deploy-Terminal starten
     this._challengeActive = false; this._challengeCD = 0; this._challengeTimer = 0;
+    this._aimHold = 0; // Rest-Zeit, in der die Ente zum Gegner blickt (nach Schuss)
     this.automation.reset();
     this.audio.init();
     this.audio.resume();
@@ -652,9 +653,11 @@ export class Game {
     if (this.input.wasPressed("KeyG")) this.cycleGadget();
     if (this.input.wasPressed("KeyB")) this.audio.toggleMute(); // Mute (war M)
 
-    // Kamera-Zoom: N = näher ran (mehr Ente/Detail), M = weiter raus (mehr Map).
-    if (this.input.isDown("KeyN")) this.world.zoom(-dt * 0.9);
-    if (this.input.isDown("KeyM")) this.world.zoom(dt * 0.9);
+    // Kamera-Perspektive wechseln: Q schaltet zwischen Vogel- und Drohnen-Ansicht.
+    if (this.input.wasPressed("KeyQ")) {
+      const mode = this.world.toggleCam();
+      this.hud.toast("🎥", "Perspektive", mode === 1 ? "Drohne (hinter der Ente)" : "Vogelperspektive");
+    }
 
     if (this.bossIntro) { this._updateIntro(dt); return; }
     // Anstehenden Boon anbieten, sobald keine andere Auswahl offen ist.
@@ -671,9 +674,9 @@ export class Game {
       dt *= 0.06;
     }
 
-    this._autoAim(dt);
     this._autoCamera(dt);
     const move = this.input.moveVector();
+    this._updateFacing(dt, move);
     if (move.x !== 0 || move.z !== 0) this.guide.event("move");
     // Näherungs-Ereignisse für den Guide (Terminal / verschlossene Tür).
     if (this.stations.deployNear(this.player.pos)) this.guide.event("nearDeploy");
@@ -700,7 +703,7 @@ export class Game {
       this.hud.setHp(this.player.hp, this.player.maxHp);
     }
 
-    if (this.input.wasPressed("KeyQ") && this.ultReady && !this.ultActive) {
+    if (this.input.wasPressed("KeyR") && this.ultReady && !this.ultActive) {
       this._activateUltimate();
     }
     this._updateBuffs(dt);
@@ -859,7 +862,7 @@ export class Game {
       shop: this.stations.shop,
     });
 
-    this.world.updateCamera(this.player.pos, dt);
+    this.world.updateCamera(this.player.pos, dt, this.player.facing);
   }
 
   // Kamera bleibt im CotL-Stil ruhig „gelockt" auf der Basis-Perspektive.
@@ -873,14 +876,29 @@ export class Game {
   }
 
   // Auto-Ausrichten: Ente schwenkt sanft auf den nächsten Gegner.
-  _autoAim(dt) {
+  // Blickrichtung: standardmäßig in Laufrichtung. Beim Schießen dreht sich die
+  // Ente kurz zum nächsten Gegner (damit Schüsse treffen), danach zurück zur
+  // Laufrichtung – kein „läuft geradeaus, guckt aber zur Seite".
+  _updateFacing(dt, move) {
     const target = this._nearestEnemy(CONFIG.energy.aimRange);
     this.aimTarget = target;
-    if (!target) return;
-    const dx = target.mesh.position.x - this.player.pos.x;
-    const dz = target.mesh.position.z - this.player.pos.z;
-    const want = Math.atan2(dx, dz);
-    this.player.facing = angleLerp(this.player.facing, want, CONFIG.energy.aimTurn, dt);
+    const moving = move.x !== 0 || move.z !== 0;
+    const firing = this.input.mouseDown || this.input.isDown("Space") ||
+      this.input.isDown("Enter") || this.input.isDown("NumpadEnter");
+
+    // Während (und kurz nach) dem Feuern auf den Gegner ausrichten.
+    if (firing && target) this._aimHold = 0.35;
+    else if (this._aimHold > 0) this._aimHold = Math.max(0, this._aimHold - dt);
+
+    let want = this.player.facing;
+    if (this._aimHold > 0 && target) {
+      want = Math.atan2(target.mesh.position.x - this.player.pos.x,
+        target.mesh.position.z - this.player.pos.z);
+    } else if (moving) {
+      want = Math.atan2(move.x, move.z); // in Laufrichtung schauen
+    }
+    const turn = this._aimHold > 0 ? CONFIG.energy.aimTurn : 12;
+    this.player.facing = angleLerp(this.player.facing, want, turn, dt);
   }
 
   _nearestEnemy(range) {
@@ -943,16 +961,22 @@ export class Game {
       explodeR: w.explodeR, explodeDmg: w.explodeDmg,
       splitN: w.splitN, chainN: w.chainN, chainRange: w.chainRange,
     };
+    // Auf den Zielgegner feuern (präzise), unabhängig davon, wie weit der Body
+    // gerade gedreht ist; ohne Ziel in Blickrichtung.
+    const baseAng = this.aimTarget
+      ? Math.atan2(this.aimTarget.mesh.position.x - this.player.pos.x,
+          this.aimTarget.mesh.position.z - this.player.pos.z)
+      : this.player.facing;
     for (let i = 0; i < n; i++) {
       const off = n === 1 ? 0 : (i - (n - 1) / 2) * spread;
-      const ang = this.player.facing + off;
+      const ang = baseAng + off;
       const dir = new THREE.Vector3(Math.sin(ang), 0, Math.cos(ang));
       const origin = {
         x: this.player.pos.x + dir.x * fwd,
         z: this.player.pos.z + dir.z * fwd,
       };
       // Orbit-Waffen: Geschosse gleichmäßig auf den Kreis verteilen.
-      if (w.behavior === "orbit") opts.orbitAng = (i / n) * Math.PI * 2 + this.player.facing;
+      if (w.behavior === "orbit") opts.orbitAng = (i / n) * Math.PI * 2 + baseAng;
       this.projectiles.spawn(origin, dir, opts);
     }
     this.audio.weapon(this.weapon.sound);
