@@ -39,6 +39,11 @@ export class EnemySystem {
     this.hazards.push({ x, z, r: 1.5, ttl: 4, mesh });
   }
 
+  // Öffentliches Spawn einer Gift-Pfütze (Boss-Gimmick: Rand-Ring in Phase 3).
+  spawnHazard(x, z) {
+    if (this.hazards.length < 40) this._spawnPuddle(x, z);
+  }
+
   // Steht der Spieler in einer Gift-Pfütze? (für Schaden in game.js)
   hazardAt(x, z) {
     for (const h of this.hazards) if (Math.hypot(x - h.x, z - h.z) < h.r) return true;
@@ -148,7 +153,9 @@ export class EnemySystem {
       if (e.def.ranged && attack && e.visible) {
         e.atkT -= dt;
         if (e.atkT <= 0 && len < (e.def.shootRange ?? 30)) {
-          e.atkT = e.def.shootInterval ?? 2.2;
+          // Bosse feuern in höheren Phasen schneller (Enrage).
+          const phaseRush = e.def.isBoss ? 1 + ((e.phaseLevel || 1) - 1) * 0.4 : 1;
+          e.atkT = (e.def.shootInterval ?? 2.2) / phaseRush;
           e.flash = 1; // Mündungsblitz
           if (e.def.isBoss) this._bossAttack(e, p, nx, nz, attack);
           else attack.shoot(p.x, p.z, nx, nz, { color: e.def.glow, speed: 22, damage: 8 });
@@ -270,25 +277,33 @@ export class EnemySystem {
   // Boss-Angriffsmuster (je Boss eigenes), dichter/schneller mit der Welle.
   _bossAttack(e, p, nx, nz, attack) {
     const diff = (e.bossWave || 5) / 5; // 1 (Welle 5) .. 5 (Welle 25)
+    const ph = e.phaseLevel || 1;       // 1..3 (Enrage); mehr/dichtere Bullets
+    const pb = ph - 1;                  // Phasen-Bonus 0..2
     const base = Math.atan2(nx, nz);
     const g = e.def.glow;
     const shoot = (a, opt = {}) =>
       attack.shoot(p.x, p.z, Math.sin(a), Math.cos(a), { color: g, speed: 24, damage: 10, size: 1.3, ...opt });
     let A = e.def.attack || "fan";
     if (A === "combo") { e._flip = !e._flip; A = e._flip ? "fan" : "radial"; } // Finale wechselt
+    // Ab Phase 3 hängt jeder Boss einen rotierenden Ring an (Bullet-Hell-Feeling).
+    if (ph >= 3) {
+      const n = 12;
+      const off = e._t * 1.2;
+      for (let k = 0; k < n; k++) shoot(off + (k / n) * Math.PI * 2, { speed: 16, size: 0.9 });
+    }
 
     if (A === "fan") {
-      const n = 1 + Math.ceil(diff);          // 2..6 → Bögen je Seite
+      const n = 1 + Math.ceil(diff) + pb;     // breiter in höheren Phasen
       for (let k = -n; k <= n; k++) shoot(base + k * 0.18, { speed: 24 + diff * 2 });
     } else if (A === "aimed") {
-      const n = 2 + Math.floor(diff / 1.5);   // 2..5 schnelle gezielte Schüsse
+      const n = 2 + Math.floor(diff / 1.5) + pb;
       for (let k = 0; k < n; k++) shoot(base + (Math.random() - 0.5) * 0.12, { speed: 30 + diff * 3, size: 1.1 });
     } else if (A === "radial") {
-      const n = 8 + Math.round(diff * 3);     // 11..23 Bullets als Ring
+      const n = 8 + Math.round(diff * 3) + pb * 4; // dichterer Ring
       const off = e._t * 0.6;                 // dreht sich
       for (let k = 0; k < n; k++) shoot(off + (k / n) * Math.PI * 2, { speed: 18 + diff * 2 });
     } else if (A === "spiral") {
-      const arms = 2 + Math.floor(diff / 2);  // 2..4 rotierende Arme (Stream)
+      const arms = 2 + Math.floor(diff / 2) + pb; // mehr Arme
       const a0 = e._t * (3 + diff * 0.6);
       for (let k = 0; k < arms; k++) shoot(a0 + (k / arms) * Math.PI * 2, { speed: 28, size: 1.0 });
     }

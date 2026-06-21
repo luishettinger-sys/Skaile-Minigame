@@ -221,6 +221,46 @@ export class Game {
     return { scrap: base.scrap * lm, data: base.data * lm };
   }
 
+  // --- BOSS-PHASEN: Bosse eskalieren mit sinkender HP (epische Mehrphasen-Kämpfe).
+  // Phase 1 (>66%), Phase 2 (33–66%), Phase 3 (<33% = Enrage). Beim Phasenwechsel
+  // dramatisches Feedback + ein Arena-Gimmick (Adds, Bullet-Nova, Gift-Ring).
+  _checkBossPhase(frac) {
+    const want = frac <= 0.33 ? 3 : frac <= 0.66 ? 2 : 1;
+    if (want <= (this._bossPhase || 1)) return;
+    this._bossPhase = want;
+    const b = this.boss;
+    if (b) b.phaseLevel = want; // enemies.js liest das für schnellere/dichtere Angriffe
+    this.audio.bossAppear?.();
+    this.world.addShake(0.8);
+    this._freeze(0.12);
+    this.hud.flash("#ff2a3a", 0.5);
+    this.hud.banner(want === 3 ? "💢 ENRAGE – PHASE 3" : "⚠️ PHASE " + want, b?.def.label || "BOSS");
+    this._bossGimmick(want);
+  }
+
+  // Arena-Gimmick beim Phasenwechsel: macht jeden Boss-Kampf wuchtig & eigen.
+  _bossGimmick(phase) {
+    const b = this.boss; if (!b) return;
+    const bx = b.mesh.position.x, bz = b.mesh.position.z;
+    const half = this.world.arenaHalf;
+    // Telegrafierte Schockwelle vom Boss (Ring, gut sichtbar).
+    this.effects.shockwave(bx, bz, b.def.glow || 0xff3b52, 18, 24);
+    // Phase 2: ein paar Adds beschwören. Phase 3: Gift-Ring am Arena-Rand.
+    if (phase === 2) {
+      for (let k = 0; k < 4; k++) {
+        const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 8;
+        this.enemies.spawn("syntax", bx + Math.cos(a) * r, bz + Math.sin(a) * r);
+      }
+      this.hud.toast?.("👾", "Adds!", "Der Boss ruft Verstärkung");
+    } else if (phase === 3) {
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2;
+        this.enemies.spawnHazard?.(Math.cos(a) * (half - 2), Math.sin(a) * (half - 2));
+      }
+      this.hud.toast?.("☢️", "Der Rand brennt!", "Bleib in der Mitte");
+    }
+  }
+
   // --- ROGUELITE: Sektor-Anomalien -----------------------------------------
   // Beim Betreten eines neuen Sektors greift ein zufälliger Modifikator, der den
   // Run verändert (Loot/Schaden/Hitze/HP). Jeder Durchlauf fühlt sich anders an.
@@ -1247,7 +1287,9 @@ export class Game {
     this.hud.setVignette(hpRatio < 0.35 ? (0.35 - hpRatio) / 0.35 : 0);
 
     if (this.boss && this.boss.alive) {
-      this.hud.setBoss(this.boss.hp / this.boss.maxHp, this.boss.def.label);
+      const frac = this.boss.hp / this.boss.maxHp;
+      this.hud.setBoss(frac, this.boss.def.label);
+      this._checkBossPhase(frac);
     }
 
     // Minimap + verbleibende Gegner.
@@ -2192,6 +2234,7 @@ export class Game {
       const half = this.world.arenaHalf;
       this.boss = this.enemies.spawn(I.key, 0, -(half - 3));
       this.boss.bossWave = I.n; // für die wellenabhängige Angriffs-Skalierung
+      this._bossPhase = 1; // Phasen-System: eskaliert mit sinkender Boss-HP
       this.audio.bossAppear();
       this.world.addShake(1.0);
       this._freeze(0.1);
