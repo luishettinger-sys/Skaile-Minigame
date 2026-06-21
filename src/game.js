@@ -363,6 +363,7 @@ export class Game {
     this.carrying = null;
     this.waves.reset();
     this.defenseActive = false; // Wellen sind opt-in: erst per Deploy-Terminal starten
+    this._challengeActive = false; this._challengeCD = 0; this._challengeTimer = 0;
     this.automation.reset();
     this.audio.init();
     this.audio.resume();
@@ -508,6 +509,56 @@ export class Game {
   }
 
   // Run-Coins + Statistik EINMAL in die persistente Bank buchen.
+  // Spieler nahe der Funktions-Station eines Raums (= Raummitte)?
+  _stationNear(name, r = 5) {
+    const room = this.world.building?.rooms?.[name];
+    if (!room) return false;
+    const cx = (room.minX + room.maxX) / 2, cz = (room.minZ + room.maxZ) / 2;
+    return Math.hypot(this.player.pos.x - cx, this.player.pos.z - cz) <= r;
+  }
+
+  // VAULT: Run-Coins sicher in die Bank einzahlen (= Meta-Währung für dauerhafte
+  // Upgrades) und Enten-Skins freischalten. Macht den Vault-Raum nützlich.
+  _useVault() {
+    const amt = this.coins;
+    if (amt > 0) {
+      this.meta.coins += amt;
+      this.coins = 0;
+      this.hud.setCoins(0);
+      this._saveMeta();
+      this._showMetaLine();
+      this.audio.buy?.();
+      this.world.addShake(0.12);
+      this.hud.toast("🏦", "Eingezahlt", `+${amt} 🪙 sicher in der Bank`);
+    }
+    this.openSkins("bank"); // mit Bank-Coins Skins kaufen/anlegen
+  }
+
+  // RÄTSELRAUM: Debug-Challenge – fliehende Bug-Ziele spawnen, die man für
+  // Bonus-Coins abschießt. Cooldown verhindert Dauer-Farmen. Macht den Raum nützlich.
+  _startChallenge() {
+    if (this._challengeActive) return;
+    if ((this._challengeCD || 0) > 0) {
+      this.hud.toast("⏳", "Challenge", `Bereit in ${Math.ceil(this._challengeCD)}s`);
+      return;
+    }
+    const R = this.world.building?.rooms?.puzzle;
+    if (!R) return;
+    this._challengeActive = true;
+    this._challengeTimer = 16;
+    this._challengeCD = 50;
+    const pad = 7;
+    for (let i = 0; i < 6; i++) {
+      const x = R.minX + pad + Math.random() * (R.maxX - R.minX - 2 * pad);
+      const z = R.minZ + pad + Math.random() * (R.maxZ - R.minZ - 2 * pad);
+      const e = this.enemies.spawn("bonus", x, z);
+      if (e) e.ttl = 20; // länger als der Timer → bleiben bis abgeschossen/Ende
+    }
+    this.hud.banner("🐞 DEBUG-CHALLENGE", "Schieß alle Bugs! 16 Sek · je 60 🪙");
+    this.hud.flash("#39ff9a", 0.3);
+    this.audio.buy?.();
+  }
+
   _bankRun() {
     if (this._banked) return;
     this._banked = true;
@@ -592,6 +643,8 @@ export class Game {
       if (autoPad && !this.shopOpen) this._buyAutomation(autoPad);
       else if (pad && !this.shopOpen) this._buyWeapon(pad);
       else if (door && !this.shopOpen) this._buyRoom(door);
+      else if (!this.shopOpen && this._stationNear("vault")) this._useVault();
+      else if (!this.shopOpen && this._stationNear("puzzle")) this._startChallenge();
       else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
       else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
     }
@@ -671,6 +724,16 @@ export class Game {
 
     // Riesen-Magnet nach Level-Up läuft ab.
     if (this.magnetBoost > 0) this.magnetBoost = Math.max(0, this.magnetBoost - dt);
+
+    // Debug-Challenge (Rätselraum): Timer + Cooldown.
+    if (this._challengeCD > 0) this._challengeCD = Math.max(0, this._challengeCD - dt);
+    if (this._challengeActive) {
+      this._challengeTimer -= dt;
+      if (this._challengeTimer <= 0) {
+        this._challengeActive = false;
+        this.hud.banner("CHALLENGE VORBEI", "Gut gedebuggt! 🐞");
+      }
+    }
 
     // Gelegentlicher Rubber-Duck-Tipp.
     this.tipT -= dt;
@@ -763,6 +826,8 @@ export class Game {
       const d = this.world.building.lockedDoorNear(this.player.pos.x, this.player.pos.z);
       this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
     }
+    else if (this._stationNear("vault")) this.hud.showPrompt(`[E] 🏦 Bank: ${this.coins} 🪙 einzahlen + Skins`);
+    else if (this._stationNear("puzzle")) this.hud.showPrompt(this._challengeActive ? "🐞 Debug-Challenge läuft!" : "[E] 🐞 Debug-Challenge starten (Bonus-Coins)");
     else if (this.stations.deployNear(this.player.pos)) {
       this.hud.showPrompt(this.defenseActive ? "🚀 Deploy läuft… Bugs abwehren!" : "[E] 🚀 DEPLOY – Bug-Welle starten (Coins)");
     }
