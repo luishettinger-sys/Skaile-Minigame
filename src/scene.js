@@ -76,9 +76,9 @@ export function createWorld(canvas) {
   // Das begehbare Gebäude: Böden, Wände, Räume.
   const building = new Building(scene);
 
-  // PC-Inneres: Platinen-Deko (RAM-Riegel, Kondensatoren, Chip-Mittelpunkt) statt
-  // Büro-Möbel.
-  buildRoomDecor(scene, building.rooms);
+  // PC-Inneres: große Themen-Maschinen je Funktionsraum (Schmiede-Esse,
+  // Motherboard-Wand, 3D-Drucker, Forschungs-Mainframe) statt leerer Räume.
+  const decor = buildRoomDecor(scene, building.rooms);
 
   // --- Kamera-Rig (Follow + Screenshake) -------------------------------------
   const focus = new THREE.Vector3(0, 0, 0); // worauf die Kamera schaut
@@ -181,6 +181,12 @@ export function createWorld(canvas) {
   };
   // Sicht-Radius setzen (Fog of War, per Level-Up erweiterbar).
   api.setVision = (range) => { visionRange = Math.max(8, range); };
+
+  // Maschinen-Animation (blinkende Chips, fahrender Druckkopf, glühende Esse …).
+  api.updateDecor = (t) => {
+    const a = decor?.userData?.animated;
+    if (a) for (const it of a) it.fn(t);
+  };
 
   // Stimmungs-Tint je Map-Tier – stark abgedunkelt, damit der Fog-of-War-Void
   // schwarz bleibt (nur ein Hauch Sektor-Farbe im Nebel).

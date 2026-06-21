@@ -11,17 +11,27 @@ function shade(o) { o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.r
 // rooms = building.rooms (name -> {minX,maxX,minZ,maxZ,y})
 export function buildRoomDecor(scene, rooms) {
   const group = new THREE.Group();
+  const animated = []; // { mesh, fn(t) } für subtile Maschinen-Animation
   if (rooms) {
-    if (rooms.lounge) lounge(group, rooms.lounge);
-    if (rooms.lab) lab(group, rooms.lab);
-    if (rooms.puzzle) puzzle(group, rooms.puzzle);
-    if (rooms.server) server(group, rooms.server);
-    if (rooms.vault) vault(group, rooms.vault);
-    if (rooms.armory) armoryDecor(group, rooms.armory);
+    // Jeder Funktionsraum bekommt eine GROSSE Themen-Maschine als Kulisse
+    // (steht hinten am Raum, lässt die Raummitte zum Interagieren frei).
+    if (rooms.spawner)  chipMachine(group, rooms.spawner, animated);   // Nord: Chip-Sockel
+    if (rooms.powerups) fabMachine(group, rooms.powerups, animated);   // West: Fabrikator
+    if (rooms.vault)    researchMachine(group, rooms.vault, animated); // Süd: Forschung
+    if (rooms.armory)   forgeMachine(group, rooms.armory, animated);   // Ost: Schmiede
   }
   shade(group);
   scene.add(group);
+  group.userData.animated = animated;
   return group;
+}
+
+// Wand-/Rückseiten-Bezug eines Raums: Punkt nahe der vom Arena abgewandten Wand.
+function backOf(r, inset = 4) {
+  // Welche Wand ist "hinten" (am weitesten von der Arena/Mitte 0,0)?
+  const ax = Math.abs(cx(r)) > Math.abs(cz(r)); // Raum liegt eher in x- oder z-Richtung?
+  if (ax) return { x: cx(r) > 0 ? r.maxX - inset : r.minX + inset, z: cz(r), faceX: cx(r) > 0 ? -1 : 1, faceZ: 0 };
+  return { x: cx(r), z: cz(r) > 0 ? r.maxZ - inset : r.minZ + inset, faceX: 0, faceZ: cz(r) > 0 ? -1 : 1 };
 }
 
 // Hilfen: Zentrum + Wandpositionen eines Raums.
@@ -233,22 +243,104 @@ function chest(x, y, z) {
   return g;
 }
 
-// === ARMORY: Banner + Amboss (hat schon Waffen-Podeste) =====================
-function armoryDecor(group, r) {
-  const g = new THREE.Group();
-  const y = r.y;
-  // Amboss.
-  const base = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.0, 0.9), M(0x1a1a20, { metalness: 0.6 }));
-  base.position.set(0, y + 0.5, 8);
-  const top = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.5, 1.0), M(0x26262e, { metalness: 0.7 }));
-  top.position.set(0.3, y + 1.2, 8);
-  g.add(base, top);
-  // Zwei Waffen-Wandständer (Kreuz aus Stangen) an der Rückwand.
-  for (const sx of [-9, 9]) {
-    const rackBack = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4, 0.3), M(0x2a1218));
-    rackBack.position.set(sx, y + 2, -12);
-    g.add(rackBack);
-  }
-  g.position.set(cx(r), 0, cz(r));
+// Emissive Standard-Material (leuchtet wie "eingeschaltet").
+const E = (color, intensity = 0.9, o = {}) =>
+  new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: intensity, roughness: 0.5, metalness: 0.3, ...o });
+
+// Maschine ans Raum-Hinterende setzen + zur Mitte ausrichten.
+function placeMachine(group, g, r, inset) {
+  const b = backOf(r, inset);
+  g.position.set(b.x, 0, b.z);
+  g.rotation.y = b.faceX !== 0 ? (b.faceX > 0 ? Math.PI / 2 : -Math.PI / 2) : (b.faceZ > 0 ? 0 : Math.PI);
   group.add(g);
+}
+
+// === NORD: Chip-Sockel – riesige Motherboard-Wand mit blinkenden Chips =======
+function chipMachine(group, r, animated) {
+  const g = new THREE.Group(); const y = r.y;
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(15, 8.5, 0.6), M(0x0e3a24, { metalness: 0.35, roughness: 0.7 }));
+  panel.position.set(0, y + 4.4, 0);
+  // großer zentraler CPU-Sockel mit glühendem Die.
+  const sock = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.4, 0.5), M(0x14141c, { metalness: 0.7 }));
+  sock.position.set(0, y + 4.4, 0.4);
+  const die = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 0.3), E(0x2bd4ff, 0.8));
+  die.position.set(0, y + 4.4, 0.65);
+  // RAM-Riegel-Reihe.
+  for (const sx of [-6.4, -5.4, 5.4, 6.4]) {
+    const ram = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 0.4), M(0x1c5a38, { metalness: 0.4 }));
+    ram.position.set(sx, y + 4.4, 0.3); g.add(ram);
+  }
+  g.add(panel, sock, die);
+  // blinkende SMD-Lichter im Raster.
+  const lights = []; const cols = [0xff5470, 0x80ed99, 0x6ee7ff, 0xffd23f, 0xc792ea];
+  for (let i = 0; i < 40; i++) {
+    const lx = -6.5 + (i % 10) * 1.45, ly = (Math.floor(i / 10)) * 1.4;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.2), glow(cols[i % cols.length]));
+    m.position.set(lx, y + 1.4 + ly, 0.5); g.add(m); lights.push(m);
+  }
+  placeMachine(group, g, r, 2.4);
+  animated.push({ fn: (t) => { for (let i = 0; i < lights.length; i++) lights[i].visible = Math.sin(t * 3 + i * 1.7) > -0.2; die.material.emissiveIntensity = 0.7 + Math.sin(t * 2) * 0.25; } });
+}
+
+// === WEST: Fabrikator – großer 3D-Drucker mit fahrendem Druckkopf ============
+function fabMachine(group, r, animated) {
+  const g = new THREE.Group(); const y = r.y;
+  // Rahmen (4 Pfosten + oberer Querbalken).
+  const frameMat = M(0x2a2f3a, { metalness: 0.6 });
+  for (const px of [-5, 5]) for (const pz of [-3, 3]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.4, 8, 0.4), frameMat);
+    post.position.set(px, y + 4, pz); g.add(post);
+  }
+  const topBeam = new THREE.Mesh(new THREE.BoxGeometry(11, 0.5, 0.5), frameMat); topBeam.position.set(0, y + 7.8, 0); g.add(topBeam);
+  // Druckbett (glüht warm).
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(8, 0.4, 5), E(0xff7a3c, 0.4, { metalness: 0.4 })); bed.position.set(0, y + 1.2, 0); g.add(bed);
+  // X-Schiene + fahrender Druckkopf mit glühender Düse.
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(10, 0.3, 0.3), frameMat); rail.position.set(0, y + 6.2, 0); g.add(rail);
+  const head = new THREE.Group();
+  const block = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), M(0x3a4150, { metalness: 0.6 })); block.position.y = y + 6.0;
+  const nozzle = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.7, 8), E(0x6ee7ff, 1.0)); nozzle.position.set(0, y + 5.2, 0); nozzle.rotation.x = Math.PI;
+  head.add(block, nozzle); g.add(head);
+  // halbfertiges Druckobjekt auf dem Bett.
+  const wip = new THREE.Mesh(new THREE.BoxGeometry(2, 1.4, 2), E(0x2bd4ff, 0.3, { transparent: true, opacity: 0.7 })); wip.position.set(0, y + 2.1, 0); g.add(wip);
+  placeMachine(group, g, r, 3.2);
+  animated.push({ fn: (t) => { head.position.x = Math.sin(t * 1.6) * 4; nozzle.material.emissiveIntensity = 0.7 + Math.abs(Math.sin(t * 6)) * 0.6; } });
+}
+
+// === SÜD: Forschung – Mainframe mit Bildschirmen + rotierender Holo-Säule =====
+function researchMachine(group, r, animated) {
+  const g = new THREE.Group(); const y = r.y;
+  // Schrank-Reihe mit leuchtenden Screen-Panels.
+  for (let i = 0; i < 5; i++) {
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(2.4, 6.5, 1.4), M(0x141a26, { metalness: 0.5 }));
+    cab.position.set(-6 + i * 3, y + 3.25, 0);
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 4.6), E([0x2bd4ff, 0x39ff9a, 0xc792ea, 0x6ee7ff, 0x39ff9a][i], 0.6));
+    screen.position.set(-6 + i * 3, y + 3.6, 0.72);
+    g.add(cab, screen);
+  }
+  // zentrale Holo-Daten-Säule (dreht sich).
+  const colMat = E(0x2bd4ff, 0.7, { transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+  const holo = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 5.5, 7, 1, true), colMat);
+  holo.position.set(0, y + 4.5, 3.5);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 0.6, 16), M(0x1a2230, { metalness: 0.6 })); base.position.set(0, y + 0.3, 3.5);
+  g.add(holo, base);
+  placeMachine(group, g, r, 2.6);
+  animated.push({ fn: (t) => { holo.rotation.y = t * 0.6; holo.material.emissiveIntensity = 0.5 + Math.sin(t * 2.2) * 0.2; } });
+}
+
+// === OST: Schmiede – große Esse/Hochofen hinter dem Amboss ===================
+function forgeMachine(group, r, animated) {
+  const g = new THREE.Group(); const y = r.y;
+  // Ofenkörper.
+  const body = new THREE.Mesh(new THREE.BoxGeometry(5, 6, 3.5), M(0x2a2420, { metalness: 0.4, roughness: 0.8 }));
+  body.position.set(0, y + 3, 0);
+  // glühende Ofenöffnung (pulsiert).
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.6, 0.5), E(0xff6a1a, 1.2));
+  mouth.position.set(0, y + 2.6, 1.6);
+  const mlight = new THREE.PointLight(0xff7820, 8, 16, 2); mlight.position.set(0, y + 2.6, 2.4);
+  // Schornstein.
+  const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.0, 4, 12), M(0x1f1b18, { metalness: 0.5 }));
+  stack.position.set(0, y + 7.5, -0.5);
+  g.add(body, mouth, mlight, stack);
+  placeMachine(group, g, r, 2.8);
+  animated.push({ fn: (t) => { const p = 1.0 + Math.sin(t * 4) * 0.35; mouth.material.emissiveIntensity = p; mlight.intensity = 6 + p * 3; } });
 }

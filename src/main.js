@@ -154,9 +154,12 @@ loadWeaponModels().then(() => {
 // --- Game-Loop -------------------------------------------------------------
 const clock = new THREE.Clock();
 
+let _decorT = 0;
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05); // Spikes kappen
   game.update(dt);
+  _decorT += dt;
+  world.updateDecor?.(_decorT); // Maschinen-Animation (immer, auch im Menü)
   world.render();
   input.endFrame();
   requestAnimationFrame(frame);

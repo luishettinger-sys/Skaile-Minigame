@@ -45,9 +45,11 @@ export class Armory {
     const n = DISPLAY.length;
     const colCount = 5;
     const rows = Math.ceil(n / colCount);
+    // Waffen-Podeste NUR in der vorderen Raumhälfte (Eingangsseite) → klar
+    // getrennt von der Schmiede-Esse hinten; man kann die Waffen frei ansehen.
     const cols = [];
     for (let c = 0; c < colCount; c++) {
-      cols.push(r.minX + (r.maxX - r.minX) * (0.1 + 0.8 * (c / (colCount - 1))));
+      cols.push(r.minX + (r.maxX - r.minX) * (0.06 + 0.5 * (c / (colCount - 1))));
     }
     const z0 = r.minZ + 4, z1 = r.maxZ - 4;
     let idx = 0;
@@ -62,14 +64,14 @@ export class Armory {
       }
     }
 
-    // Großes "SCHMIEDE"-Schild an der Rückwand.
-    const sign = new THREE.Sprite(makeLabel("🔨 SCHMIEDE", "Waffen holen · Mods bauen [E]", 0xffa040, 0xffffff));
-    sign.scale.set(11, 3.2, 1);
-    sign.position.set((r.minX + r.maxX) / 2, r.y + 5.4, r.minZ + 0.6);
+    // Großes "SCHMIEDE"-Schild über der Esse (hinten am Raum).
+    const sign = new THREE.Sprite(makeLabel("🔨 SCHMIEDE", "Waffen vorne · Mods bauen [E]", 0xffa040, 0xffffff));
+    sign.scale.set(10, 3.0, 1);
+    sign.position.set(r.maxX - 4.5, r.y + 6.4, (r.minZ + r.maxZ) / 2);
     this.group.add(sign);
 
-    // Schmiede-Amboss im pad-freien Streifen vorn am Raum (Mod-Crafting-Station).
-    this._buildForge((r.minX + r.maxX) / 2, r.y, r.minZ + 1.5);
+    // Schmiede-Amboss direkt vor der Esse (hinten, klar abgesetzt von den Waffen).
+    this._buildForge(r.maxX - 5, r.y, (r.minZ + r.maxZ) / 2);
   }
 
   // Amboss + Glut-Esse: hier baust du aus Schrott permanente Waffen-Mods.
