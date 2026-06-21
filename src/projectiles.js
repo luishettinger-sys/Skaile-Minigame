@@ -1,6 +1,12 @@
 // Geschosse: pro Waffenstil eine eigene, glühende Optik (Energie-Orbs,
 // Laserstrahlen, rotierende Sägeblätter, helle Tracer, Plasmakugeln, Sterne).
 // Jedes Geschoss leuchtet (emissive → Bloom) und zieht einen farbigen Glow-Trail.
+//
+// Zusätzlich zu geradeaus-Flug unterstützt das System "behaviors" für die
+// kreativen Waffen: homing (kurvt zum Gegner), boomerang (kommt zurück),
+// wave (Schlängellinie), bounce (prallt an Wänden ab), orbit (kreist um die
+// Ente), lob (Bogenwurf), blackhole (saugt Gegner an). Trefferbasierte
+// Effekte (explode/split/chain) werden in game.js ausgewertet.
 // Gepoolt pro Stil; Schnittstelle (spawn/active/retire/reset) bleibt erhalten.
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
@@ -70,6 +76,7 @@ export class ProjectileSystem {
     p.mesh.position.set(origin.x, 1.0, origin.z);
 
     const speed = opts.speed ?? CONFIG.weapon.projSpeed;
+    p.speed = speed;
     p.vel.set(dir.x, 0, dir.z).normalize().multiplyScalar(speed);
 
     // Ausrichtung: Tracer/Laser entlang der Flugrichtung, Rest neutral.
@@ -79,17 +86,52 @@ export class ProjectileSystem {
     p.spin = SPIN[style] || 0;
     p.align = !!ALIGN[style];
 
-    p.life = CONFIG.weapon.projLife;
+    p.life = opts.life ?? CONFIG.weapon.projLife;
     p.damage = opts.damage ?? CONFIG.weapon.damage;
     p.pierce = opts.pierce ?? 0;
     p.hitR = CONFIG.weapon.projRadius * scale * (HIT[style] || 1) * 1.2;
     p.trailT = 0;
     p.hits.clear();
+
+    // ---- Behavior-Felder (kreative Waffen) --------------------------------
+    p.behavior = opts.behavior || null;
+    p.age = 0;
+    p.dirX = p.vel.x / speed; p.dirZ = p.vel.z / speed; // normierte Startrichtung
+    // homing: wie schnell das Geschoss zum Ziel kurvt (rad/s)
+    p.homingRate = opts.homingRate ?? 0;
+    // boomerang: Zeit bis zur Umkehr; Rückkehr-Flag
+    p.outTime = opts.outTime ?? 0.42;
+    p.returning = false;
+    // wave: Amplitude/Frequenz der Schlängelbewegung + Mittelpunkt
+    p.waveAmp = opts.waveAmp ?? 0;
+    p.waveFreq = opts.waveFreq ?? 9;
+    p.cx = origin.x; p.cz = origin.z;
+    p.perpX = -p.dirZ; p.perpZ = p.dirX; // Senkrechte zur Flugrichtung
+    // bounce: verbleibende Abpraller an den Arena-Wänden
+    p.bounces = opts.bounces ?? 0;
+    // orbit: kreist um die Ente (Radius/Dauer/Winkel)
+    p.orbitR = opts.orbitR ?? 0;
+    p.orbitAng = opts.orbitAng ?? 0;
+    p.orbitSpin = opts.orbitSpin ?? 3.4;
+    // lob: Bogenwurf-Höhe (vertikale Geschwindigkeit + Schwerkraft)
+    p.lob = !!opts.lob;
+    p.py = 1.0; p.vy = opts.lobVy ?? 0;
+    // blackhole: Sog-Radius/-Stärke
+    p.pullR = opts.pullR ?? 0;
+    p.pullForce = opts.pullForce ?? 0;
+    // trefferbasierte Effekte (in game.js ausgewertet)
+    p.explodeR = opts.explodeR ?? 0;
+    p.explodeDmg = opts.explodeDmg ?? 0;
+    p.splitN = opts.splitN ?? 0;
+    p.chainN = opts.chainN ?? 0;
+    p.chainRange = opts.chainRange ?? 0;
+    p.fromSplit = !!opts.fromSplit;
+
     this.active.push(p);
     return p;
   }
 
-  _spawnTrail(x, z, color, scale) {
+  _spawnTrail(x, z, color, scale, y = 1.0) {
     let t = this.trailPool.pop();
     if (!t) {
       const mat = new THREE.MeshBasicMaterial({
@@ -104,25 +146,147 @@ export class ProjectileSystem {
     t.spr.material.opacity = 0.55;
     t.spr.visible = true;
     t.spr.scale.setScalar(scale * 0.9);
-    t.spr.position.set(x, 1.0, z);
+    t.spr.position.set(x, y, z);
     t.life = t.max;
     this.trails.push(t);
   }
 
-  update(dt) {
+  // Nächster lebender Gegner zu (x,z) innerhalb range; ignoriert ein Set.
+  _nearestEnemy(enemies, x, z, range, ignore) {
+    let best = null, bd = range;
+    for (const e of enemies) {
+      if (!e.alive || !e.visible) continue;
+      if (ignore && ignore.has(e)) continue;
+      const d = Math.hypot(x - e.mesh.position.x, z - e.mesh.position.z);
+      if (d < bd) { bd = d; best = e; }
+    }
+    return best;
+  }
+
+  // ctx = { enemies, playerPos, arenaHalf } (alle optional).
+  update(dt, ctx = {}) {
+    const enemies = ctx.enemies || [];
+    const pp = ctx.playerPos;
+    const half = ctx.arenaHalf ?? BOUND;
+
     for (let i = this.active.length - 1; i >= 0; i--) {
       const p = this.active[i];
       p.life -= dt;
-      p.mesh.position.x += p.vel.x * dt;
-      p.mesh.position.z += p.vel.z * dt;
+      p.age += dt;
+      let retired = false;
+
+      switch (p.behavior) {
+        case "homing": {
+          const tgt = this._nearestEnemy(enemies, p.mesh.position.x, p.mesh.position.z, 60, null);
+          if (tgt) {
+            const want = Math.atan2(tgt.mesh.position.x - p.mesh.position.x, tgt.mesh.position.z - p.mesh.position.z);
+            const cur = Math.atan2(p.vel.x, p.vel.z);
+            let d = want - cur;
+            while (d > Math.PI) d -= Math.PI * 2;
+            while (d < -Math.PI) d += Math.PI * 2;
+            const step = Math.max(-p.homingRate * dt, Math.min(p.homingRate * dt, d));
+            const na = cur + step;
+            p.vel.set(Math.sin(na), 0, Math.cos(na)).multiplyScalar(p.speed);
+          }
+          p.mesh.position.x += p.vel.x * dt;
+          p.mesh.position.z += p.vel.z * dt;
+          break;
+        }
+        case "boomerang": {
+          if (!p.returning && p.age >= p.outTime) { p.returning = true; p.hits.clear(); }
+          if (p.returning && pp) {
+            const want = Math.atan2(pp.x - p.mesh.position.x, pp.z - p.mesh.position.z);
+            p.vel.set(Math.sin(want), 0, Math.cos(want)).multiplyScalar(p.speed);
+            if (Math.hypot(pp.x - p.mesh.position.x, pp.z - p.mesh.position.z) < 1.4) { this.retire(i); retired = true; }
+          }
+          if (!retired) { p.mesh.position.x += p.vel.x * dt; p.mesh.position.z += p.vel.z * dt; }
+          break;
+        }
+        case "wave": {
+          p.cx += p.vel.x * dt;
+          p.cz += p.vel.z * dt;
+          const off = Math.sin(p.age * p.waveFreq) * p.waveAmp;
+          p.mesh.position.x = p.cx + p.perpX * off;
+          p.mesh.position.z = p.cz + p.perpZ * off;
+          break;
+        }
+        case "bounce": {
+          p.mesh.position.x += p.vel.x * dt;
+          p.mesh.position.z += p.vel.z * dt;
+          const lim = half - 0.5;
+          if (p.mesh.position.x > lim || p.mesh.position.x < -lim) {
+            p.vel.x *= -1; p.mesh.position.x = Math.max(-lim, Math.min(lim, p.mesh.position.x));
+            if (--p.bounces < 0) { this.retire(i); retired = true; } else p.hits.clear();
+          }
+          if (!retired && (p.mesh.position.z > lim || p.mesh.position.z < -lim)) {
+            p.vel.z *= -1; p.mesh.position.z = Math.max(-lim, Math.min(lim, p.mesh.position.z));
+            if (--p.bounces < 0) { this.retire(i); retired = true; } else p.hits.clear();
+          }
+          break;
+        }
+        case "orbit": {
+          if (pp) {
+            p.orbitAng += p.orbitSpin * dt;
+            p.mesh.position.x = pp.x + Math.cos(p.orbitAng) * p.orbitR;
+            p.mesh.position.z = pp.z + Math.sin(p.orbitAng) * p.orbitR;
+            // Tangential-Geschwindigkeit (nur für Optik/Ausrichtung)
+          }
+          break;
+        }
+        case "lob": {
+          p.mesh.position.x += p.vel.x * dt;
+          p.mesh.position.z += p.vel.z * dt;
+          p.vy -= 26 * dt;
+          p.py += p.vy * dt;
+          if (p.py <= 1.0) {
+            // gelandet → Explosion melden, dann verschwinden
+            if (ctx.onArea && p.explodeR) ctx.onArea(p.mesh.position.x, p.mesh.position.z, p.explodeR, p.explodeDmg || p.damage, p.color);
+            this.retire(i); retired = true;
+          }
+          break;
+        }
+        case "blackhole": {
+          p.mesh.position.x += p.vel.x * dt;
+          p.mesh.position.z += p.vel.z * dt;
+          // Gegner im Radius leicht zur Singularität ziehen.
+          if (p.pullR) {
+            for (const e of enemies) {
+              if (!e.alive || !e.visible || e.def?.isBoss) continue;
+              const ex = p.mesh.position.x - e.mesh.position.x;
+              const ez = p.mesh.position.z - e.mesh.position.z;
+              const d = Math.hypot(ex, ez);
+              if (d < p.pullR && d > 0.1) {
+                const k = Math.min(1, (p.pullForce * dt) / d);
+                e.mesh.position.x += ex * k;
+                e.mesh.position.z += ez * k;
+              }
+            }
+          }
+          if (p.life <= 0 && ctx.onArea && p.explodeR) {
+            ctx.onArea(p.mesh.position.x, p.mesh.position.z, p.explodeR, p.explodeDmg || p.damage, p.color);
+          }
+          break;
+        }
+        default: {
+          p.mesh.position.x += p.vel.x * dt;
+          p.mesh.position.z += p.vel.z * dt;
+        }
+      }
+      if (retired) continue;
+
+      // Höhe (Lob bogt, sonst flach).
+      const y = p.lob ? p.py : 1.0;
+      p.mesh.position.y = y;
 
       // Drehende Stile (Säge/Stern) rotieren um die Hochachse.
       if (p.spin) p.mesh.rotation.y += p.spin * dt;
+      // Ausgerichtete Stile entlang aktueller Flugrichtung halten.
+      if (p.align) p.mesh.rotation.y = Math.atan2(p.vel.x, p.vel.z);
 
       p.trailT -= dt;
       if (p.trailT <= 0) {
         p.trailT = 0.018;
-        this._spawnTrail(p.mesh.position.x, p.mesh.position.z, p.color, p.mesh.scale.x);
+        this._spawnTrail(p.mesh.position.x, p.mesh.position.z, p.color, p.mesh.scale.x, y);
       }
 
       if (

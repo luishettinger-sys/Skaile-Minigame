@@ -24,9 +24,32 @@ export const WEAPON_MODEL = {
   recursion: "ar",
   nova: "shotgun",
   glitch: "ar",
+  // Kreative Waffen → eigene Blender-Modelle (Fallback auf vorhandene, falls
+  // GLB noch nicht gebaut: loadWeaponModels überspringt fehlende Dateien still).
+  boomerang: "boomerang",
+  rocket: "rocket",
+  grenade: "grenade",
+  ricochet: "ricochet",
+  singularity: "voidgun",
+  tesla: "tesla",
+  swarm: "dronepod",
+  wobble: "wobble",
+  flame: "flame",
+  forkbomb: "forkbomb",
 };
 
-const FILES = ["pistol", "dualpistol", "smg", "ar", "shotgun", "sniper", "minigun", "cannon"];
+const FILES = [
+  "pistol", "dualpistol", "smg", "ar", "shotgun", "sniper", "minigun", "cannon",
+  // neue, in Blender gebaute Modelle
+  "boomerang", "rocket", "grenade", "ricochet", "voidgun", "tesla", "dronepod", "wobble", "flame", "forkbomb",
+];
+
+// Fallback-Modell pro neuer Waffe, falls die dedizierte GLB (noch) fehlt.
+const FALLBACK = {
+  boomerang: "shotgun", rocket: "cannon", grenade: "cannon", ricochet: "pistol",
+  voidgun: "cannon", tesla: "smg", dronepod: "minigun", wobble: "dualpistol",
+  flame: "ar", forkbomb: "shotgun",
+};
 const cache = {}; // filename -> Object3D (Template, Einheitslänge) | null
 
 // Modell ausrichten: Lauf nach +Z, native Größe behalten (relative Waffengrößen
@@ -90,7 +113,9 @@ export function loadWeaponModels() {
 export function cloneWeaponModel(id) {
   const file = WEAPON_MODEL[id];
   if (!file) return null;
-  const tpl = cache[file];
+  let tpl = cache[file];
+  // Dediziertes Modell fehlt → auf Fallback-Modell ausweichen.
+  if (!tpl && FALLBACK[file]) tpl = cache[FALLBACK[file]];
   if (!tpl) return null;
   return tpl.clone(true);
 }

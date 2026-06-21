@@ -10,7 +10,7 @@ import { Effects } from "./effects.js";
 import { WaveManager } from "./waves.js";
 import { Progression } from "./progression.js";
 import { PickupSystem } from "./pickups.js";
-import { WEAPONS, WEAPON_IDS } from "./weapons.js";
+import { WEAPONS, WEAPON_IDS, WEAPON_PRICE } from "./weapons.js";
 import { Armory } from "./armory.js";
 import { cloneWeaponModel } from "./weaponmodels.js";
 import { Automation } from "./automation.js";
@@ -348,6 +348,7 @@ export class Game {
     this.throwables.reset();
     this.carrying = null;
     this.waves.reset();
+    this.defenseActive = false; // Wellen sind opt-in: erst per Deploy-Terminal starten
     this.automation.reset();
     this.audio.init();
     this.audio.resume();
@@ -438,8 +439,10 @@ export class Game {
     if (r < 0.4) {
       const id = WEAPON_IDS[Math.floor(Math.random() * WEAPON_IDS.length)];
       const w = WEAPONS[id];
-      return { type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc,
-        price: 70 + Math.floor(Math.random() * 60) };
+      // Echter Tier-Preis (±10 % Streuung), damit starke Waffen teuer bleiben.
+      const base = WEAPON_PRICE[id] ?? 90;
+      const price = Math.round(base * (0.92 + Math.random() * 0.16));
+      return { type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc, price };
     } else if (r < 0.72) {
       const it = rollItem();
       return { type: "item", item: it, icon: it.icon, name: it.name, desc: it.desc,
@@ -549,6 +552,7 @@ export class Game {
       const pad = this.armory.nearest(this.player.pos);
       if (autoPad && !this.shopOpen) this._buyAutomation(autoPad);
       else if (pad && !this.shopOpen) this._buyWeapon(pad);
+      else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
       else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
     }
     if (this.input.wasPressed("KeyG")) this.cycleGadget();
@@ -611,9 +615,10 @@ export class Game {
     // Zeitlupe-Powerup verlangsamt nur die Gegner.
     const enemyDt = worldDt * (this.buffs.slow > 0 ? 0.4 : 1);
 
-    // Bonus-Bug (Mini-Jagd): erscheint ab und zu, flieht, gibt viele Coins.
+    // Bonus-Bug (Mini-Jagd): nur während eines laufenden Deploys – im ruhigen
+    // Bau-Modus soll nichts spawnen.
     this.bonusT -= dt;
-    if (this.bonusT <= 0 && !this.boss) {
+    if (this.defenseActive && this.bonusT <= 0 && !this.boss) {
       this.bonusT = 22 + Math.random() * 16;
       const { x, z } = edgeSpawn(this.world.arenaHalf);
       this.enemies.spawn("bonus", x, z);
@@ -630,13 +635,20 @@ export class Game {
       this.hud.toast("🦆", "Rubber Duck", DUCK_TIPS[Math.floor(Math.random() * DUCK_TIPS.length)]);
     }
 
-    this.waves.update(dt, this.enemies.aliveCount());
+    // Wellen laufen nur während eines aktiven Deploys (opt-in). Im Bau-Modus
+    // ist es ruhig – die Basis-Verwaltung ist der Kern, Kämpfe sind optional.
+    if (this.defenseActive) this.waves.update(dt, this.enemies.aliveCount());
     this.enemies.update(enemyDt, this.player.pos, this.ultActive, {
       shoot: (x, z, dx, dz, o) => this.enemyShots.spawn(x, z, dx, dz, o),
     });
     this.enemyShots.update(enemyDt);
     this._handleEnemyShots();
-    this.projectiles.update(dt);
+    this.projectiles.update(dt, {
+      enemies: this.enemies.enemies,
+      playerPos: this.player.pos,
+      arenaHalf: this.world.arenaHalf,
+      onArea: (x, z, r, dmg, color) => this._areaDamage(x, z, r, dmg, color),
+    });
     this.effects.update(dt);
     this.pickups.update(dt, this.player.pos, this._magnet(), (kind, value) =>
       this._collect(kind, value)
@@ -703,6 +715,9 @@ export class Game {
       this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)` : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙`);
     }
     else if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] SHOP");
+    else if (this.stations.deployNear(this.player.pos)) {
+      this.hud.showPrompt(this.defenseActive ? "🚀 Deploy läuft… Bugs abwehren!" : "[E] 🚀 DEPLOY – Bug-Welle starten (Coins)");
+    }
     else if (this.carrying) this.hud.showPrompt("[F] werfen");
     else if (this.throwables.nearestIdle(this.player.pos, 2.8)) this.hud.showPrompt("[F] aufheben");
     else this.hud.hidePrompt();
@@ -787,13 +802,23 @@ export class Game {
     const n = this._projCount();
     const spread = this.weapon.spread * this.mods.spreadMult;
     const fwd = CONFIG.weapon.muzzleForward;
+    const w = this.weapon;
     const opts = {
       damage: this._damage(),
       pierce: this._pierce(),
       scale: this._projScale(),
-      color: this.weapon.color,
-      speed: this.weapon.speed * this.mods.projSpeedMult,
-      style: this.weapon.style,
+      color: w.color,
+      speed: w.speed * this.mods.projSpeedMult,
+      style: w.style,
+      // Kreative Verhalten (nur gesetzt, wenn die Waffe sie definiert).
+      behavior: w.behavior, life: w.projLife,
+      homingRate: w.homingRate, outTime: w.outTime,
+      waveAmp: w.waveAmp, waveFreq: w.waveFreq,
+      bounces: w.bounces, orbitR: w.orbitR, orbitSpin: w.orbitSpin,
+      lob: w.lob, lobVy: w.lobVy,
+      pullR: w.pullR, pullForce: w.pullForce,
+      explodeR: w.explodeR, explodeDmg: w.explodeDmg,
+      splitN: w.splitN, chainN: w.chainN, chainRange: w.chainRange,
     };
     for (let i = 0; i < n; i++) {
       const off = n === 1 ? 0 : (i - (n - 1) / 2) * spread;
@@ -803,6 +828,8 @@ export class Game {
         x: this.player.pos.x + dir.x * fwd,
         z: this.player.pos.z + dir.z * fwd,
       };
+      // Orbit-Waffen: Geschosse gleichmäßig auf den Kreis verteilen.
+      if (w.behavior === "orbit") opts.orbitAng = (i / n) * Math.PI * 2 + this.player.facing;
       this.projectiles.spawn(origin, dir, opts);
     }
     this.audio.weapon(this.weapon.sound);
@@ -840,6 +867,24 @@ export class Game {
             this.world.addShake(0.14);
           }
           if (killed) this._killEnemy(e);
+
+          // --- Trefferbasierte Spezial-Effekte der kreativen Waffen ---------
+          // Explosion am Einschlag (Raketen/Granaten bei Direkttreffer).
+          // Singularität explodiert NICHT bei Kontakt, nur am Lebensende.
+          if (p.explodeR && p.behavior !== "blackhole") {
+            this._areaDamage(p.mesh.position.x, p.mesh.position.z, p.explodeR, p.explodeDmg || p.damage, p.color, e);
+            this.projectiles.retire(i); retired = true; break;
+          }
+          // Kettenblitz: springt zu nahen Gegnern weiter.
+          if (p.chainN > 0) {
+            this._chainLightning(e, p.chainN, p.chainRange || 8, p.damage, p.color, p.hits);
+          }
+          // Zellteilung: beim ersten Treffer in Splitter zerfallen.
+          if (p.splitN > 0 && !p.fromSplit) {
+            this._splitProjectile(p, e);
+            this.projectiles.retire(i); retired = true; break;
+          }
+
           if (p.pierce > 0) {
             p.pierce--;
           } else {
@@ -850,6 +895,54 @@ export class Game {
         }
       }
       if (retired) continue;
+    }
+  }
+
+  // Flächenschaden um (x,z): trifft alle Gegner im Radius (außer Quelle, die
+  // schon getroffen wurde). Für Explosionen (Granate/Rakete/Singularität).
+  _areaDamage(x, z, radius, dmg, color = 0xff8c1a, source = null) {
+    this.audio.hit();
+    this.effects.shockwave(x, z, color, radius, 26);
+    this.effects.burst(x, z, color, 16, 1.2);
+    this.world.addShake(0.18);
+    for (const e of this.enemies.enemies) {
+      if (!e.alive || !e.visible || e === source) continue;
+      if (distXZ({ x, z }, e.mesh.position) <= radius + e.radius) {
+        if (this.enemies.damage(e, dmg)) this._killEnemy(e);
+      }
+    }
+  }
+
+  // Kettenblitz: vom getroffenen Gegner zu bis zu n nahen weiteren springen.
+  _chainLightning(from, n, range, dmg, color, hitSet) {
+    let cur = from;
+    for (let j = 0; j < n; j++) {
+      let best = null, bd = range;
+      for (const e of this.enemies.enemies) {
+        if (!e.alive || !e.visible || hitSet.has(e) || e === cur) continue;
+        const d = distXZ(cur.mesh.position, e.mesh.position);
+        if (d < bd) { bd = d; best = e; }
+      }
+      if (!best) break;
+      hitSet.add(best);
+      this.effects.burst(best.mesh.position.x, best.mesh.position.z, color, 6, 0.8);
+      if (this.enemies.damage(best, dmg)) this._killEnemy(best);
+      cur = best;
+    }
+  }
+
+  // Zellteilung: Geschoss zerfällt in mehrere kleine Splitter im Fächer.
+  _splitProjectile(p, e) {
+    const base = Math.atan2(p.vel.x, p.vel.z);
+    const dmg = Math.max(1, Math.round(p.damage * 0.6));
+    for (let k = 0; k < p.splitN; k++) {
+      const a = base + (k - (p.splitN - 1) / 2) * 0.5;
+      const dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+      this.projectiles.spawn(
+        { x: e.mesh.position.x, z: e.mesh.position.z }, dir,
+        { damage: dmg, pierce: 1, scale: 0.6, color: p.color, speed: 60, style: "ball",
+          life: 0.6, fromSplit: true }
+      );
     }
   }
 
@@ -1402,11 +1495,28 @@ export class Game {
     if (I.t > 3.3) { this.bossIntro = false; this.intro = null; }
   }
 
+  // Opt-in: Eine Deploy-Welle starten (am Deploy-Terminal mit E). Während ein
+  // Deploy läuft, kein erneuter Start; Boss-Intro blockiert ebenfalls.
+  startDefense() {
+    if (this.defenseActive || this.bossIntro) return;
+    this.defenseActive = true;
+    this.waves.beginNow();
+    this.audio.buy?.();
+    this.world.addShake(0.15);
+    this.hud.flash("#2bd4ff", 0.3);
+  }
+
   _onWaveClear(n) {
     this.audio.yay();
     this.player.hp = clamp(this.player.hp + 15, 0, this.player.maxHp);
     this.hud.setHp(this.player.hp, this.player.maxHp);
-    this.hud.banner("WELLE " + n + " CLEAR", "+15 Build Health");
+    // Deploy beendet → zurück in den ruhigen Bau-Modus (keine Auto-Folgewelle).
+    this.defenseActive = false;
+    // Coin-Belohnung skaliert mit der Welle → Deploys lohnen sich fürs Bauen.
+    const reward = 25 + n * 10;
+    this.coins += reward;
+    this.hud.setCoins(this.coins);
+    this.hud.banner("DEPLOY OK · WELLE " + n, "Build grün – +" + reward + " 🪙");
     this.hud.toast("📝", "Patch Notes", PATCH_NOTES[Math.floor(Math.random() * PATCH_NOTES.length)]);
   }
 

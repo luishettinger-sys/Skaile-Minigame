@@ -109,6 +109,100 @@ export const WEAPONS = {
     projScale: 1.1, speed: 60, color: 0xff6ec7, sound: "pulse", energyCost: 20,
     style: "ball", desc: "Dreifacher Glitch-Schub",
   },
+
+  // ====================================================================
+  //  KREATIVE WAFFEN — jede hat ein eigenes, eigenwilliges Verhalten.
+  // ====================================================================
+
+  // 🪃 Fliegt raus und kommt als Bumerang zurück – trifft auf beiden Wegen.
+  boomerang: {
+    id: "boomerang", name: "Garbage-Collector", icon: "🪃",
+    fireInterval: 0.72, damage: 2, projCount: 1, spread: 0, pierce: 50,
+    projScale: 1.25, speed: 48, color: 0x80ed99, sound: "cannon", energyCost: 18,
+    style: "saw", desc: "Sammelt ein & kommt zurück (trifft hin & zurück)",
+    behavior: "boomerang", outTime: 0.46, projLife: 2.2,
+  },
+
+  // 🚀 Zielsuchende Rakete, die beim Einschlag explodiert.
+  rocket: {
+    id: "rocket", name: "Heap-Seeker", icon: "🚀",
+    fireInterval: 0.85, damage: 3, projCount: 1, spread: 0.05, pierce: 0,
+    projScale: 1.1, speed: 48, color: 0xff8c1a, sound: "cannon", energyCost: 28,
+    style: "tracer", desc: "Zielsuchend, explodiert beim Treffer",
+    behavior: "homing", homingRate: 4.6, explodeR: 4.5, explodeDmg: 2, projLife: 2.4,
+  },
+
+  // 💣 Bogenwurf-Granate – schlägt am Boden ein und detoniert großflächig.
+  grenade: {
+    id: "grenade", name: "Stack-Smash", icon: "💣",
+    fireInterval: 0.98, damage: 2, projCount: 1, spread: 0.04, pierce: 0,
+    projScale: 1.4, speed: 26, color: 0xffd23f, sound: "cannon", energyCost: 30,
+    style: "plasma", desc: "Bogenwurf, riesige Boden-Explosion",
+    behavior: "lob", lobVy: 11, explodeR: 6, explodeDmg: 4, projLife: 2.5,
+  },
+
+  // 🏓 Prallt von den Arena-Wänden ab und richtet Chaos an.
+  ricochet: {
+    id: "ricochet", name: "Pong-Cannon", icon: "🏓",
+    fireInterval: 0.4, damage: 2, projCount: 1, spread: 0.08, pierce: 1,
+    projScale: 1.0, speed: 72, color: 0x6ee7ff, sound: "blaster", energyCost: 13,
+    style: "ball", desc: "Prallt von Wänden ab – unberechenbar",
+    behavior: "bounce", bounces: 4, projLife: 2.6,
+  },
+
+  // 🕳️ Langsame Singularität: saugt Bugs an und implodiert am Ende.
+  singularity: {
+    id: "singularity", name: "Void-Singularity", icon: "🕳️",
+    fireInterval: 1.35, damage: 1, projCount: 1, spread: 0, pierce: 50,
+    projScale: 2.0, speed: 22, color: 0x9b5de5, sound: "pulse", energyCost: 38,
+    style: "plasma", desc: "Saugt Bugs an, implodiert mit Wucht",
+    behavior: "blackhole", pullR: 8, pullForce: 9, explodeR: 7, explodeDmg: 5, projLife: 1.7,
+  },
+
+  // ⚡ Kettenblitz: springt vom Treffer zu nahen Bugs weiter.
+  tesla: {
+    id: "tesla", name: "Daisy-Chain", icon: "⚡",
+    fireInterval: 0.5, damage: 2, projCount: 1, spread: 0.06, pierce: 0,
+    projScale: 0.9, speed: 95, color: 0x6ef0ff, sound: "smg", energyCost: 20,
+    style: "tracer", desc: "Blitz springt zu weiteren Bugs",
+    behavior: null, chainN: 4, chainRange: 9,
+  },
+
+  // 🛰️ Drohnen kreisen um die Ente und mähen alles im Umkreis nieder.
+  swarm: {
+    id: "swarm", name: "Drone-Swarm", icon: "🛰️",
+    fireInterval: 0.55, damage: 2, projCount: 4, spread: 0, pierce: 50,
+    projScale: 0.85, speed: 0, color: 0x6ee7ff, sound: "needler", energyCost: 16,
+    style: "star", desc: "4 Drohnen kreisen & schützen dich",
+    behavior: "orbit", orbitR: 4.6, orbitSpin: 3.6, projLife: 1.5,
+  },
+
+  // 〰️ Schlängel-Schüsse, die in Sinuswellen tanzen.
+  wobble: {
+    id: "wobble", name: "DubStep-Cannon", icon: "〰️",
+    fireInterval: 0.16, damage: 1, projCount: 1, spread: 0, pierce: 1,
+    projScale: 0.95, speed: 58, color: 0xff6ec7, sound: "blaster", energyCost: 7,
+    style: "ball", desc: "Tanzt in Wellen – deckt Breite ab",
+    behavior: "wave", waveAmp: 1.7, waveFreq: 11, projLife: 1.4,
+  },
+
+  // 🔥 Kurzer Flammenkegel – grillt alles in Nahdistanz.
+  flame: {
+    id: "flame", name: "Heap-Flame", icon: "🔥",
+    fireInterval: 0.05, damage: 1, projCount: 3, spread: 0.34, pierce: 2,
+    projScale: 0.9, speed: 34, color: 0xff8c1a, sound: "minigun", energyCost: 5.5,
+    style: "pellet", desc: "Flammenkegel auf kurze Distanz",
+    behavior: null, projLife: 0.42,
+  },
+
+  // 🍴 Geschoss zerplatzt beim ersten Treffer in fünf Splitter.
+  forkbomb: {
+    id: "forkbomb", name: "Fork-Bomb", icon: "🍴",
+    fireInterval: 0.62, damage: 3, projCount: 1, spread: 0.05, pierce: 0,
+    projScale: 1.1, speed: 56, color: 0x80ed99, sound: "pulse", energyCost: 18,
+    style: "ball", desc: "Zerplatzt in 5 Splitter beim Treffer",
+    behavior: null, splitN: 5,
+  },
 };
 
 // Preise für den Waffenshop (Armory). Run-Coins.
@@ -122,6 +216,9 @@ export const WEAPON_PRICE = {
   flak: 110, cannon: 120, pulse: 120, sawblade: 130, minigun: 140, arc: 150,
   // Spitze
   glitch: 160, nova: 160, railgun: 180, recursion: 190, voidlober: 200, sniper: 210, photon: 230,
+  // kreative Waffen (nach Verhalten/Stärke eingeordnet)
+  wobble: 110, ricochet: 130, flame: 130, swarm: 145, tesla: 150, forkbomb: 150,
+  boomerang: 135, grenade: 175, rocket: 185, singularity: 230,
 };
 
 export const WEAPON_IDS = Object.keys(WEAPONS);

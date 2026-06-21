@@ -30,6 +30,11 @@ export class WaveManager {
     this.spawnTimer = 0;
   }
 
+  // Auf Anforderung sofort die nächste Welle starten (opt-in "Deploy").
+  beginNow() {
+    this._beginWave();
+  }
+
   _beginWave() {
     this.wave++;
     this.budget =

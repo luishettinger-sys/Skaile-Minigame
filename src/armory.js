@@ -5,11 +5,16 @@ import { WEAPONS, WEAPON_PRICE } from "./weapons.js";
 import { cloneWeaponModel } from "./weaponmodels.js";
 
 // Welche Waffen ausgestellt werden (Basis-Blaster bleibt gratis am Start).
+// Die kreativen Spezialwaffen stehen voran, damit sie sofort auffallen.
 const DISPLAY = [
-  "smg", "shotgun", "minigun", "trishot",
-  "sniper", "railgun", "cannon", "flak",
-  "pulse", "sawblade", "arc", "glitch",
-  "recursion", "nova", "voidlober", "photon",
+  // kreative Spezialwaffen
+  "boomerang", "rocket", "grenade", "ricochet", "singularity",
+  "tesla", "swarm", "wobble", "flame", "forkbomb",
+  // klassisches Arsenal
+  "smg", "shotgun", "minigun", "trishot", "needler",
+  "sniper", "railgun", "cannon", "flak", "pulse",
+  "sawblade", "arc", "glitch", "recursion", "nova",
+  "voidlober", "photon",
 ];
 
 export class Armory {
@@ -22,16 +27,24 @@ export class Armory {
   }
 
   _build(r) {
-    const cols = [r.minX + (r.maxX - r.minX) * 0.32, r.minX + (r.maxX - r.minX) * 0.68];
-    const rows = 4;
+    // Adaptives Raster: 3 Spalten, Reihen nach Anzahl. So passen auch alle
+    // kreativen + klassischen Waffen sauber in den Armory-Raum.
+    const n = DISPLAY.length;
+    const colCount = 3;
+    const rows = Math.ceil(n / colCount);
+    const cols = [];
+    for (let c = 0; c < colCount; c++) {
+      cols.push(r.minX + (r.maxX - r.minX) * (0.2 + 0.6 * (c / (colCount - 1))));
+    }
+    const z0 = r.minZ + 3, z1 = r.maxZ - 3;
     let idx = 0;
-    for (let c = 0; c < cols.length; c++) {
-      for (let row = 0; row < rows; row++) {
-        if (idx >= DISPLAY.length) break;
+    for (let row = 0; row < rows; row++) {
+      for (let c = 0; c < colCount; c++) {
+        if (idx >= n) break;
         const id = DISPLAY[idx++];
         const w = WEAPONS[id];
         if (!w) continue;
-        const z = r.minZ + 4 + ((r.maxZ - r.minZ - 8) * row) / (rows - 1);
+        const z = rows === 1 ? (z0 + z1) / 2 : z0 + ((z1 - z0) * row) / (rows - 1);
         this._pedestal(cols[c], r.y, z, id, w);
       }
     }

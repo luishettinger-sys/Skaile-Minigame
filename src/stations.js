@@ -11,6 +11,34 @@ export class Stations {
     this._t = 0;
     this.shop = null;
     this._buildShop();
+    this.deploy = null;
+    this._buildDeploy();
+  }
+
+  // Deploy-Terminal in der Arena: Hier startest DU eine Bug-Welle ("git push" →
+  // CI/CD baut → Bugs kommen rein). Macht die Wellen opt-in statt automatisch.
+  _buildDeploy() {
+    const x = 9, z = -6;
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(2.4, 1.5, 1.4),
+      new THREE.MeshStandardMaterial({ color: 0x1c2740, roughness: 0.5, metalness: 0.35 })
+    );
+    base.position.set(x, 0.75, z);
+    const screen = new THREE.Mesh(
+      new THREE.BoxGeometry(2.0, 1.2, 0.18),
+      new THREE.MeshStandardMaterial({ color: 0x0b1020, emissive: 0x2bd4ff, emissiveIntensity: 0.9, roughness: 0.4 })
+    );
+    screen.position.set(x, 2.0, z + 0.55);
+    screen.rotation.x = -0.18;
+    const sign = new THREE.Sprite(makeIcon("🚀"));
+    sign.scale.set(2.6, 2.6, 1);
+    sign.position.set(x, 3.6, z);
+    this.group.add(base, screen, sign);
+    this.deploy = { x, z, r: 3.4, screen, sign, _t: 0 };
+  }
+
+  deployNear(pos) {
+    return this.deploy && Math.hypot(pos.x - this.deploy.x, pos.z - this.deploy.z) <= this.deploy.r;
   }
 
   _buildShop() {
