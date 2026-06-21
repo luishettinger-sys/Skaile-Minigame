@@ -3,6 +3,7 @@ import { SKINS, SKIN_ORDER } from "./skins.js";
 import { META_UPGRADES, META_ORDER, metaPrice } from "./metaupgrades.js";
 import { FORGE_MODS, FORGE_ORDER, forgeCost } from "./forge.js";
 import { RESEARCH, RESEARCH_ORDER, researchAvailable } from "./research.js";
+import { CHIP_TYPES, CHIP_ORDER, GRID_N, slotStrength, sameNeighbors } from "./chips.js";
 
 export class HUD {
   constructor() {
@@ -86,6 +87,11 @@ export class HUD {
       researchGrid: document.getElementById("research-grid"),
       researchData: document.getElementById("research-data"),
       researchClose: document.getElementById("research-close"),
+      chipsOverlay: document.getElementById("overlay-chips"),
+      chipBoard: document.getElementById("chip-board"),
+      chipPalette: document.getElementById("chip-palette"),
+      chipBal: document.getElementById("chip-bal"),
+      chipsClose: document.getElementById("chips-close"),
       lorePop: document.getElementById("lore-pop"),
       loreIcon: document.getElementById("lore-icon"),
       loreTitle: document.getElementById("lore-title"),
@@ -173,6 +179,49 @@ export class HUD {
         `<div class="skin-status">Lv ${lvl}/${def.max} · ${status}</div>`;
       if (!maxed) card.onclick = () => onCraft(id);
       grid.appendChild(card);
+    }
+  }
+
+  // --- Chip-Sockel (Mainboard-Raster mit Adjazenz) --------------------------
+  showChips() { this.el.chipsOverlay?.classList.remove("hidden"); }
+  hideChips() { this.el.chipsOverlay?.classList.add("hidden"); }
+
+  // grid = Array(9) aus chipId|null, chips = Zahl, sel = ausgewählter Palette-Typ.
+  renderChips(grid, chips, sel, onSlot, onSelect) {
+    if (!this.el.chipBoard) return;
+    if (this.el.chipBal) this.el.chipBal.textContent = (chips | 0).toLocaleString("de-DE");
+    // Raster.
+    this.el.chipBoard.innerHTML = "";
+    for (let i = 0; i < GRID_N * GRID_N; i++) {
+      const id = grid[i];
+      const t = id ? CHIP_TYPES[id] : null;
+      const cell = document.createElement("button");
+      const synced = t && sameNeighbors(grid, i) > 0;
+      cell.className = "chip-slot" + (t ? " filled" : " empty") + (synced ? " synced" : "");
+      if (t) {
+        const hex = "#" + t.color.toString(16).padStart(6, "0");
+        cell.style.borderColor = hex;
+        cell.style.boxShadow = synced ? `0 0 16px ${hex}` : "none";
+        const mult = slotStrength(grid, i);
+        cell.innerHTML = `<span class="chip-ico">${t.icon}</span>` + (mult > 1 ? `<span class="chip-mult">×${mult.toFixed(1)}</span>` : "");
+        cell.title = t.name + (mult > 1 ? ` (Synergie ×${mult.toFixed(1)})` : "");
+      } else {
+        cell.textContent = "+";
+      }
+      cell.onclick = () => onSlot(i);
+      this.el.chipBoard.appendChild(cell);
+    }
+    // Palette.
+    this.el.chipPalette.innerHTML = "";
+    for (const key of CHIP_ORDER) {
+      const t = CHIP_TYPES[key];
+      const hex = "#" + t.color.toString(16).padStart(6, "0");
+      const b = document.createElement("button");
+      b.className = "chip-pal" + (sel === key ? " sel" : "");
+      b.style.borderColor = hex;
+      b.innerHTML = `<span class="chip-ico">${t.icon}</span><span class="chip-pal-name">${t.name}</span><span class="chip-pal-cost">${t.cost} 🧩</span>`;
+      b.onclick = () => onSelect(key);
+      this.el.chipPalette.appendChild(b);
     }
   }
 

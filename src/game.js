@@ -22,6 +22,7 @@ import { Throwables } from "./throwables.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { FORGE_MODS, FORGE_ORDER, forgeCost } from "./forge.js";
 import { RESEARCH, RESEARCH_ORDER, researchAvailable, researchMods, researchDropMult } from "./research.js";
+import { CHIP_TYPES, CHIP_ORDER, chipMods, chipFlags, normalizeGrid } from "./chips.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
 import { SKINS, SKIN_RIDDLES } from "./skins.js";
@@ -127,7 +128,7 @@ export class Game {
       if (!FORGE_MODS[k]) { delete m.craftedMods[k]; continue; }
       m.craftedMods[k] = Math.max(0, Math.min(FORGE_MODS[k].max, m.craftedMods[k] | 0));
     }
-    if (!Array.isArray(m.chipGrid)) m.chipGrid = [];
+    m.chipGrid = normalizeGrid(m.chipGrid);
     return m;
   }
 
@@ -272,6 +273,49 @@ export class Game {
     this.hud.showLore(n.icon, n.name, n.lore, !!n.effect.final);
   }
 
+  // --- CHIP-SOCKEL (Nord): Mainboard-Raster mit Adjazenz-Boni ---------------
+  openChips() {
+    this._chipSel = this._chipSel || CHIP_ORDER[0];
+    this._renderChips();
+    this.hud.showChips();
+  }
+  closeChips() { this.hud.hideChips(); }
+
+  _renderChips() {
+    this.hud.renderChips(
+      this.meta.chipGrid, this.mats.chips, this._chipSel,
+      (idx) => this.placeOrRemoveChip(idx),
+      (type) => { this._chipSel = type; this._renderChips(); }
+    );
+  }
+
+  // Klick auf einen Slot: leer -> ausgewählten Chip setzen (kostet 🧩);
+  // belegt -> Chip entfernen (halbe Rückerstattung).
+  placeOrRemoveChip(idx) {
+    const grid = this.meta.chipGrid;
+    if (grid[idx]) {
+      const t = CHIP_TYPES[grid[idx]];
+      grid[idx] = null;
+      const refund = Math.floor((t?.cost || 0) / 2);
+      this.mats.chips += refund;
+      this.audio.pickup?.();
+    } else {
+      const t = CHIP_TYPES[this._chipSel];
+      if (!t) return;
+      if (this.mats.chips < t.cost) { this.hud.toast?.("🧩", "Nicht genug Chips", `${t.name} kostet ${t.cost} 🧩`); this.audio.playerHurt?.(); return; }
+      this.mats.chips -= t.cost;
+      grid[idx] = this._chipSel;
+      this.audio.buy?.();
+      this.world.addShake(0.06);
+    }
+    this._saveMeta();
+    this._chipFlags = chipFlags(grid);
+    this._recomputeMods();
+    this._syncStats();
+    this._matsDirty = true;
+    this._renderChips();
+  }
+
   buyUpgrade(key) {
     const def = META_UPGRADES[key];
     if (!def) return;
@@ -311,6 +355,7 @@ export class Game {
     const m = defaultMods();
     mergeMods(m, this._metaMods()); // permanente Lab-Ausbauten zuerst
     mergeMods(m, researchMods(this.meta.research || {})); // Forschungs-Boni (Daten)
+    mergeMods(m, chipMods(this.meta.chipGrid || [])); // Chip-Sockel-Boni (Chips)
     mergeMods(m, this._craftMods()); // permanente Schmiede-Mods (Schrott)
     mergeMods(m, this.boonMods); // Run-Boons
     mergeMods(m, this.upgradeMods);
@@ -422,6 +467,7 @@ export class Game {
     this.mats = { scrap: 0, chips: 0 };
     this._matsDirty = true;
     this._dropMult = researchDropMult(this.meta.research || {}); // Loot-Boni aus Forschung
+    this._chipFlags = chipFlags(this.meta.chipGrid || []); // Heatsink-Abkühlung etc.
     // CPU-Temperatur (Signatur-Mechanik).
     this.heat = 0;
     this.overclock = false;
@@ -779,7 +825,7 @@ export class Game {
       else if (door && !this.shopOpen) this._buyRoom(door);
       else if (!this.shopOpen && this._stationNear("vault")) this.openResearch();
       else if (!this.shopOpen && this._stationNear("powerups")) this._usePowerupShop();
-      else if (!this.shopOpen && this._stationNear("spawner")) this._useSpawner();
+      else if (!this.shopOpen && this._stationNear("spawner")) this.openChips();
       else if (!this.shopOpen && this.stations.skinsNear(this.player.pos)) this.openSkins("riddle");
       else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
       else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
@@ -1003,7 +1049,7 @@ export class Game {
     }
     else if (this._stationNear("vault")) this.hud.showPrompt(`[E] 🔬 FORSCHUNG – Daten erforschen (${this.meta.data | 0} 📡)`);
     else if (this._stationNear("powerups")) this.hud.showPrompt("[E] ⚡ Power-Up kaufen (40 🪙)");
-    else if (this._stationNear("spawner")) this.hud.showPrompt("[E] 🐛 Bug-Farm: Bugs spawnen für XP (30 🪙)");
+    else if (this._stationNear("spawner")) this.hud.showPrompt(`[E] 🧩 CHIP-SOCKEL – Chips stecken (${this.mats.chips} 🧩)`);
     else if (this.stations.deployNear(this.player.pos)) {
       this.hud.showPrompt(this.defenseLoop ? "[E] ⏸ Deploy-Schleife stoppen" : "[E] 🚀 DEPLOY starten (Dauerschleife)");
     }
@@ -1075,7 +1121,7 @@ export class Game {
     if (this.overclock) {
       this.heat = Math.min(H.max, this.heat + H.overclockGain * dt);
     } else {
-      let cool = H.coolBase + (moving ? H.coolMove : 0) + (this.sinceShot > 0.5 ? H.coolIdle : 0);
+      let cool = H.coolBase + (moving ? H.coolMove : 0) + (this.sinceShot > 0.5 ? H.coolIdle : 0) + (this._chipFlags?.heatCool || 0);
       this.heat = Math.max(0, this.heat - cool * dt);
     }
 
