@@ -72,8 +72,9 @@ function assetTick() {
 }
 setTimeout(hideLoader, 9000); // Fallback, falls etwas hängt
 
-// Statisches Enten-Modell: kleiner (1.7) und ohne Eigen-Leuchten (noGlow).
-loadModel("./assets/duck.glb", { targetHeight: 1.7, noGlow: true }).then((obj) => {
+// Gerigtes Enten-Modell mit echter „Confident_Walk"-Animation (Beine watscheln
+// mit) – ohne Eigen-Leuchten (noGlow gegen das Neon).
+loadModel("./assets/duck_rigged.glb", { targetHeight: 1.7, noGlow: true }).then((obj) => {
   if (obj) game.player.setModel(obj);
   game.applyEquippedSkin(); // gewählten Skin auf die Ente legen
   assetTick();

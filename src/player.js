@@ -129,7 +129,9 @@ export class Player {
     const hop = (moving ? Math.abs(swing) * 0.30 : Math.abs(swing) * 0.05) + flo * 0.5; // + Idle-Hüpfer
 
     if (this.mixer) {
-      this.mixer.update(dt * (moving ? 1.6 : 0.8));
+      // Lauf-Animation (Beine watscheln mit): Tempo skaliert mit der Bewegung,
+      // im Stand fast eingefroren (kein Watscheln auf der Stelle).
+      this.mixer.update(dt * (moving || dashing ? 1.7 : 0.05));
     } else {
       const waddle = moving ? 0.30 : 0.04; // stärkeres Wackeln als zuvor
       // Waddle + Banking ins Straffen + fröhliches Wackeln während der Einlage.
