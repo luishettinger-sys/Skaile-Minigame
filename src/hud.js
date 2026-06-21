@@ -48,6 +48,8 @@ export class HUD {
       invClose: document.getElementById("inv-close"),
       coins: document.getElementById("coins"),
       prompt: document.getElementById("prompt"),
+      guide: document.getElementById("guide"),
+      guideText: document.getElementById("guide-text"),
       buffs: document.getElementById("buffs"),
       gadget: document.getElementById("gadget"),
       shopOverlay: document.getElementById("overlay-shop"),
@@ -425,6 +427,16 @@ export class HUD {
 
   hidePrompt() {
     this.el.prompt.classList.add("hidden");
+  }
+
+  // Rubber-Duck-Guide: Sprechblase der Mentor-Ente.
+  showGuide(text) {
+    if (!this.el.guide) return;
+    this.el.guideText.textContent = text;
+    this.el.guide.classList.remove("hidden");
+  }
+  hideGuide() {
+    if (this.el.guide) this.el.guide.classList.add("hidden");
   }
 
   showShop() { this.el.shopOverlay.classList.remove("hidden"); }

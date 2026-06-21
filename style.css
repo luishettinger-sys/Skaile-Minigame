@@ -107,6 +107,50 @@ body {
 }
 #prompt.hidden { display: none; }
 
+/* Rubber-Duck-Guide: Mentor-Ente mit Sprechblase (führt durch das Spiel) */
+#guide {
+  position: absolute;
+  bottom: 130px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  max-width: 560px;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+}
+#guide.hidden { opacity: 0; transform: translate(-50%, 12px); pointer-events: none; display: flex; }
+#guide-duck {
+  font-size: 44px;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+  animation: guideBob 1.6s ease-in-out infinite;
+  flex: 0 0 auto;
+}
+@keyframes guideBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+#guide-bubble {
+  position: relative;
+  background: #fff8e6;
+  color: #2a2418;
+  border: 3px solid #ffce4a;
+  border-radius: 16px;
+  padding: 12px 16px;
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+/* Sprechblasen-Schnabel zur Ente */
+#guide-bubble::after {
+  content: "";
+  position: absolute;
+  left: -10px;
+  bottom: 14px;
+  width: 0; height: 0;
+  border: 8px solid transparent;
+  border-right-color: #ffce4a;
+}
+
 /* Ziel-Anzeige (aktueller Sektor + nächste Boss-Welle) */
 #objective {
   position: absolute;
