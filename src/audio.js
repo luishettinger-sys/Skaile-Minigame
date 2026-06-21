@@ -52,8 +52,11 @@ export class Audio {
   _loadSamples() {
     if (this._samplesRequested || !this.ctx) return;
     this._samplesRequested = true;
-    const ids = ["blaster", "shotgun", "smg", "rail", "cannon", "minigun", "sniper", "pulse"];
-    for (const id of ids) this._tryLoadSample("weapons", id, ["mp3", "wav", "ogg"], 0);
+    // Waffen-Sounds laufen über die (aufgewertete) Synthese mit Hall + Punch –
+    // es liegen keine Waffen-Samples bei, daher gar nicht erst laden (vermeidet
+    // unnötige 404s / Konsolen-Lärm). Optional: assets/sounds/weapons/<id>.mp3
+    // ablegen und die folgende Zeile reaktivieren.
+    // for (const id of ["blaster","shotgun","smg","rail","cannon","minigun","sniper","pulse"]) this._tryLoadSample("weapons", id, ["mp3","wav","ogg"], 0);
     // UI-Sounds: Voice-Samples für Kauf, harten Treffer, Wellen-Sieg.
     this._tryLoadSample("ui", "buy", ["mp3", "wav", "ogg"], 0);
     this._tryLoadSample("ui", "ouch", ["wav", "mp3", "ogg"], 0);
