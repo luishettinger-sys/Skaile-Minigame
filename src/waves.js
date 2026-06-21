@@ -4,14 +4,15 @@ import { pickWeighted } from "./utils.js";
 
 // Gegner-Roster: Kosten (gegen Wellen-Budget), ab welcher Welle freigeschaltet,
 // und Spawn-Gewicht.
+// Viele kleine Syntax-Bugs (Schwärme) + ab Welle 3 zunehmend Schützen/Spezialisten.
 const ROSTER = [
-  { type: "syntax", cost: 1, unlock: 1, weight: 10 },
-  { type: "racecondition", cost: 2, unlock: 2, weight: 6 },
-  { type: "memoryleak", cost: 2, unlock: 3, weight: 5 },
+  { type: "syntax", cost: 1, unlock: 1, weight: 22 },        // Masse: kleine Bugs
+  { type: "racecondition", cost: 2, unlock: 2, weight: 7 },
+  { type: "nullptr", cost: 2, unlock: 3, weight: 7 },        // Schützen früher & mehr
+  { type: "memoryleak", cost: 2, unlock: 3, weight: 4 },
+  { type: "infinite", cost: 2, unlock: 4, weight: 5 },
   { type: "stackoverflow", cost: 3, unlock: 4, weight: 4 },
-  { type: "heisenbug", cost: 3, unlock: 5, weight: 4 },
-  { type: "infinite", cost: 2, unlock: 6, weight: 5 },
-  { type: "nullptr", cost: 2, unlock: 7, weight: 5 },
+  { type: "heisenbug", cost: 3, unlock: 6, weight: 3 },
 ];
 
 export class WaveManager {

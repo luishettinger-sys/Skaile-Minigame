@@ -153,11 +153,11 @@ export const CONFIG = {
   },
 
   waves: {
-    startBudget: 6, // "Punkte" Gegner-Wert in Welle 1
-    budgetGrowth: 6, // +Budget pro Welle (steiler → schwerer)
-    spawnInterval: 1.0, // Sekunden zwischen Spawns innerhalb einer Welle
-    breakTime: 2.5, // Pause zwischen Wellen
-    maxAlive: 85, // harte Obergrenze gleichzeitiger Gegner (Performance)
+    startBudget: 14, // "Punkte" Gegner-Wert in Welle 1 (mehr Monster)
+    budgetGrowth: 11, // +Budget pro Welle (deutlich steiler → Schwärme)
+    spawnInterval: 0.35, // schnelle Spawns → viele kleine Bugs gleichzeitig
+    breakTime: 2.2, // Pause zwischen Wellen
+    maxAlive: 65, // Obergrenze gleichzeitiger Gegner (kompakte Arena)
     bossEvery: 5, // alle N Wellen erscheint ein Boss
   },
 
@@ -187,8 +187,8 @@ export const CONFIG = {
   },
 
   pickups: {
-    magnet: 4.5, // Einsammel-Radius (per Upgrade erhöhbar)
-    collectRadius: 1.3,
+    magnet: 10, // großer Einsammel-Radius → Drops liegen nicht lange rum (Übersicht)
+    collectRadius: 1.7,
     gemValue: 1, // XP pro Gem
     healAmount: 25, // HP pro Health-Drop
     healthDropChance: 0.06, // Wahrscheinlichkeit, dass ein Bug Health droppt

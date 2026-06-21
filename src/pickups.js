@@ -103,10 +103,13 @@ export class PickupSystem {
       if (ny <= rest) { ny = rest; it.vy = 0; }
       it.mesh.position.y = ny;
 
-      // Magnet: zum Spieler saugen.
+      // Magnet: zum Spieler saugen. Ältere Drops (>3.5s) ziehen von selbst
+      // heran, egal wie weit weg → es bleibt nichts liegen (Übersicht).
       const d = distXZ(playerPos, it.mesh.position);
-      if (d < magnet) {
-        const k = Math.min(1, dt * (8 + (magnet - d) * 1.6));
+      const autoHome = it.t > 3.5;
+      if (d < magnet || autoHome) {
+        const pull = autoHome ? 10 : 8 + (magnet - d) * 1.6;
+        const k = Math.min(1, dt * pull);
         it.mesh.position.x += (playerPos.x - it.mesh.position.x) * k;
         it.mesh.position.z += (playerPos.z - it.mesh.position.z) * k;
       }
