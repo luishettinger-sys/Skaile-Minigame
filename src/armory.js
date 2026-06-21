@@ -62,11 +62,53 @@ export class Armory {
       }
     }
 
-    // Großes "ARMORY"-Schild an der Rückwand.
-    const sign = new THREE.Sprite(makeLabel("🔫 ARMORY", "Waffen kaufen mit [E]", 0x6ee7ff, 0xffffff));
-    sign.scale.set(10, 3.2, 1);
+    // Großes "SCHMIEDE"-Schild an der Rückwand.
+    const sign = new THREE.Sprite(makeLabel("🔨 SCHMIEDE", "Waffen holen · Mods bauen [E]", 0xffa040, 0xffffff));
+    sign.scale.set(11, 3.2, 1);
     sign.position.set((r.minX + r.maxX) / 2, r.y + 5.4, r.minZ + 0.6);
     this.group.add(sign);
+
+    // Schmiede-Amboss im pad-freien Streifen vorn am Raum (Mod-Crafting-Station).
+    this._buildForge((r.minX + r.maxX) / 2, r.y, r.minZ + 1.5);
+  }
+
+  // Amboss + Glut-Esse: hier baust du aus Schrott permanente Waffen-Mods.
+  _buildForge(x, y, z) {
+    const g = new THREE.Group();
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.5, 1.8, 0.5, 6),
+      new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.8, metalness: 0.4 })
+    );
+    base.position.y = 0.25;
+    const block = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 0.8, 0.7),
+      new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 0.4, metalness: 0.85 })
+    );
+    block.position.y = 0.9;
+    const horn = new THREE.Mesh(
+      new THREE.ConeGeometry(0.32, 1.0, 10),
+      new THREE.MeshStandardMaterial({ color: 0x33333a, roughness: 0.4, metalness: 0.85 })
+    );
+    horn.rotation.z = Math.PI / 2;
+    horn.position.set(0.85, 1.05, 0);
+    // Glühende Esse (additives Glimmen).
+    const glow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.42, 14, 12),
+      new THREE.MeshBasicMaterial({ color: 0xff7820, transparent: true, opacity: 0.85 })
+    );
+    glow.position.set(-0.2, 1.35, 0);
+    const sign = new THREE.Sprite(makeLabel("🔨 MODS", "[E] aus 🔩 bauen", 0xffa040, 0xffffff));
+    sign.scale.set(4.4, 1.45, 1);
+    sign.position.set(0, 3.0, 0);
+    g.add(base, block, horn, glow, sign);
+    g.position.set(x, y, z);
+    this.group.add(g);
+    this.forge = { x, z, r: 3.0, glow, _t: 0 };
+  }
+
+  forgeNear(pos, range) {
+    if (!this.forge) return false;
+    return Math.hypot(pos.x - this.forge.x, pos.z - this.forge.z) <= (range || this.forge.r);
   }
 
   _pedestal(x, y, z, id, w) {
@@ -167,6 +209,10 @@ export class Armory {
   // dt + Spielerposition: animiert Idle + Proximity-Fokus.
   update(dt, playerPos) {
     this._t += dt;
+    if (this.forge) {
+      this.forge.glow.material.opacity = 0.6 + Math.sin(this._t * 3) * 0.25;
+      this.forge.glow.scale.setScalar(1 + Math.sin(this._t * 3) * 0.12);
+    }
 
     // Nächstes Podest bestimmen (Fokus).
     let focus = null, fd = 3.4;

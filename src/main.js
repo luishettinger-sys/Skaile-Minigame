@@ -42,6 +42,7 @@ hud.el.upgradesBtn?.addEventListener("click", () => game.openUpgrades());
 hud.el.upgradesBtnPause?.addEventListener("click", () => game.openUpgrades());
 hud.el.upgradesBtnOver?.addEventListener("click", () => game.openUpgrades());
 hud.el.upgradesClose?.addEventListener("click", () => game.closeUpgrades());
+hud.el.forgeClose?.addEventListener("click", () => game.closeForge());
 hud.el.victoryContinue?.addEventListener("click", () => game.resumeFromVictory());
 hud.el.victoryMenu?.addEventListener("click", () => game.endRunToMenu());
 window.addEventListener("keydown", (e) => {

@@ -1,6 +1,7 @@
 // HUD: DOM-Overlay-Steuerung (Score, Wellen, Balken, Banner, Popups, Screens).
 import { SKINS, SKIN_ORDER } from "./skins.js";
 import { META_UPGRADES, META_ORDER, metaPrice } from "./metaupgrades.js";
+import { FORGE_MODS, FORGE_ORDER, forgeCost } from "./forge.js";
 
 export class HUD {
   constructor() {
@@ -73,6 +74,10 @@ export class HUD {
       upgradeGrid: document.getElementById("upgrade-grid"),
       upgradeBank: document.getElementById("upgrade-bank"),
       upgradesClose: document.getElementById("upgrades-close"),
+      forgeOverlay: document.getElementById("overlay-forge"),
+      forgeGrid: document.getElementById("forge-grid"),
+      forgeScrap: document.getElementById("forge-scrap"),
+      forgeClose: document.getElementById("forge-close"),
       spPips: document.getElementById("sp-pips"),
       spLabel: document.getElementById("sp-label"),
       victoryOverlay: document.getElementById("overlay-victory"),
@@ -120,6 +125,40 @@ export class HUD {
         `<div class="up-pips">${pips}</div>` +
         `<div class="skin-status">Lv ${lvl}/${def.max} · ${status}</div>`;
       if (!maxed) card.onclick = () => onBuy(key);
+      grid.appendChild(card);
+    }
+  }
+
+  // --- Schmiede (permanente Waffen-Mods aus Schrott) ------------------------
+  showForge() { this.el.forgeOverlay?.classList.remove("hidden"); }
+  hideForge() { this.el.forgeOverlay?.classList.add("hidden"); }
+
+  // crafted = { id: lvl }, scrap = Zahl, onCraft(id).
+  renderForge(crafted, scrap, onCraft) {
+    const grid = this.el.forgeGrid;
+    if (!grid) return;
+    if (this.el.forgeScrap) this.el.forgeScrap.textContent = (scrap | 0).toLocaleString("de-DE");
+    grid.innerHTML = "";
+    for (const id of FORGE_ORDER) {
+      const def = FORGE_MODS[id];
+      if (!def) continue;
+      const lvl = (crafted?.[id] || 0) | 0;
+      const maxed = lvl >= def.max;
+      const cost = maxed ? 0 : forgeCost(id, lvl);
+      const affordable = !maxed && scrap >= cost;
+      const card = document.createElement("div");
+      card.className = "skin-card up-card " + (maxed ? "equipped" : affordable ? "affordable owned" : "locked");
+      let pips = "";
+      for (let i = 0; i < def.max; i++) pips += `<span class="pip${i < lvl ? " on" : ""}"></span>`;
+      const status = maxed ? "✓ MAX" : `${cost.toLocaleString("de-DE")} 🔩`;
+      const nextDesc = maxed ? def.desc(lvl) : def.desc(lvl + 1);
+      card.innerHTML =
+        `<div class="skin-emoji">${def.icon}</div>` +
+        `<div class="skin-name">${def.name}</div>` +
+        `<div class="up-desc">${nextDesc}</div>` +
+        `<div class="up-pips">${pips}</div>` +
+        `<div class="skin-status">Lv ${lvl}/${def.max} · ${status}</div>`;
+      if (!maxed) card.onclick = () => onCraft(id);
       grid.appendChild(card);
     }
   }

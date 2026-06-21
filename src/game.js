@@ -20,6 +20,7 @@ import { Stations } from "./stations.js";
 import { EnemyShots } from "./enemyshots.js";
 import { Throwables } from "./throwables.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
+import { FORGE_MODS, FORGE_ORDER, forgeCost } from "./forge.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
 import { SKINS, SKIN_RIDDLES } from "./skins.js";
@@ -101,7 +102,7 @@ export class Game {
   }
 
   _loadMeta() {
-    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false, unlockedRooms: [], guideSeen: false, data: 0, research: {}, craftedMods: [], chipGrid: [] };
+    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false, unlockedRooms: [], guideSeen: false, data: 0, research: {}, craftedMods: {}, chipGrid: [] };
     let m;
     try { m = JSON.parse(localStorage.getItem("duckdebug_meta")) || {}; }
     catch (e) { m = {}; }
@@ -120,7 +121,11 @@ export class Game {
     // Bau-System: Daten (permanent), Forschungs-Level, gebaute Mods, Chip-Raster.
     m.data = Math.max(0, m.data | 0);
     if (!m.research || typeof m.research !== "object") m.research = {};
-    if (!Array.isArray(m.craftedMods)) m.craftedMods = [];
+    if (!m.craftedMods || typeof m.craftedMods !== "object" || Array.isArray(m.craftedMods)) m.craftedMods = {};
+    for (const k in m.craftedMods) {
+      if (!FORGE_MODS[k]) { delete m.craftedMods[k]; continue; }
+      m.craftedMods[k] = Math.max(0, Math.min(FORGE_MODS[k].max, m.craftedMods[k] | 0));
+    }
     if (!Array.isArray(m.chipGrid)) m.chipGrid = [];
     return m;
   }
@@ -204,6 +209,36 @@ export class Game {
     this.hud.renderUpgrades(this.meta, (k) => this.buyUpgrade(k));
   }
 
+  // --- SCHMIEDE (Ost): Waffen-Mods aus Schrott bauen -----------------------
+  openForge() {
+    this._renderForge();
+    this.hud.showForge();
+  }
+  closeForge() { this.hud.hideForge(); }
+
+  _renderForge() {
+    this.hud.renderForge(this.meta.craftedMods, this.mats.scrap, (id) => this.craftMod(id));
+  }
+
+  craftMod(id) {
+    const def = FORGE_MODS[id];
+    if (!def) return;
+    const lvl = (this.meta.craftedMods[id] || 0) | 0;
+    if (lvl >= def.max) { this.hud.toast?.("✅", "Voll gebaut", def.name); return; }
+    const cost = forgeCost(id, lvl);
+    if (this.mats.scrap < cost) { this.hud.toast?.("🔩", "Nicht genug Schrott", `${def.name} kostet ${cost} 🔩`); this.audio.playerHurt?.(); return; }
+    this.mats.scrap -= cost;
+    this.meta.craftedMods[id] = lvl + 1;
+    this._saveMeta();
+    this.audio.buy?.();
+    this.world.addShake(0.1);
+    this._recomputeMods();
+    this._syncStats();
+    this._matsDirty = true;
+    this._renderForge();
+    this.hud.toast?.(def.icon, def.name + " Lv." + (lvl + 1), def.desc(lvl + 1));
+  }
+
   buyUpgrade(key) {
     const def = META_UPGRADES[key];
     if (!def) return;
@@ -242,11 +277,23 @@ export class Game {
   _recomputeMods() {
     const m = defaultMods();
     mergeMods(m, this._metaMods()); // permanente Lab-Ausbauten zuerst
+    mergeMods(m, this._craftMods()); // permanente Schmiede-Mods (Schrott)
     mergeMods(m, this.boonMods); // Run-Boons
     mergeMods(m, this.upgradeMods);
     mergeMods(m, this.equipMods);
     mergeMods(m, this._gadgetMods());
     this.mods = m;
+  }
+
+  // Aggregierte Mods aus den in der Schmiede gebauten Stufen (permanent).
+  _craftMods() {
+    const m = defaultMods();
+    const crafted = this.meta.craftedMods || {};
+    for (const id in crafted) {
+      const lvl = crafted[id] | 0;
+      if (lvl > 0 && FORGE_MODS[id]) mergeMods(m, FORGE_MODS[id].per(lvl));
+    }
+    return m;
   }
 
   // Boni des aktuell aktiven Gadgets (nur eins gleichzeitig).
@@ -684,6 +731,7 @@ export class Game {
       const door = this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z);
       if (autoPad && !this.shopOpen) this._buyAutomation(autoPad);
       else if (pad && !this.shopOpen) this._buyWeapon(pad);
+      else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) this.openForge();
       else if (door && !this.shopOpen) this._buyRoom(door);
       else if (!this.shopOpen && this._stationNear("vault")) this._useVault();
       else if (!this.shopOpen && this._stationNear("powerups")) this._usePowerupShop();
@@ -899,6 +947,7 @@ export class Game {
       const owned = this.weaponId === pad.id;
       this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)` : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙`);
     }
+    else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) this.hud.showPrompt(`[E] 🔨 SCHMIEDE – Waffen-Mods bauen (${this.mats.scrap} 🔩)`);
     else if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] 🛍️ SHOP");
     else if (this.stations.skinsNear?.(this.player.pos)) this.hud.showPrompt("[E] 👕 Skins (Claude-Rätsel)");
     else if (this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z)) {
