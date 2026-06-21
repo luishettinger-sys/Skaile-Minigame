@@ -363,6 +363,8 @@ export class Game {
     this.carrying = null;
     this.waves.reset();
     this.defenseLoop = false; // Wellen sind opt-in: erst per Deploy-Terminal starten
+    this._gatesWereOpen = true;
+    this.world.building?.setGatesOpen?.(true); // im Bau-Modus alle Räume offen
     this._challengeActive = false; this._challengeCD = 0; this._challengeTimer = 0;
     this._aimHold = 0; // Rest-Zeit, in der die Ente zum Gegner blickt (nach Schuss)
     this.automation.reset();
@@ -771,6 +773,19 @@ export class Game {
     // Wellen laufen nur während eines aktiven Deploys (opt-in). Im Bau-Modus
     // ist es ruhig – die Basis-Verwaltung ist der Kern, Kämpfe sind optional.
     if (this.defenseLoop) this.waves.update(dt, this.enemies.aliveCount());
+
+    // Zeit-Tore: offen im Bau-Modus & in der Pause zwischen Wellen, ZU während
+    // einer laufenden Welle. So kann man nur zwischen den Wellen shoppen.
+    const gatesOpen = !this.defenseLoop || this.waves.state === "break";
+    this.world.building?.setGatesOpen?.(gatesOpen, this.player.pos.x, this.player.pos.z);
+    if (gatesOpen !== this._gatesWereOpen) {
+      this._gatesWereOpen = gatesOpen;
+      if (this.defenseLoop) {
+        this.hud.banner(gatesOpen ? "🚪 TÜREN OFFEN" : "🔒 TÜREN ZU",
+          gatesOpen ? "Schnell shoppen – bis die nächste Welle startet!" : "Welle läuft – Räume gesperrt");
+      }
+    }
+
     this.enemies.update(enemyDt, this.player.pos, this.ultActive, {
       shoot: (x, z, dx, dz, o) => this.enemyShots.spawn(x, z, dx, dz, o),
     });
@@ -1048,7 +1063,7 @@ export class Game {
           // Schadenszahl: Crit = große rote Zahl + Shake, normal = kleine helle Zahl.
           this._popup(e.mesh.position, Math.round(dmg).toString(),
             crit ? "#ff4d6a" : "#fff2c0", crit ? "big" : "dmg");
-          if (crit) this.world.addShake(0.14);
+          if (crit) this.world.addShake(0.05);
           if (killed) this._killEnemy(e);
 
           // --- Trefferbasierte Spezial-Effekte der kreativen Waffen ---------
@@ -1208,7 +1223,7 @@ export class Game {
     // Fetterer Kill-Effekt: Partikel-Pop + kurze Schockwelle (Bugs „zerplatzen").
     this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.color, e.def.isBoss ? 44 : 20, e.def.isBoss ? 1.8 : 1.25);
     if (!e.def.isBoss && e.def.radius >= 1.0) this.effects.shockwave(e.mesh.position.x, e.mesh.position.z, e.def.glow, e.def.radius * 2.5, e.def.radius * 7);
-    this.world.addShake(e.def.isBoss ? 1.0 : 0.26);
+    this.world.addShake(e.def.isBoss ? 1.0 : 0.07); // Kill-Shake stark reduziert (kein Dauer-Wackeln im Schwarm)
 
     this.combo++;
     this.comboTimer = CONFIG.combo.decayTime;

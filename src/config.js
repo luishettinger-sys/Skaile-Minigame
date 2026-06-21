@@ -156,7 +156,7 @@ export const CONFIG = {
     startBudget: 14, // "Punkte" Gegner-Wert in Welle 1
     budgetGrowth: 14, // +Budget pro Welle (steile Eskalation → Farming-Loop wird hart)
     spawnInterval: 0.3, // schnelle Spawns → dichte Schwärme
-    breakTime: 1.8, // kurze Pause → die Schleife bleibt dicht
+    breakTime: 10, // ~10s Pause zwischen Wellen → Türen offen, Zeit zum Shoppen
     maxAlive: 75, // Obergrenze gleichzeitiger Gegner
     bossEvery: 5, // alle N Wellen erscheint ein Boss
   },
@@ -206,10 +206,10 @@ export const CONFIG = {
     // Cult-of-the-Lamb-Blick: steil & ruhig von oben, flaches FOV → storybook-haft,
     // wenig Perspektiv-Verzerrung, Fokus klar auf der Ente.
     offset: { x: 0, y: 17, z: 17 }, // flacher 3/4-Blick (~45°) → Entengesicht & Brille sichtbar, Waffe liest sich
-    followLerp: 9, // snappier → Kamera bleibt dicht am Flow, kein Nachhinken
-    fov: 44, // minimal weiter → mehr Tempo-Gefühl
-    hover: 0.16, // spürbares Schweben → dynamische, atmende Kamera
-    hoverSpeed: 1.25,
+    followLerp: 7, // etwas träger → die Kamera schwenkt sichtbarer mit (dynamischer)
+    fov: 46, // minimal weiter → mehr Tempo-Gefühl
+    hover: 0.32, // mehr Schweben → lebendigere, „atmende" Kamera
+    hoverSpeed: 1.15,
   },
 
   colors: {

@@ -89,8 +89,53 @@ export class Building {
     base.receiveShadow = true;
     this.group.add(base);
 
-    // Keine verschlossenen Türen mehr – die 4 Funktionsräume sind direkt begehbar.
     this.doors = [];
+    // Zeit-Tore: pro Raum ein Kraftfeld in der Tür-Öffnung. Offen NUR zwischen den
+    // Wellen; während einer Welle geschlossen. EINSEITIG: aus dem Raum kommt man
+    // immer raus (keine Einsperrung), aber von der Arena nicht rein.
+    this.gates = [];
+    for (const gd of [
+      { room: NORTH, box: { minX: -D, maxX: D, minZ: -30, maxZ: -26 } }, // Bug-Farm
+      { room: SOUTH, box: { minX: -D, maxX: D, minZ: 26, maxZ: 30 } },   // Skins
+      { room: EAST,  box: { minX: 26, maxX: 30, minZ: -D, maxZ: D } },   // Waffen
+      { room: WEST,  box: { minX: -30, maxX: -26, minZ: -D, maxZ: D } }, // Power-Ups
+    ]) this._addGate(gd.box, gd.room);
+    this.setGatesOpen(true);
+  }
+
+  // Ein Zeit-Tor: leuchtendes Kraftfeld-Panel in der Tür-Öffnung + Kollisions-AABB.
+  // exitZone = Raum + Korridor → solange der Spieler dort ist, bleibt das Tor offen.
+  _addGate(b, room) {
+    const w = b.maxX - b.minX, dp = b.maxZ - b.minZ;
+    const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(Math.max(w, 0.4), 3.6, Math.max(dp, 0.4)),
+      new THREE.MeshStandardMaterial({
+        color: 0x331016, emissive: 0xff3b52, emissiveIntensity: 0.9,
+        transparent: true, opacity: 0.55, roughness: 0.4,
+      })
+    );
+    mesh.position.set(cx, 1.8, cz);
+    this.group.add(mesh);
+    const exitZone = {
+      minX: Math.min(room.minX, b.minX), maxX: Math.max(room.maxX, b.maxX),
+      minZ: Math.min(room.minZ, b.minZ), maxZ: Math.max(room.maxZ, b.maxZ),
+    };
+    this.gates.push({ mesh, wallBox: { ...b }, exitZone });
+  }
+
+  // Tore öffnen/schließen. Bei geschlossenem Zustand bleibt ein Tor durchlässig,
+  // solange der Spieler in dessen Raum/Korridor steht (rauslassen, kein Soft-Lock).
+  setGatesOpen(open, px = null, pz = null) {
+    for (const g of this.gates) {
+      const z = g.exitZone;
+      const inZone = px !== null && px >= z.minX && px <= z.maxX && pz >= z.minZ && pz <= z.maxZ;
+      const pass = open || inZone;
+      const i = this.walls.indexOf(g.wallBox);
+      if (pass) { if (i >= 0) this.walls.splice(i, 1); }
+      else { if (i < 0) this.walls.push(g.wallBox); }
+      g.mesh.visible = !open; // Panel sichtbar, sobald eine Welle läuft
+    }
   }
 
   // Eine verschlossene Tür: Mesh (sichtbare Sperre) + Kollisions-AABB in der

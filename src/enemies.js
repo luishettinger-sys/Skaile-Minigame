@@ -330,7 +330,7 @@ export class EnemySystem {
     box.getSize(size);
     box.getCenter(center);
 
-    const targetH = def.radius * 2.4;
+    const targetH = def.radius * 2.85; // größere, chunkigere Gegner/Bosse
     const scale = targetH / (size.y || 1);
     clone.scale.setScalar(scale);
     clone.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
@@ -400,7 +400,7 @@ export class EnemySystem {
       g.add(ant);
     }
 
-    g.scale.setScalar(def.scale);
+    g.scale.setScalar(def.scale * 1.2); // prozedurale Bosse ~20% größer
     return g;
   }
 }

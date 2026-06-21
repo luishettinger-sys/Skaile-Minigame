@@ -87,8 +87,8 @@ export function createWorld(canvas) {
 
   // Nur EINE Perspektive: Vogelperspektive (steil von oben). In den kleinen
   // Seitenräumen rückt die Kamera etwas näher an die Ente (camClose 0→1).
-  const BIRDS = { y: 40, z: 14 };       // Arena (großer Überblick – höher für mehr Sicht)
-  const ROOM  = { y: 24, z: 9 };        // kleiner Raum (näher dran)
+  const BIRDS = { y: 36, z: 22 };       // Arena: stärker geneigt (dynamischer 3/4-Blick)
+  const ROOM  = { y: 22, z: 14 };       // kleiner Raum (näher + geneigt)
   let camClose = 0, camCloseTarget = 0;
 
   // Vorausschau (Flow): Kamera blickt leicht in Bewegungsrichtung.
@@ -105,8 +105,8 @@ export function createWorld(canvas) {
     const vz = (targetPos.z - lastTarget.z) / Math.max(dt, 1e-3);
     lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z);
     const speed = Math.hypot(vx, vz);
-    leadX = damp(leadX, vx * 0.4, 5, dt);
-    leadZ = damp(leadZ, vz * 0.4, 5, dt);
+    leadX = damp(leadX, vx * 0.6, 5, dt); // mehr Vorausschau → dynamischeres Mitschwenken
+    leadZ = damp(leadZ, vz * 0.6, 5, dt);
 
     focus.x = damp(focus.x, targetPos.x + leadX, CONFIG.camera.followLerp, dt);
     focus.z = damp(focus.z, targetPos.z + leadZ, CONFIG.camera.followLerp, dt);
@@ -131,11 +131,11 @@ export function createWorld(canvas) {
     scene.fog.far = camDist + visionRange * 0.85;
 
     if (shake > 0.0001) {
-      shake = Math.max(0, shake - dt * 1.6);
+      shake = Math.max(0, shake - dt * 2.0); // schneller abklingen
       const s = shake * shake;
-      camera.position.x += (Math.random() - 0.5) * s * 6;
-      camera.position.y += (Math.random() - 0.5) * s * 4;
-      camera.position.z += (Math.random() - 0.5) * s * 6;
+      camera.position.x += (Math.random() - 0.5) * s * 3.4; // sanfter (war 6)
+      camera.position.y += (Math.random() - 0.5) * s * 2.2;
+      camera.position.z += (Math.random() - 0.5) * s * 3.4;
     }
     camera.lookAt(lookX, lookY, lookZ);
   }

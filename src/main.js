@@ -74,7 +74,7 @@ setTimeout(hideLoader, 9000); // Fallback, falls etwas hängt
 
 // Statisches Toon-Enten-Modell (saubere Textur + Waffe sichtbar). Das gerigte
 // Modell verursachte Skin-/Waffen-Bugs → zurück auf das bewährte duck.glb.
-loadModel("./assets/duck.glb", { targetHeight: 1.7, noGlow: true }).then((obj) => {
+loadModel("./assets/duck.glb", { targetHeight: 2.0, noGlow: true }).then((obj) => {
   if (obj) game.player.setModel(obj);
   game.applyEquippedSkin(); // gewählten Skin auf die Ente legen
   assetTick();
