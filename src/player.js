@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
 import { loadSkinTexture } from "./skins.js";
+import { makeBlob } from "./shadowblob.js";
 
 export class Player {
   constructor(scene) {
@@ -31,6 +32,11 @@ export class Player {
     this.arenaHalf = CONFIG.arena.half; // wächst mit der Arena
     this.cosmetics = { helmet: null, shades: null, cape: null };
     this.terrain = null; // wird von Game gesetzt (Höhen-Sampling)
+
+    // Weicher Cartoon-Bodenschatten (CotL-Look), separat auf Bodenhöhe geführt
+    // (nicht als Kind der Ente, damit Squash/Stretch ihn nicht verzerrt).
+    this.shadow = makeBlob(1.05, 0.92);
+    scene.add(this.shadow);
   }
 
   // Dash auslösen (Ausweichen mit i-Frames). Gibt true zurück, wenn erfolgreich.
@@ -92,6 +98,14 @@ export class Player {
     const groundY = this.terrain ? this.terrain.heightAt(this.pos.x, this.pos.z) : 0;
     const targetY = groundY + bob;
     this.pos.y += (targetY - this.pos.y) * (1 - Math.exp(-14 * dt));
+
+    // Bodenschatten flach unter der Ente halten (folgt x/z + Bodenhöhe).
+    if (this.shadow) {
+      this.shadow.position.set(this.pos.x, groundY + 0.06, this.pos.z);
+      // schrumpft leicht beim „Abheben" (Bob) → lebendiger
+      const s = 1 - Math.min(0.3, bob * 0.8);
+      this.shadow.scale.set(s, s, s);
+    }
 
     // Waffen-Rückstoß abklingen lassen (Wucht beim Schießen).
     if (this.weaponModel) {

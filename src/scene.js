@@ -19,13 +19,15 @@ export function createWorld(canvas) {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 1.0; // etwas dunkler → moodiger, okkulter Kontrast
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(CONFIG.colors.bg);
-  scene.fog = new THREE.Fog(CONFIG.colors.fog, 38, 95);
+  // Enger Fog → die Ränder fallen ins okkulte Dunkel, die Ente steht im Lichtkegel
+  // (Cult-of-the-Lamb-Fokus auf die Bildmitte).
+  scene.fog = new THREE.Fog(CONFIG.colors.fog, 24, 64);
 
   // Image-Based-Lighting: gibt allen PBR-Materialien Reflexionen → „echt"
   // statt flach. Erzeugt aus einer prozeduralen Raum-Umgebung.

@@ -24,9 +24,9 @@ export class Audio {
     this.master.connect(comp);
     comp.connect(this.ctx.destination);
 
-    // Eigener Bus für die Musik (leiser als SFX).
+    // Eigener Bus für die Musik (leiser als SFX, aber wahrnehmbar).
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.5;
+    this.musicGain.gain.value = 0.72;
     this.musicGain.connect(this.master);
     this.musicOn = false;
     this._mstep = 0;

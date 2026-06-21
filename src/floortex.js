@@ -7,8 +7,10 @@ const loader = new THREE.TextureLoader();
 
 // Themen: Kachelgröße in Welt-Einheiten + Material-Charakter.
 const SETS = {
-  tech:   { base: "./assets/textures/floor/tech",   tile: 7, metalness: 0.55, roughness: 1.0, normal: 0.8 },
-  carpet: { base: "./assets/textures/floor/carpet", tile: 5, metalness: 0.0,  roughness: 1.0, normal: 1.2 },
+  // matt halten: wenig Metalness + gedämpfte Umgebungsreflexion → kein heller
+  // Türkis-Glanz, sondern düster-gemalter CotL-Boden.
+  tech:   { base: "./assets/textures/floor/tech",   tile: 7, metalness: 0.18, roughness: 1.0, normal: 0.9, env: 0.35 },
+  carpet: { base: "./assets/textures/floor/carpet", tile: 5, metalness: 0.0,  roughness: 1.0, normal: 1.2, env: 0.3 },
 };
 
 // Raumfarbe behalten (Hue/Sättigung), aber aufhellen, damit die Textur sichtbar
@@ -57,9 +59,10 @@ export function makeFloorMaterial(theme, tintHex, w, d, aniso = 8) {
     map: maps.map,
     normalMap: maps.nor,
     roughnessMap: maps.rough,
-    color: liftTint(tintHex, theme === "carpet" ? 0.40 : 0.46),
+    color: liftTint(tintHex, theme === "carpet" ? 0.22 : 0.24),
     metalness: s.metalness,
     roughness: s.roughness,
+    envMapIntensity: s.env, // gedämpfte Reflexion → matt, dunkel
   });
   mat.normalScale.set(s.normal, s.normal);
   return mat;

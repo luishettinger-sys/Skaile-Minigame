@@ -20,11 +20,11 @@ export function createOutline(renderer, width, height) {
       tDiffuse: { value: null }, // wird vom ShaderPass gefüllt (Farbbild)
       tNormal: { value: normalRT.texture },
       texel: { value: new THREE.Vector2(1 / width, 1 / height) },
-      thickness: { value: 1.3 }, // Linienbreite in Texeln
-      edgeLo: { value: 0.55 }, // unter diesem Kanten-Wert: keine Linie
-      edgeHi: { value: 1.25 }, // darüber: volle Linie
-      strength: { value: 0.85 }, // Deckkraft der Linie
-      outlineColor: { value: new THREE.Color(0x0a0410) }, // tiefdunkles Violett statt hartem Schwarz
+      thickness: { value: 1.7 }, // Linienbreite in Texeln (dicker → Comic)
+      edgeLo: { value: 0.40 }, // unter diesem Kanten-Wert: keine Linie
+      edgeHi: { value: 1.05 }, // darüber: volle Linie (früher → mehr Linien)
+      strength: { value: 1.0 }, // Deckkraft der Linie (voll)
+      outlineColor: { value: new THREE.Color(0x080310) }, // tiefdunkles Violett statt hartem Schwarz
     },
     vertexShader: /* glsl */ `
       varying vec2 vUv;
