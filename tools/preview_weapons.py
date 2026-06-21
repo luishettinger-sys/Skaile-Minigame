@@ -13,12 +13,12 @@ def clear():
     bpy.ops.object.delete()
 
 scene = bpy.context.scene
-scene.render.engine = "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in [e.identifier for e in bpy.types.RenderEngine.__subclasses__()] else "BLENDER_EEVEE"
-try:
-    scene.render.engine = "BLENDER_EEVEE_NEXT"
-except Exception:
-    try: scene.render.engine = "BLENDER_EEVEE"
-    except Exception: pass
+for eng in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE", "CYCLES"):
+    try:
+        scene.render.engine = eng
+        break
+    except Exception:
+        continue
 scene.render.resolution_x = 480
 scene.render.resolution_y = 360
 scene.render.film_transparent = False
@@ -30,14 +30,22 @@ for name in NAMES:
     clear()
     path = os.path.join(SRC, name + ".glb")
     bpy.ops.import_scene.gltf(filepath=path)
-    # Kamera
-    bpy.ops.object.camera_add(location=(2.6, -2.8, 1.8), rotation=(math.radians(64), 0, math.radians(43)))
+    # Ziel-Empty im Ursprung, Kamera schaut darauf (Mündung +Y zur Kamera).
+    bpy.ops.object.empty_add(location=(0, 0.2, 0.1))
+    tgt = bpy.context.active_object
+    bpy.ops.object.camera_add(location=(2.4, 2.9, 1.7))
     cam = bpy.context.active_object
+    con = cam.constraints.new("TRACK_TO")
+    con.target = tgt
+    con.track_axis = "TRACK_NEGATIVE_Z"
+    con.up_axis = "UP_Y"
     scene.camera = cam
-    bpy.ops.object.light_add(type="SUN", location=(3, -3, 5))
-    bpy.context.active_object.data.energy = 4.0
-    bpy.ops.object.light_add(type="AREA", location=(-2, 2, 3))
-    bpy.context.active_object.data.energy = 200.0
+    bpy.ops.object.light_add(type="SUN", location=(3, 3, 6))
+    bpy.context.active_object.data.energy = 6.0
+    bpy.ops.object.light_add(type="AREA", location=(-3, 1, 4))
+    bpy.context.active_object.data.energy = 600.0
+    bpy.ops.object.light_add(type="AREA", location=(2, -2, 3))
+    bpy.context.active_object.data.energy = 400.0
     scene.render.filepath = os.path.join(OUT, name + ".png")
     bpy.ops.render.render(write_still=True)
     print("rendered", name)
