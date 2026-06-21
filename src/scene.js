@@ -85,13 +85,11 @@ export function createWorld(canvas) {
   let shake = 0;
   let camT = 0;
 
-  // Zwei Kamera-Modi (Taste Q wechselt):
-  //   0 = Vogelperspektive (steil von oben, großer Überblick)
-  //   1 = Drohne (3rd-Person hinter der Ente, action-reicher)
-  let camMode = 0;
-  const BIRDS = { y: 30, z: 11 };                  // hoch & steil
-  const DRONE = { dist: 23, y: 13, lookAhead: 9 }; // hinter der Ente, weiter weg (Ente kleiner im Bild)
-  let camDir = 0; // geglättete „Director"-Blickrichtung (Drohne)
+  // Nur EINE Perspektive: Vogelperspektive (steil von oben). In den kleinen
+  // Seitenräumen rückt die Kamera etwas näher an die Ente (camClose 0→1).
+  const BIRDS = { y: 30, z: 11 };       // Arena (großer Überblick)
+  const ROOM  = { y: 19, z: 7 };        // kleiner Raum (näher dran)
+  let camClose = 0, camCloseTarget = 0;
 
   // Vorausschau (Flow): Kamera blickt leicht in Bewegungsrichtung.
   const lastTarget = new THREE.Vector3();
@@ -99,17 +97,10 @@ export function createWorld(canvas) {
   const baseFov = CONFIG.camera.fov;
   let curFov = baseFov;
 
-  // Winkel weich nachziehen (mit Wrap-around).
-  function angleDamp(cur, target, lambda, dt) {
-    let d = ((target - cur + Math.PI) % (Math.PI * 2)) - Math.PI;
-    if (d < -Math.PI) d += Math.PI * 2;
-    return cur + d * (1 - Math.exp(-lambda * dt));
-  }
-
-  function updateCamera(targetPos, dt, heading = 0) {
+  function updateCamera(targetPos, dt) {
     camT += dt;
 
-    if (!initialized) { lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z); initialized = true; camDir = heading; }
+    if (!initialized) { lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z); initialized = true; }
     const vx = (targetPos.x - lastTarget.x) / Math.max(dt, 1e-3);
     const vz = (targetPos.z - lastTarget.z) / Math.max(dt, 1e-3);
     lastTarget.set(targetPos.x, targetPos.y || 0, targetPos.z);
@@ -122,27 +113,14 @@ export function createWorld(canvas) {
     focus.y = damp(focus.y, targetPos.y || 0, CONFIG.camera.followLerp, dt);
 
     const hover = Math.sin(camT * CONFIG.camera.hoverSpeed) * CONFIG.camera.hover;
-    let lookX = focus.x, lookY = focus.y, lookZ = focus.z, camDist;
 
-    // Director-Richtung weich nachziehen (langsam → trailt sauber hinterher, kein Whip).
-    camDir = angleDamp(camDir, heading, 2.6, dt);
-    if (camMode === 1) {
-      // Drohne: hinter der Ente entlang der Director-Richtung, über die Schulter.
-      const fx = Math.sin(camDir), fz = Math.cos(camDir);
-      camera.position.set(
-        focus.x - fx * DRONE.dist,
-        focus.y + DRONE.y + hover,
-        focus.z - fz * DRONE.dist
-      );
-      lookX = focus.x + fx * DRONE.lookAhead;
-      lookZ = focus.z + fz * DRONE.lookAhead;
-      lookY = focus.y + 1.4;
-      camDist = Math.hypot(DRONE.dist, DRONE.y);
-    } else {
-      // Vogelperspektive: steil von oben.
-      camera.position.set(focus.x, focus.y + BIRDS.y + hover, focus.z + BIRDS.z);
-      camDist = Math.hypot(BIRDS.y, BIRDS.z);
-    }
+    // Kamera-Nähe weich überblenden (Arena ↔ kleiner Raum).
+    camClose = damp(camClose, camCloseTarget, 4, dt);
+    const camY = BIRDS.y + (ROOM.y - BIRDS.y) * camClose;
+    const camZ = BIRDS.z + (ROOM.z - BIRDS.z) * camClose;
+    camera.position.set(focus.x, focus.y + camY + hover, focus.z + camZ);
+    const camDist = Math.hypot(camY, camZ);
+    const lookX = focus.x, lookY = focus.y, lookZ = focus.z;
 
     // Dezentes Speed-FOV für mehr Tempo-Gefühl (Flow).
     curFov = damp(curFov, baseFov + Math.min(11, speed * 0.6), 4, dt);
@@ -161,8 +139,6 @@ export function createWorld(canvas) {
     }
     camera.lookAt(lookX, lookY, lookZ);
   }
-
-  function toggleCam() { camMode = camMode === 0 ? 1 : 0; return camMode; }
 
   function addShake(amount) {
     shake = Math.min(1, shake + amount);
@@ -186,10 +162,8 @@ export function createWorld(canvas) {
     building,
   };
 
-  // Kamera-Modus wechseln (Taste Q): Vogel ↔ Drohne.
-  api.toggleCam = () => toggleCam();
-  api.isDrone = () => camMode === 1;       // Drohne aktiv?
-  api.camHeading = () => camDir;            // aktuelle Director-Blickrichtung
+  // Kamera-Nähe: in kleinen Räumen näher an die Ente (close=true), in der Arena weiter.
+  api.setCamZoom = (close) => { camCloseTarget = close ? 1 : 0; };
   // Zoom/feste Perspektiven gibt es nicht mehr (No-ops für Altaufrufe).
   api.zoom = () => {};
   api.resetZoom = () => {};

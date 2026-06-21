@@ -677,11 +677,7 @@ export class Game {
     if (this.input.wasPressed("KeyG")) this.cycleGadget();
     if (this.input.wasPressed("KeyB")) this.audio.toggleMute(); // Mute (war M)
 
-    // Kamera-Perspektive wechseln: Q schaltet zwischen Vogel- und Drohnen-Ansicht.
-    if (this.input.wasPressed("KeyQ")) {
-      const mode = this.world.toggleCam();
-      this.hud.toast("🎥", "Perspektive", mode === 1 ? "Drohne (hinter der Ente)" : "Vogelperspektive");
-    }
+    // (Perspektiven-Wechsel entfernt – nur noch Vogelperspektive.)
 
     if (this.bossIntro) { this._updateIntro(dt); return; }
     // Anstehenden Boon anbieten, sobald keine andere Auswahl offen ist.
@@ -889,15 +885,20 @@ export class Game {
       shop: this.stations.shop,
     });
 
-    // Director-Kamera: in Bewegungsrichtung schauen; im Stand langsam zum
-    // nächsten Gegner (Action im Blick) – ergibt cinematische, sinnvolle Führung.
-    let camTarget;
-    if (move.x !== 0 || move.z !== 0) camTarget = Math.atan2(move.x, move.z);
-    else if (this.aimTarget) camTarget = Math.atan2(
-      this.aimTarget.mesh.position.x - this.player.pos.x,
-      this.aimTarget.mesh.position.z - this.player.pos.z);
-    else camTarget = this.world.camHeading();
-    this.world.updateCamera(this.player.pos, dt, camTarget);
+    // Kamera näher heranziehen, wenn die Ente in einem der kleinen Seitenräume ist.
+    this.world.setCamZoom?.(this._inSideRoom());
+    this.world.updateCamera(this.player.pos, dt);
+  }
+
+  // Ist die Ente in einem kleinen Seitenraum (nicht in der Arena)?
+  _inSideRoom() {
+    const R = this.world.building?.rooms; if (!R) return false;
+    const x = this.player.pos.x, z = this.player.pos.z;
+    for (const name of ["spawner", "armory", "vault", "powerups"]) {
+      const r = R[name];
+      if (r && x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) return true;
+    }
+    return false;
   }
 
   // Kamera bleibt im CotL-Stil ruhig „gelockt" auf der Basis-Perspektive.
