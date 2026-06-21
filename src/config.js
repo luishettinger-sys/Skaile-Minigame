@@ -15,6 +15,7 @@ export const CONFIG = {
     turnLerp: 16, // wie schnell sich die Ente in Laufrichtung dreht
     maxHp: 100,
     hitInvuln: 0.9, // Sekunden Unverwundbarkeit nach Treffer
+    bigHitDamage: 15, // ab so viel Schaden pro Treffer: zusätzliches "Ouch"-Voice
     contactKnockback: 6,
     regen: 0, // HP/Sekunde (per Upgrade erhöhbar)
     dash: {

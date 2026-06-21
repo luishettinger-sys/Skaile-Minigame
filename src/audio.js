@@ -40,28 +40,32 @@ export class Audio {
     if (this._samplesRequested || !this.ctx) return;
     this._samplesRequested = true;
     const ids = ["blaster", "shotgun", "smg", "rail", "cannon", "minigun", "sniper", "pulse"];
-    for (const id of ids) this._tryLoadSample(id, ["mp3", "wav", "ogg"], 0);
+    for (const id of ids) this._tryLoadSample("weapons", id, ["mp3", "wav", "ogg"], 0);
+    // UI-Sounds: Voice-Samples für Kauf, harten Treffer, Wellen-Sieg.
+    this._tryLoadSample("ui", "buy", ["mp3", "wav", "ogg"], 0);
+    this._tryLoadSample("ui", "ouch", ["wav", "mp3", "ogg"], 0);
+    this._tryLoadSample("ui", "yay", ["wav", "mp3", "ogg"], 0);
   }
 
-  _tryLoadSample(id, exts, i) {
+  _tryLoadSample(dir, id, exts, i) {
     if (i >= exts.length) return;
-    fetch(`./assets/sounds/weapons/${id}.${exts[i]}`)
+    fetch(`./assets/sounds/${dir}/${id}.${exts[i]}`)
       .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
       .then((b) => this.ctx.decodeAudioData(b))
       .then((ab) => { this.buffers[id] = ab; })
-      .catch(() => this._tryLoadSample(id, exts, i + 1));
+      .catch(() => this._tryLoadSample(dir, id, exts, i + 1));
   }
 
   // Spielt ein geladenes Sample mit leichter Tonhöhen-Variation (kein Dauer-Loop-
   // Gefühl). Gibt false zurück, wenn kein Sample da ist → Synthese übernimmt.
-  _playSample(id) {
+  _playSample(id, { rateVar = 0.12, gain = 0.95 } = {}) {
     const buf = this.buffers[id];
     if (!buf || !this.ctx || this.muted) return false;
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
-    src.playbackRate.value = 0.94 + Math.random() * 0.12;
+    src.playbackRate.value = 1 - rateVar / 2 + Math.random() * rateVar;
     const g = this.ctx.createGain();
-    g.gain.value = 0.95;
+    g.gain.value = gain;
     src.connect(g);
     g.connect(this.master);
     src.start();
@@ -245,6 +249,12 @@ export class Audio {
     this._tone({ type: "sawtooth", from: 160, to: 50, dur: 0.3, gain: 0.3 });
   }
 
+  // Harter Treffer (viel Schaden): zusätzliches "Ouch"-Sample über dem
+  // normalen Hurt-Ton. Fehlt die Datei → still (Hurt-Ton spielt ohnehin).
+  ouch() {
+    this._playSample("ouch", { rateVar: 0.06, gain: 0.85 });
+  }
+
   ultimate() {
     // aufsteigender, glänzender Sweep
     this._tone({ type: "sine", from: 300, to: 1200, dur: 0.5, gain: 0.25 });
@@ -253,6 +263,13 @@ export class Audio {
 
   pickup() {
     this._tone({ type: "sine", from: 880, to: 1320, dur: 0.08, gain: 0.1 });
+  }
+
+  // Kauf/Auswahl bestätigt (Waffe, Boon, Automation, Meta-Upgrade, Skin):
+  // befriedigendes "Yummy"-Sample. Fehlt die Datei → synthetischer Fallback.
+  buy() {
+    if (this._playSample("buy", { rateVar: 0.05, gain: 0.9 })) return;
+    this.levelUp();
   }
 
   dash() {
@@ -267,6 +284,13 @@ export class Audio {
   waveStart() {
     this._tone({ type: "sine", from: 500, to: 800, dur: 0.15, gain: 0.18 });
     this._tone({ type: "sine", from: 800, to: 1000, dur: 0.15, gain: 0.15, delay: 0.12 });
+  }
+
+  // Welle überstanden: fröhliches "Yay"-Sample. Fehlt die Datei → kleiner
+  // synthetischer Jubel-Sweep als Fallback.
+  yay() {
+    if (this._playSample("yay", { rateVar: 0.05, gain: 0.85 })) return;
+    this.levelUp();
   }
 
   gameOver() {

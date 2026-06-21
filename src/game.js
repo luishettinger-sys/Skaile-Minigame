@@ -141,6 +141,7 @@ export class Game {
     }
     this.meta.ownedSkins.push(key);
     this._saveMeta();
+    this.audio.buy();
     this.equipSkin(key); // direkt anlegen
   }
 
@@ -189,7 +190,7 @@ export class Game {
     this.meta.coins -= price;
     this.meta.upgrades[key] = lvl + 1;
     this._saveMeta();
-    this.audio.pickup?.();
+    this.audio.buy();
     // Wirkt sofort (falls im Pause-Menü gekauft) – beim Run-Start ohnehin neu.
     this._recomputeMods();
     this._syncStats();
@@ -860,6 +861,7 @@ export class Game {
         const hurt = this.player.takeDamage(e.def.damage);
         if (hurt) {
           this.audio.playerHurt();
+          if (e.def.damage >= CONFIG.player.bigHitDamage) this.audio.ouch();
           this.world.addShake(0.75);
           this._freeze(CONFIG.juice.hitStopHurt);
           this.hud.flash("#ff5470", 0.35);
@@ -903,6 +905,7 @@ export class Game {
       if (distXZ(this.player.pos, s.spr.position) <= CONFIG.player.radius + s.radius) {
         if (this.player.takeDamage(s.damage)) {
           this.audio.playerHurt();
+          if (s.damage >= CONFIG.player.bigHitDamage) this.audio.ouch();
           this.world.addShake(0.6);
           this.hud.flash("#ff5470", 0.3);
           this.hud.setHp(this.player.hp, this.player.maxHp);
@@ -1246,6 +1249,7 @@ export class Game {
     const c = this._boonChoices?.[i];
     if (!c) return;
     this.boons.push(c.id);
+    this.audio.buy();
     if (c.mods) mergeMods(this.boonMods, c.mods);
     if (c.special === "lifesteal") this.boonFlags.lifesteal += c.amount || 2;
     else if (c.special === "coinMult") this.boonFlags.coinMult *= c.amount || 1.5;
@@ -1284,7 +1288,7 @@ export class Game {
     this.hud.setCoins(this.coins);
     this._setWeapon(pad.id);
     this.hud.banner("WAFFE GEKAUFT", WEAPONS[pad.id].name);
-    this.audio.levelUp();
+    this.audio.buy();
     this.effects.burst(this.player.pos.x, this.player.pos.z, this.weapon.color, 20, 1.2);
     this.world.addShake(0.2);
   }
@@ -1303,7 +1307,7 @@ export class Game {
     this.hud.setCoins(this.coins);
     this.automation.apply(id);
     this.hud.banner("AUTOMATION", this.automation.nameFor(id) + " Lv" + this.automation.levels[id]);
-    this.audio.levelUp();
+    this.audio.buy();
     this.effects.burst(this.player.pos.x, this.player.pos.z, 0x80ed99, 18, 1.0);
   }
 
@@ -1394,6 +1398,7 @@ export class Game {
   }
 
   _onWaveClear(n) {
+    this.audio.yay();
     this.player.hp = clamp(this.player.hp + 15, 0, this.player.maxHp);
     this.hud.setHp(this.player.hp, this.player.maxHp);
     this.hud.banner("WELLE " + n + " CLEAR", "+15 Build Health");
