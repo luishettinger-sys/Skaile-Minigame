@@ -16,6 +16,7 @@ export function buildRoomDecor(scene, rooms) {
     // Jeder Funktionsraum bekommt eine GROSSE Themen-Maschine als Kulisse
     // (steht hinten am Raum, lässt die Raummitte zum Interagieren frei).
     if (rooms.spawner)  chipMachine(group, rooms.spawner, animated);   // Nord: Chip-Sockel
+    if (rooms.spawner)  workstation(group, rooms.spawner, animated);   // Nord: Dev-Workstation (Monitor)
     if (rooms.powerups) fabMachine(group, rooms.powerups, animated);   // West: Fabrikator
     if (rooms.vault)    researchMachine(group, rooms.vault, animated); // Süd: Forschung
     if (rooms.armory)   forgeMachine(group, rooms.armory, animated);   // Ost: Schmiede
@@ -282,28 +283,110 @@ function chipMachine(group, r, animated) {
   animated.push({ fn: (t) => { for (let i = 0; i < lights.length; i++) lights[i].visible = Math.sin(t * 3 + i * 1.7) > -0.2; die.material.emissiveIntensity = 0.7 + Math.sin(t * 2) * 0.25; } });
 }
 
-// === WEST: Fabrikator – großer 3D-Drucker mit fahrendem Druckkopf ============
+// === NORD: Dev-Workstation – Schreibtisch + großer Monitor (SKAILE-Community) ==
+function workstation(group, r, animated) {
+  const g = new THREE.Group(); const y = r.y;
+  const deskMat = M(0x20242e, { metalness: 0.4, roughness: 0.6 });
+  const metal   = M(0x33363f, { metalness: 0.7, roughness: 0.4 });
+  const black   = M(0x0c0e14, { metalness: 0.5, roughness: 0.5 });
+
+  // Schreibtisch.
+  const top = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.3, 3.0), deskMat); top.position.y = y + 2.3; g.add(top);
+  for (const lx of [-3.0, 3.0]) for (const lz of [-1.3, 1.3]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 2.3, 0.25), metal);
+    leg.position.set(lx, y + 1.15, lz); g.add(leg);
+  }
+
+  // Monitor: Standfuß + Säule + Gehäuse + Bild.
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.9, 0.18, 20), metal); foot.position.set(0, y + 2.55, -0.8); g.add(foot);
+  const pole = new THREE.Mesh(new THREE.BoxGeometry(0.32, 2.8, 0.32), metal); pole.position.set(0, y + 3.9, -0.8); g.add(pole);
+  const bezel = new THREE.Mesh(new THREE.BoxGeometry(7.0, 4.2, 0.35), black); bezel.position.set(0, y + 5.4, -0.62); g.add(bezel);
+
+  // Bildschirm mit deinem Community-Screenshot (selbstleuchtend → immer sichtbar).
+  const tex = new THREE.TextureLoader().load("./assets/textures/monitor_nord.png");
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 3.8), new THREE.MeshBasicMaterial({ map: tex }));
+  screen.position.set(0, y + 5.4, -0.43); g.add(screen);          // Front zeigt nach +z (zur Kamera)
+  const ml = new THREE.PointLight(0xbfe0ff, 5, 16, 2); ml.position.set(0, y + 5.4, 2.0); g.add(ml);
+
+  // Tastatur (mit angedeuteten Tasten) + Maus.
+  const kb = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.18, 1.0), M(0x14161d, { metalness: 0.3 }));
+  kb.position.set(-0.4, y + 2.55, 0.85); kb.rotation.x = -0.05; g.add(kb);
+  const keys = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.06, 0.84), E(0x2bd4ff, 0.3)); keys.position.set(-0.4, y + 2.66, 0.85); keys.rotation.x = -0.05; g.add(keys);
+  const mouse = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), M(0x14161d, { metalness: 0.3 }));
+  mouse.scale.set(0.7, 0.42, 1.1); mouse.position.set(1.95, y + 2.62, 0.85); g.add(mouse);
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 1.1), M(0x101218)); pad.position.set(1.95, y + 2.48, 0.85); g.add(pad);
+
+  // Stuhl-Andeutung vor dem Tisch.
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.25, 1.5), M(0x1a1f2a)); seat.position.set(0, y + 1.6, 2.6); g.add(seat);
+  const sback = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 0.25), M(0x1a1f2a)); sback.position.set(0, y + 2.4, 3.25); g.add(sback);
+
+  // An der linken Rückwand des Nord-Raums platzieren, Bildschirm zur Raummitte/Kamera.
+  g.position.set(cx(r) - 9.5, 0, r.minZ + 4.5);
+  group.add(g);
+
+  animated.push({ fn: (t) => { ml.intensity = 4.5 + Math.sin(t * 2.4) * 0.8; } });
+}
+
+// === WEST: Fabrikator – eingehauster Industrie-3D-Drucker =====================
 function fabMachine(group, r, animated) {
   const g = new THREE.Group(); const y = r.y;
-  // Rahmen (4 Pfosten + oberer Querbalken).
-  const frameMat = M(0x2a2f3a, { metalness: 0.6 });
+  const frameMat = M(0x2b3340, { metalness: 0.7, roughness: 0.35 });   // Alu-Profil
+  const darkMat  = M(0x0e1118, { metalness: 0.4, roughness: 0.6 });    // Korpus
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x4fd4ff, transparent: true, opacity: 0.12, metalness: 0.2, roughness: 0.1, side: THREE.DoubleSide });
+
+  // Unterschrank (Elektronik/Schubfach) als solide Basis.
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(11, 2.2, 7), darkMat); cab.position.set(0, y + 1.1, 0); g.add(cab);
+  const drawer = new THREE.Mesh(new THREE.BoxGeometry(9.2, 1.2, 0.2), M(0x1a2030, { metalness: 0.5 })); drawer.position.set(0, y + 1.2, 3.55); g.add(drawer);
+
+  // Eingehauster Rahmen: 4 Alu-Pfosten + Ober-/Querbalken (CoreXY-Look).
   for (const px of [-5, 5]) for (const pz of [-3, 3]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.4, 8, 0.4), frameMat);
-    post.position.set(px, y + 4, pz); g.add(post);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.45, 7.2, 0.45), frameMat);
+    post.position.set(px, y + 5.8, pz); g.add(post);
   }
-  const topBeam = new THREE.Mesh(new THREE.BoxGeometry(11, 0.5, 0.5), frameMat); topBeam.position.set(0, y + 7.8, 0); g.add(topBeam);
-  // Druckbett (glüht warm).
-  const bed = new THREE.Mesh(new THREE.BoxGeometry(8, 0.4, 5), E(0xff7a3c, 0.4, { metalness: 0.4 })); bed.position.set(0, y + 1.2, 0); g.add(bed);
-  // X-Schiene + fahrender Druckkopf mit glühender Düse.
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(10, 0.3, 0.3), frameMat); rail.position.set(0, y + 6.2, 0); g.add(rail);
-  const head = new THREE.Group();
-  const block = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), M(0x3a4150, { metalness: 0.6 })); block.position.y = y + 6.0;
-  const nozzle = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.7, 8), E(0x6ee7ff, 1.0)); nozzle.position.set(0, y + 5.2, 0); nozzle.rotation.x = Math.PI;
-  head.add(block, nozzle); g.add(head);
-  // halbfertiges Druckobjekt auf dem Bett.
-  const wip = new THREE.Mesh(new THREE.BoxGeometry(2, 1.4, 2), E(0x2bd4ff, 0.3, { transparent: true, opacity: 0.7 })); wip.position.set(0, y + 2.1, 0); g.add(wip);
-  placeMachine(group, g, r, 3.2);
-  animated.push({ fn: (t) => { head.position.x = Math.sin(t * 1.6) * 4; nozzle.material.emissiveIntensity = 0.7 + Math.abs(Math.sin(t * 6)) * 0.6; } });
+  for (const pz of [-3, 3]) {
+    const tb = new THREE.Mesh(new THREE.BoxGeometry(10.5, 0.45, 0.45), frameMat); tb.position.set(0, y + 9.3, pz); g.add(tb);
+  }
+  // Glas-Seitenwände (Gehäuse) – Seiten + Rückwand, vorne offen für Sicht aufs Bett.
+  const sideGeo = new THREE.PlaneGeometry(6, 7);
+  for (const px of [-5.2, 5.2]) { const s = new THREE.Mesh(sideGeo, glassMat); s.position.set(px, y + 5.8, 0); s.rotation.y = Math.PI / 2; g.add(s); }
+  const backGlass = new THREE.Mesh(new THREE.PlaneGeometry(10.4, 7), glassMat); backGlass.position.set(0, y + 5.8, -3.2); g.add(backGlass);
+
+  // Beheiztes Druckbett (glüht warm) auf einer Hubplattform.
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(8, 0.35, 5), E(0xff7a3c, 0.55, { metalness: 0.5, roughness: 0.4 }));
+  bed.position.set(0, y + 2.8, 0); g.add(bed);
+  const bedlight = new THREE.PointLight(0xff7a3c, 4, 12, 2); bedlight.position.set(0, y + 3.4, 0); g.add(bedlight);
+
+  // Obere X-Gantry mit fahrender Brücke + Druckkopf + glühender Düse.
+  const gantry = new THREE.Group();
+  const bridge = new THREE.Mesh(new THREE.BoxGeometry(10.2, 0.4, 0.6), frameMat); bridge.position.y = y + 8.4;
+  const carriage = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.0, 1.2), M(0x3a4150, { metalness: 0.7 })); carriage.position.set(0, y + 8.0, 0);
+  const nozzle = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.7, 10), E(0x6ee7ff, 1.0)); nozzle.position.set(0, y + 7.3, 0); nozzle.rotation.x = Math.PI;
+  gantry.add(bridge, carriage, nozzle); g.add(gantry);
+
+  // Filament-Spule an der Seite (dreht sich).
+  const spool = new THREE.Group();
+  const reel = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.7, 24), M(0x101010, { metalness: 0.3 }));
+  const fila = new THREE.Mesh(new THREE.CylinderGeometry(1.35, 1.35, 0.5, 24), E(0x39ff9a, 0.5)); fila.position.y = 0; reel.add(fila);
+  reel.rotation.z = Math.PI / 2; spool.add(reel); spool.position.set(6.2, y + 6.6, -1.5); g.add(spool);
+
+  // Steuer-Display vorne am Pfosten.
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 0.18), M(0x05070b)); panel.position.set(5.0, y + 4.4, 3.0);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.95), E(0x39ff9a, 0.7)); scr.position.set(5.0, y + 4.4, 3.1);
+  g.add(panel, scr);
+
+  // Halbfertiges Druckobjekt (Schicht-Look) auf dem Bett.
+  const wip = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.2, 1.6, 16), E(0x2bd4ff, 0.35, { transparent: true, opacity: 0.8 }));
+  wip.position.set(0, y + 3.75, 0); g.add(wip);
+
+  placeMachine(group, g, r, 3.6);
+  animated.push({ fn: (t) => {
+    const x = Math.sin(t * 1.5) * 3.4;
+    gantry.position.x = x; nozzle.position.x = x; carriage.position.x = x;
+    nozzle.material.emissiveIntensity = 0.7 + Math.abs(Math.sin(t * 6)) * 0.6;
+    reel.rotation.x = t * 0.8;
+    scr.material.emissiveIntensity = 0.5 + (Math.sin(t * 3) > 0 ? 0.3 : 0);
+  } });
 }
 
 // === SÜD: Forschung – Mainframe mit Bildschirmen + rotierender Holo-Säule =====

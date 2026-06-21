@@ -284,11 +284,18 @@ function makeLabel(title, sub, accent, fg) {
   roundRect(ctx, 6, 6, c.width - 12, c.height - 12, 22);
   ctx.stroke();
   ctx.textAlign = "center";
+  const maxW = c.width - 48; // Innenabstand, damit Text nie ans Schild-Rand stößt
+  // Schrift so weit verkleinern, dass die Zeile garantiert reinpasst (kein Clipping).
+  const fitFont = (text, px) => {
+    let size = px;
+    do { ctx.font = `bold ${size}px system-ui, sans-serif`; size -= 2; }
+    while (size > 14 && ctx.measureText(text).width > maxW);
+  };
   ctx.fillStyle = "#" + fg.toString(16).padStart(6, "0");
-  ctx.font = "bold 44px system-ui, sans-serif";
+  fitFont(title, 44);
   ctx.fillText(title, c.width / 2, 74);
   ctx.fillStyle = "#" + accent.toString(16).padStart(6, "0");
-  ctx.font = "bold 40px system-ui, sans-serif";
+  fitFont(sub, 40);
   ctx.fillText(sub, c.width / 2, 128);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;

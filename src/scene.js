@@ -80,9 +80,9 @@ export function createWorld(canvas) {
   // Motherboard-Wand, 3D-Drucker, Forschungs-Mainframe) statt leerer Räume.
   const decor = buildRoomDecor(scene, building.rooms);
 
-  // Fließende Daten: glühende Pakete wandern über die Leiterbahnen der Arena →
-  // lebendiges "Inneres-eines-PCs"-Gefühl (additive Sprites, achsen-parallel).
-  const dataFlow = buildDataFlow(scene, building.arenaHalf ?? CONFIG.arena.half);
+  // Boden-Daten-Pakete entfernt (Wunsch Luis): die wandernden Punkte wirkten
+  // zu unruhig/hibbelig und lenkten vom Spielgeschehen ab.
+  const dataFlow = null;
 
   // --- Kamera-Rig (Follow + Screenshake) -------------------------------------
   const focus = new THREE.Vector3(0, 0, 0); // worauf die Kamera schaut
