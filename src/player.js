@@ -50,6 +50,14 @@ export class Player {
     this._trail = [];
     this._trailPool = [];
     this._trailT = 0;
+
+    // Persönlichkeit/Show: Aura-Funken, Idle-Einlage (Hüpfer), Auftritts-Pop.
+    this._sparks = [];
+    this._sparkPool = [];
+    this._sparkT = 0;
+    this._idle = 0;
+    this._flourish = 0;
+    this._pop = 0;
   }
 
   // Dash auslösen (Ausweichen mit i-Frames). Gibt true zurück, wenn erfolgreich.
@@ -104,28 +112,38 @@ export class Player {
     const fwdL = (this.smoothVel.x * sf + this.smoothVel.z * cf) / ref;
     const rgtL = (this.smoothVel.x * cf - this.smoothVel.z * sf) / ref;
 
+    // Bodenhöhe (für Hop, Schatten, Funken).
+    const groundY = this.terrain ? this.terrain.heightAt(this.pos.x, this.pos.z) : 0;
+
+    // Idle-Show: steht die Ente länger still, macht sie ab und zu einen kleinen
+    // Hüpfer (Persönlichkeit). Auftritts-Pop (_pop) klingt nach Run-Start ab.
+    if (moving || dashing) this._idle = 0; else this._idle += dt;
+    if (this._idle > 3.5 && this._flourish <= 0) { this._flourish = 0.6; this._idle = 0; this._burstSparks(6, groundY); }
+    if (this._flourish > 0) this._flourish = Math.max(0, this._flourish - dt);
+    if (this._pop > 0) this._pop = Math.max(0, this._pop - dt * 2.6);
+    const flo = this._flourish > 0 ? Math.sin((1 - this._flourish / 0.6) * Math.PI) : 0; // 0→1→0
+
     // Lebendige Bewegung: kräftiges Waddle, Bob/Hop, Lean/Banking, Squash&Stretch.
     this.phase += dt * (moving ? 17 : 3.2);
     const swing = Math.sin(this.phase);
-    const hop = moving ? Math.abs(swing) * 0.30 : Math.abs(swing) * 0.05; // deutlicher Hop
+    const hop = (moving ? Math.abs(swing) * 0.30 : Math.abs(swing) * 0.05) + flo * 0.5; // + Idle-Hüpfer
 
     if (this.mixer) {
       this.mixer.update(dt * (moving ? 1.6 : 0.8));
     } else {
       const waddle = moving ? 0.30 : 0.04; // stärkeres Wackeln als zuvor
-      // Waddle + Banking ins Straffen + leichtes Kopfnicken beim Hop.
-      this.root.rotation.z = swing * waddle - rgtL * 0.6;
+      // Waddle + Banking ins Straffen + fröhliches Wackeln während der Einlage.
+      this.root.rotation.z = swing * waddle - rgtL * 0.6 + Math.sin(this._t * 34) * flo * 0.18;
       this.root.rotation.x = fwdL * 0.3 + (moving ? 0.06 : Math.sin(this._t * 1.6) * 0.02);
       let squash = 1 - Math.abs(swing) * (moving ? 0.13 : 0.025);
       let stretch = 1 / Math.sqrt(squash);
       let sx = stretch, sy = squash, sz = stretch;
       if (dashing) { sz *= 1.28; sx *= 0.88; sy *= 0.9; } // in Flugrichtung strecken
-      const B = this.baseScale;
+      const B = this.baseScale * (1 + this._pop * 0.4 + flo * 0.1); // Auftritts-Pop + Einlage
       this.root.scale.set(sx * B, sy * B, sz * B);
     }
 
     // Höhe: auf Plattformen/Stufen steigen (weich nachziehen) + Hop.
-    const groundY = this.terrain ? this.terrain.heightAt(this.pos.x, this.pos.z) : 0;
     const targetY = groundY + hop;
     this.pos.y += (targetY - this.pos.y) * (1 - Math.exp(-14 * dt));
 
@@ -140,6 +158,11 @@ export class Player {
     this._updateHero(dt, groundY, moving, dashing);
     if (dashing) this._emitTrail(groundY);
     this._updateTrail(dt);
+
+    // Aura-Funken: sparsam aufsteigende Glitzer um die Ente (mehr Präsenz).
+    this._sparkT -= dt;
+    if (this._sparkT <= 0) { this._sparkT = 0.34; this._spawnSpark(groundY); }
+    this._updateSparks(dt);
 
     // Waffen-Rückstoß abklingen lassen (Wucht beim Schießen).
     if (this.weaponModel) {
@@ -284,12 +307,21 @@ export class Player {
     this._clearCosmetics();
     this.setGadget(null);
     this._setVisible(true);
-    // Speed-Trail leeren.
+    // Speed-Trail + Funken leeren.
     if (this._trail) {
       for (const p of this._trail) { p.visible = false; this._trailPool.push(p); }
       this._trail.length = 0;
     }
+    if (this._sparks) {
+      for (const s of this._sparks) { s.visible = false; this._sparkPool.push(s); }
+      this._sparks.length = 0;
+    }
     this.smoothVel?.set(0, 0, 0);
+    // Auftritts-Pop: kleiner Scale-Punch + Funken-Burst beim Run-Start.
+    this._idle = 0;
+    this._flourish = 0;
+    this._pop = 1;
+    this._burstSparks(10, 0);
   }
 
   // Tauscht das Platzhalter-Mesh gegen ein geladenes GLB-Modell.
@@ -403,6 +435,49 @@ export class Player {
         p.visible = false;
         this._trail.splice(i, 1);
         this._trailPool.push(p);
+      }
+    }
+  }
+
+  // --- Aura-Funken ---------------------------------------------------------
+  _makeSpark() {
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTexture(), color: 0xffe9a8, transparent: true,
+      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    }));
+    this.scene.add(spr);
+    return spr;
+  }
+
+  _spawnSpark(groundY, big = false) {
+    let s = this._sparkPool.pop() || this._makeSpark();
+    const a = Math.random() * Math.PI * 2;
+    const r = 0.5 + Math.random() * 0.9;
+    s.position.set(this.pos.x + Math.cos(a) * r, groundY + 0.4 + Math.random() * 1.2, this.pos.z + Math.sin(a) * r);
+    s.material.opacity = 0.9;
+    const sc = (big ? 0.42 : 0.26) + Math.random() * 0.12;
+    s.scale.setScalar(sc);
+    s.visible = true;
+    s.vy = 0.7 + Math.random() * 0.7;
+    s.life = 0.6 + Math.random() * 0.4;
+    this._sparks.push(s);
+  }
+
+  _burstSparks(n, groundY = 0) {
+    for (let i = 0; i < n; i++) this._spawnSpark(groundY, true);
+  }
+
+  _updateSparks(dt) {
+    for (let i = this._sparks.length - 1; i >= 0; i--) {
+      const s = this._sparks[i];
+      s.life -= dt;
+      s.position.y += s.vy * dt;
+      s.material.opacity *= Math.exp(-3.2 * dt);
+      s.scale.multiplyScalar(1 - dt * 0.6);
+      if (s.life <= 0) {
+        s.visible = false;
+        this._sparks.splice(i, 1);
+        this._sparkPool.push(s);
       }
     }
   }
