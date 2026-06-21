@@ -1,10 +1,6 @@
 // 3D-Welt: Renderer, Szene, Kamera, Licht, Arena (Code-Grid), Kamera-Rig.
 import * as THREE from "three";
-import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { createOutline } from "./outline.js";
 import { CONFIG } from "./config.js";
 import { damp } from "./utils.js";
 import { buildOffice, buildBackdrop, setBackdropTexture } from "./environment.js";
@@ -172,36 +168,14 @@ export function createWorld(canvas) {
     shake = Math.min(1, shake + amount);
   }
 
-  // --- Post-Processing: Bloom für leuchtende Geschosse/Neon/Monitor ---------
-  // MSAA-Render-Target (samples:4) → harte Kanten/dünne Linien flimmern beim
-  // Bewegen nicht mehr; HalfFloat → sauberes Bloom ohne Banding.
-  const dpr = renderer.getPixelRatio();
-  const msaaRT = new THREE.WebGLRenderTarget(
-    Math.floor(window.innerWidth * dpr),
-    Math.floor(window.innerHeight * dpr),
-    { type: THREE.HalfFloatType, samples: 2 }
-  );
-  const composer = new EffectComposer(renderer, msaaRT);
-  composer.addPass(new RenderPass(scene, camera));
-
-  // Comic-Outline (Cult-of-the-Lamb-Look) zwischen Render und Bloom.
-  const outline = createOutline(renderer, window.innerWidth, window.innerHeight);
-  composer.addPass(outline.pass);
-
-  const bloom = new UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
-    0.28, // strength: nur dezenter Schein (helle Szene braucht wenig Bloom)
-    0.4, // radius
-    1.1 // threshold hoch → nur wirklich helle Quellen glühen
-  );
-  composer.addPass(bloom);
-
+  // --- Direktes Rendering (KEIN Post-Processing) -----------------------------
+  // Früher: Outline-Normalen-Prepass (Szene 2× pro Frame) + Bloom-Composer →
+  // teuer (FPS-Drops) UND die schwarzen Kanten wirkten zu hart. Jetzt direkt
+  // gerendert mit dem nativen MSAA des Renderers (antialias:true) → sauber & schnell.
   function resize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    composer.setSize(window.innerWidth, window.innerHeight);
-    outline.setSize(window.innerWidth, window.innerHeight);
   }
   window.addEventListener("resize", resize);
 
@@ -228,8 +202,7 @@ export function createWorld(canvas) {
   api.resetCamera = () => { targetOffset = { ...baseOffset }; };
   api.setBackdrop = (url) => setBackdropTexture(backdrop, url);
   api.render = () => {
-    outline.renderNormals(scene, camera); // Normalen-Prepass für die Kantenerkennung
-    composer.render();
+    renderer.render(scene, camera); // direkt, ohne Post-Processing → flüssig
   };
   // Stimmungs-Tint (Fog + Hintergrundfarbe) je Map-Tier.
   api.setMood = (hex) => {
