@@ -31,6 +31,8 @@ export const UPGRADES = [
     apply: (m) => { m.critAdd += 0.1; } },
   { id: "velocity", name: "Schub-Modul", desc: "+25 % Geschoss-Tempo", icon: "🚀",
     apply: (m) => { m.projSpeedMult *= 1.25; } },
+  { id: "range", name: "Zielfernrohr", desc: "+30 % Reichweite", icon: "🔭",
+    apply: (m) => { m.rangeMult *= 1.3; } },
   { id: "accuracy", name: "Ziel-Stabilisator", desc: "-25 % Streuung", icon: "📐",
     apply: (m) => { m.spreadMult *= 0.75; } },
   { id: "glass", name: "Glaskanone", desc: "+40 % Schaden, -15 max HP", icon: "⚗️",

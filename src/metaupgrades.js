@@ -43,6 +43,11 @@ export const META_UPGRADES = {
     max: 5, base: 280, step: 170,
     mod: (lvl, m) => { m.critAdd += 0.04 * lvl; },
   },
+  range: {
+    icon: "🔭", name: "Reichweite", short: "+10 % Reichweite / Stufe",
+    max: 5, base: 200, step: 140,
+    mod: (lvl, m) => { m.rangeMult *= 1 + 0.1 * lvl; },
+  },
   startcoins: {
     icon: "🪙", name: "Startkapital", short: "+60 Run-Coins zu Start",
     max: 6, base: 160, step: 120,
@@ -52,7 +57,7 @@ export const META_UPGRADES = {
 
 // Reihenfolge im Lab-Ausbau-Menü.
 export const META_ORDER = [
-  "maxhp", "damage", "firerate", "speed", "magnet", "regen", "crit", "startcoins",
+  "maxhp", "damage", "firerate", "speed", "magnet", "regen", "crit", "range", "startcoins",
 ];
 
 // Preis der NÄCHSTEN Stufe (level = aktuell gekaufte Stufen).

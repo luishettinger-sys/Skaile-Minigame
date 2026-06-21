@@ -7,6 +7,7 @@ export function defaultMods() {
     projScaleMult: 1, moveSpeedMult: 1, magnetMult: 1, regen: 0,
     dashCdMult: 1, maxHpAdd: 0,
     energyMult: 1, critAdd: 0, projSpeedMult: 1, spreadMult: 1,
+    rangeMult: 1,
   };
 }
 
@@ -30,6 +31,7 @@ export const ITEM_DEFS = [
   { id: "focus", name: "Laser-Fokus", icon: "🎯", desc: "+1 Durchschlag", mods: { pierceAdd: 1 } },
   { id: "fork", name: "Fork-Modul", icon: "🔱", desc: "+1 Geschoss", mods: { projAdd: 1 } },
   { id: "turbo", name: "Turbo-Lüfter", icon: "💨", desc: "-20 % Dash-CD", mods: { dashCdMult: 0.8 } },
+  { id: "scope", name: "Mini-Scope", icon: "🔭", desc: "+25 % Reichweite", mods: { rangeMult: 1.25 } },
 ];
 
 let _uid = 0;

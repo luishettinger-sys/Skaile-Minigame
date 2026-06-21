@@ -851,15 +851,24 @@ export class Game {
     const spread = this.weapon.spread * this.mods.spreadMult;
     const fwd = CONFIG.weapon.muzzleForward;
     const w = this.weapon;
+    const speed = w.speed * this.mods.projSpeedMult;
+    // Reichweite als echter Aspekt: range (Distanz) → Lebensdauer = range/speed.
+    // So bleibt die Reichweite stabil, egal wie schnell das Geschoss fliegt.
+    // Spezialbahnen (Bumerang, Granate, Orbit …) nutzen projLife als Laufzeit.
+    // rangeMult kommt aus Upgrades/Items/Lab-Ausbau (Zielfernrohr).
+    const rangeMult = this.mods.rangeMult || 1;
+    let life;
+    if (w.projLife != null) life = w.projLife * rangeMult;
+    else if (w.range != null) life = (w.range * rangeMult) / Math.max(1, speed);
     const opts = {
       damage: this._damage(),
       pierce: this._pierce(),
       scale: this._projScale(),
       color: w.color,
-      speed: w.speed * this.mods.projSpeedMult,
+      speed,
       style: w.style,
       // Kreative Verhalten (nur gesetzt, wenn die Waffe sie definiert).
-      behavior: w.behavior, life: w.projLife,
+      behavior: w.behavior, life,
       homingRate: w.homingRate, outTime: w.outTime,
       waveAmp: w.waveAmp, waveFreq: w.waveFreq,
       bounces: w.bounces, orbitR: w.orbitR, orbitSpin: w.orbitSpin,
