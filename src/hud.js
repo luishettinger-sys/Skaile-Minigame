@@ -4,6 +4,7 @@ import { META_UPGRADES, META_ORDER, metaPrice } from "./metaupgrades.js";
 import { FORGE_MODS, FORGE_ORDER, forgeCost } from "./forge.js";
 import { RESEARCH, RESEARCH_ORDER, researchAvailable } from "./research.js";
 import { CHIP_TYPES, CHIP_ORDER, GRID_N, slotStrength, sameNeighbors } from "./chips.js";
+import { FAB_ITEMS, FAB_ORDER } from "./fabricator.js";
 
 export class HUD {
   constructor() {
@@ -92,6 +93,12 @@ export class HUD {
       chipPalette: document.getElementById("chip-palette"),
       chipBal: document.getElementById("chip-bal"),
       chipsClose: document.getElementById("chips-close"),
+      fabOverlay: document.getElementById("overlay-fab"),
+      fabGrid: document.getElementById("fab-grid"),
+      fabScrap: document.getElementById("fab-scrap"),
+      fabProgress: document.getElementById("fab-progress"),
+      fabClose: document.getElementById("fab-close"),
+      belt: document.getElementById("belt"),
       lorePop: document.getElementById("lore-pop"),
       loreIcon: document.getElementById("lore-icon"),
       loreTitle: document.getElementById("lore-title"),
@@ -180,6 +187,56 @@ export class HUD {
       if (!maxed) card.onclick = () => onCraft(id);
       grid.appendChild(card);
     }
+  }
+
+  // --- Fabrikator (3D-Drucker) ----------------------------------------------
+  showFab() { this.el.fabOverlay?.classList.remove("hidden"); }
+  hideFab() { this.el.fabOverlay?.classList.add("hidden"); }
+  fabHidden() { return !this.el.fabOverlay || this.el.fabOverlay.classList.contains("hidden"); }
+
+  renderFab(consumables, scrap, job, onPrint) {
+    const grid = this.el.fabGrid;
+    if (!grid) return;
+    if (this.el.fabScrap) this.el.fabScrap.textContent = (scrap | 0).toLocaleString("de-DE");
+    // Laufender Druck.
+    if (this.el.fabProgress) {
+      if (job) {
+        const it = FAB_ITEMS[job.id];
+        const pct = Math.max(0, Math.min(100, (1 - job.t / job.total) * 100));
+        this.el.fabProgress.innerHTML =
+          `<div class="fab-job">🖨️ druckt ${it.icon} ${it.name} … ${Math.ceil(job.t)}s` +
+          `<div class="fab-bar"><div class="fab-bar-fill" style="width:${pct}%"></div></div></div>`;
+      } else {
+        this.el.fabProgress.innerHTML = `<div class="fab-job idle">Drucker bereit</div>`;
+      }
+    }
+    grid.innerHTML = "";
+    for (const id of FAB_ORDER) {
+      const it = FAB_ITEMS[id];
+      const have = consumables?.[id] || 0;
+      const affordable = !job && scrap >= it.cost;
+      const card = document.createElement("div");
+      card.className = "skin-card up-card " + (affordable ? "affordable owned" : "locked");
+      card.innerHTML =
+        `<div class="skin-emoji">${it.icon}</div>` +
+        `<div class="skin-name">${it.name}</div>` +
+        `<div class="up-desc">${it.desc}</div>` +
+        `<div class="skin-status">[${it.slot}] · besitzt ${have} · ${it.cost} 🔩 · ${it.time}s</div>`;
+      if (affordable) card.onclick = () => onPrint(id);
+      grid.appendChild(card);
+    }
+  }
+
+  // Verbrauchsgüter-Gürtel im HUD (Slots 1–4 mit Anzahl).
+  setBelt(consumables) {
+    if (!this.el.belt) return;
+    let html = "";
+    for (const id of FAB_ORDER) {
+      const it = FAB_ITEMS[id];
+      const n = consumables?.[id] || 0;
+      html += `<span class="belt-item${n > 0 ? " has" : ""}"><b>${it.slot}</b>${it.icon}<i>${n}</i></span>`;
+    }
+    this.el.belt.innerHTML = html;
   }
 
   // --- Chip-Sockel (Mainboard-Raster mit Adjazenz) --------------------------

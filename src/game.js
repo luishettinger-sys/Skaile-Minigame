@@ -23,6 +23,7 @@ import { rollItem, defaultMods, mergeMods } from "./items.js";
 import { FORGE_MODS, FORGE_ORDER, forgeCost } from "./forge.js";
 import { RESEARCH, RESEARCH_ORDER, researchAvailable, researchMods, researchDropMult } from "./research.js";
 import { CHIP_TYPES, CHIP_ORDER, chipMods, chipFlags, normalizeGrid } from "./chips.js";
+import { FAB_ITEMS, FAB_ORDER, fabBySlot } from "./fabricator.js";
 import { POWERUPS, POWER_IDS, TIMED_IDS } from "./powerups.js";
 import { GADGETS, GADGET_IDS, gadgetPrice } from "./gadgets.js";
 import { SKINS, SKIN_RIDDLES } from "./skins.js";
@@ -316,6 +317,67 @@ export class Game {
     this._renderChips();
   }
 
+  // --- FABRIKATOR (West): Verbrauchsgüter aus Schrott drucken ----------------
+  openFab() {
+    this._renderFab();
+    this.hud.showFab();
+  }
+  closeFab() { this.hud.hideFab(); }
+
+  _renderFab() {
+    this.hud.renderFab(this.consumables, this.mats.scrap, this._printJob, (id) => this.startPrint(id));
+  }
+
+  startPrint(id) {
+    const it = FAB_ITEMS[id];
+    if (!it) return;
+    if (this._printJob) { this.hud.toast?.("🖨️", "Drucker belegt", "Erst aktuellen Druck abwarten"); return; }
+    if (this.mats.scrap < it.cost) { this.hud.toast?.("🔩", "Nicht genug Schrott", `${it.name} kostet ${it.cost} 🔩`); this.audio.playerHurt?.(); return; }
+    this.mats.scrap -= it.cost;
+    this._printJob = { id, t: it.time, total: it.time };
+    this.audio.buy?.();
+    this._matsDirty = true;
+    this._renderFab();
+  }
+
+  // Druckfortschritt (läuft auch während Wellen weiter). Fertig → Gürtel + Toast.
+  _updatePrint(dt) {
+    const j = this._printJob;
+    if (!j) return;
+    j.t -= dt;
+    if (j.t <= 0) {
+      const it = FAB_ITEMS[j.id];
+      this.consumables[j.id] = (this.consumables[j.id] || 0) + 1;
+      this._printJob = null;
+      this.audio.levelUp?.();
+      this.hud.toast?.(it.icon, "Druck fertig", `${it.name} → [${it.slot}]`);
+      this.hud.setBelt?.(this.consumables);
+      if (!this.hud.fabHidden?.()) this._renderFab();
+    }
+  }
+
+  // Verbrauchsgut aus Gürtel-Slot (1–4) zünden.
+  useConsumable(slot) {
+    const id = fabBySlot(slot);
+    if (!id || !this.consumables[id]) return;
+    this.consumables[id]--;
+    const it = FAB_ITEMS[id];
+    if (id === "cool") {
+      this.heat = 0; this.throttled = false;
+      this.hud.flash?.("#9bd0ff", 0.3);
+      this.hud.banner?.("❄️ KÜHL-SPRAY", "CPU auf 0°");
+    } else if (id === "heal") {
+      this._activatePower("heal");
+    } else if (id === "shield") {
+      this._activatePower("shield");
+    } else if (id === "purge") {
+      this._activatePower("nuke");
+    }
+    this.audio.pickup?.();
+    this.hud.setBelt?.(this.consumables);
+    if (!this.hud.fabHidden?.()) this._renderFab();
+  }
+
   buyUpgrade(key) {
     const def = META_UPGRADES[key];
     if (!def) return;
@@ -468,6 +530,10 @@ export class Game {
     this._matsDirty = true;
     this._dropMult = researchDropMult(this.meta.research || {}); // Loot-Boni aus Forschung
     this._chipFlags = chipFlags(this.meta.chipGrid || []); // Heatsink-Abkühlung etc.
+    // Fabrikator: Verbrauchsgüter-Gürtel + laufender Druckauftrag (run-basiert).
+    this.consumables = { heal: 0, shield: 0, cool: 0, purge: 0 };
+    this._printJob = null; // { id, t, total }
+    this.hud.setBelt?.(this.consumables);
     // CPU-Temperatur (Signatur-Mechanik).
     this.heat = 0;
     this.overclock = false;
@@ -824,7 +890,7 @@ export class Game {
       else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) this.openForge();
       else if (door && !this.shopOpen) this._buyRoom(door);
       else if (!this.shopOpen && this._stationNear("vault")) this.openResearch();
-      else if (!this.shopOpen && this._stationNear("powerups")) this._usePowerupShop();
+      else if (!this.shopOpen && this._stationNear("powerups")) this.openFab();
       else if (!this.shopOpen && this._stationNear("spawner")) this.openChips();
       else if (!this.shopOpen && this.stations.skinsNear(this.player.pos)) this.openSkins("riddle");
       else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
@@ -869,6 +935,10 @@ export class Game {
 
     // CPU-Temperatur aktualisieren (Overclock halten, abkühlen, überhitzen).
     this._updateHeat(dt, move.x !== 0 || move.z !== 0);
+    // Fabrikator-Druck läuft im Hintergrund weiter.
+    this._updatePrint(dt);
+    // Verbrauchsgüter zünden (Gürtel-Slots 1–4).
+    for (let s = 1; s <= 4; s++) if (this.input.wasPressed("Digit" + s)) this.useConsumable(s);
 
     if (this.input.wasPressed("ShiftLeft") || this.input.wasPressed("ShiftRight")) {
       if (this.player.tryDash(this._dashCd())) {
@@ -1048,7 +1118,7 @@ export class Game {
       this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
     }
     else if (this._stationNear("vault")) this.hud.showPrompt(`[E] 🔬 FORSCHUNG – Daten erforschen (${this.meta.data | 0} 📡)`);
-    else if (this._stationNear("powerups")) this.hud.showPrompt("[E] ⚡ Power-Up kaufen (40 🪙)");
+    else if (this._stationNear("powerups")) this.hud.showPrompt(`[E] 🖨️ FABRIKATOR – Module drucken (${this.mats.scrap} 🔩)`);
     else if (this._stationNear("spawner")) this.hud.showPrompt(`[E] 🧩 CHIP-SOCKEL – Chips stecken (${this.mats.chips} 🧩)`);
     else if (this.stations.deployNear(this.player.pos)) {
       this.hud.showPrompt(this.defenseLoop ? "[E] ⏸ Deploy-Schleife stoppen" : "[E] 🚀 DEPLOY starten (Dauerschleife)");

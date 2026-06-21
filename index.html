@@ -74,6 +74,7 @@
             <div class="bar-label"><span id="heat-label">🌡️ CPU-TEMP</span> <span id="heat-hint">[C] OVERCLOCK</span></div>
             <div class="bar-track"><div class="bar-fill" id="heat-fill"></div></div>
           </div>
+          <div id="belt"></div>
         </div>
 
         <div id="guide" class="hidden">
@@ -148,6 +149,18 @@
           <div id="forge-grid" class="skin-grid up-grid"></div>
           <button class="btn small" id="forge-close">SCHLIESSEN</button>
           <p class="hint">Schrott droppt aus Bugs · höhere Stufen kosten mehr</p>
+        </div>
+      </div>
+
+      <!-- Fabrikator (3D-Drucker, aus Schrott) -->
+      <div class="overlay hidden" id="overlay-fab">
+        <div class="overlay-card">
+          <h1 class="skins-title">🖨️ FABRIKATOR</h1>
+          <p class="tagline">Schrott: <span id="fab-scrap">0</span> 🔩 &middot; druckt über Zeit · zünden mit [1]–[4]</p>
+          <div id="fab-progress"></div>
+          <div id="fab-grid" class="skin-grid up-grid"></div>
+          <button class="btn small" id="fab-close">SCHLIESSEN</button>
+          <p class="hint">Ein Druck zur Zeit · läuft weiter, während du kämpfst</p>
         </div>
       </div>
 

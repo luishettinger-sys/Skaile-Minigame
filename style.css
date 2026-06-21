@@ -766,6 +766,46 @@ kbd {
   background: rgba(43, 212, 255, 0.12);
 }
 
+/* Fabrikator (3D-Drucker) + Verbrauchsgüter-Gürtel */
+#fab-progress { margin: 10px 0 4px; }
+.fab-job {
+  font-weight: 700;
+  color: #cdd6e4;
+  font-size: 14px;
+}
+.fab-job.idle { color: #6b7689; }
+.fab-bar {
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.fab-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  transition: width 0.2s linear;
+}
+#belt {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.belt-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 7px;
+  border-radius: 8px;
+  background: rgba(10, 16, 28, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 14px;
+  opacity: 0.45;
+}
+.belt-item.has { opacity: 1; border-color: rgba(43, 212, 255, 0.5); }
+.belt-item b { font-size: 10px; color: #8a93a4; margin-right: 1px; }
+.belt-item i { font-style: normal; font-weight: 800; font-size: 12px; color: var(--yellow); }
+
 /* Chip-Sockel (Mainboard-Raster) */
 #chip-board {
   display: grid;
