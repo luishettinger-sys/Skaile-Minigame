@@ -675,6 +675,15 @@ export class HUD {
     if (this.el.guide) this.el.guide.classList.add("hidden");
   }
 
+  // Einmaliges Stations-Tutorial: Enten-Sprechblase, die sich selbst ausblendet.
+  tutorial(text, ms = 7000) {
+    if (!this.el.guide) return;
+    this.el.guideText.textContent = text;
+    this.el.guide.classList.remove("hidden");
+    clearTimeout(this._tutTimer);
+    this._tutTimer = setTimeout(() => this.el.guide.classList.add("hidden"), ms);
+  }
+
   showShop() { this.el.shopOverlay.classList.remove("hidden"); }
   hideShop() { this.el.shopOverlay.classList.add("hidden"); }
 

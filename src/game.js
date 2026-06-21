@@ -105,7 +105,7 @@ export class Game {
   }
 
   _loadMeta() {
-    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false, unlockedRooms: [], guideSeen: false, data: 0, research: {}, craftedMods: {}, chipGrid: [] };
+    const def = { coins: 0, bestWave: 1, kills: 0, ownedSkins: ["classic"], equippedSkin: "classic", upgrades: {}, sectorsCleared: 0, won: false, unlockedRooms: [], guideSeen: false, data: 0, research: {}, craftedMods: {}, chipGrid: [], tutSeen: {} };
     let m;
     try { m = JSON.parse(localStorage.getItem("duckdebug_meta")) || {}; }
     catch (e) { m = {}; }
@@ -130,6 +130,7 @@ export class Game {
       m.craftedMods[k] = Math.max(0, Math.min(FORGE_MODS[k].max, m.craftedMods[k] | 0));
     }
     m.chipGrid = normalizeGrid(m.chipGrid);
+    if (!m.tutSeen || typeof m.tutSeen !== "object") m.tutSeen = {};
     return m;
   }
 
@@ -730,6 +731,17 @@ export class Game {
     this._renderShop();
   }
 
+  // Einmaliges Tutorial pro Station/Mechanik: zeigt einmalig (über alle Runs) die
+  // Enten-Sprechblase, was man hier tun kann. Nicht während des Onboarding-Guides.
+  _tut(key, text) {
+    if (!this.meta.tutSeen) this.meta.tutSeen = {};
+    if (this.meta.tutSeen[key]) return;
+    if (this.guide?.active) return; // Onboarding nicht stören
+    this.meta.tutSeen[key] = true;
+    this._saveMeta();
+    this.hud.tutorial(text);
+  }
+
   // Run-Coins + Statistik EINMAL in die persistente Bank buchen.
   // Spieler nahe der Funktions-Station eines Raums (= Raummitte)?
   _stationNear(name, r = 5) {
@@ -1110,18 +1122,37 @@ export class Game {
       const owned = this.weaponId === pad.id;
       this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)` : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙`);
     }
-    else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) this.hud.showPrompt(`[E] 🔨 SCHMIEDE – Waffen-Mods bauen (${this.mats.scrap} 🔩)`);
-    else if (this.stations.shopNear(this.player.pos)) this.hud.showPrompt("[E] 🛍️ SHOP");
-    else if (this.stations.skinsNear?.(this.player.pos)) this.hud.showPrompt("[E] 👕 Skins (Claude-Rätsel)");
+    else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) {
+      this.hud.showPrompt(`[E] 🔨 SCHMIEDE – Waffen-Mods bauen (${this.mats.scrap} 🔩)`);
+      this._tut("forge", "🔨 Das ist die Schmiede! Hier baust du aus 🔩 Schrott (droppt aus Bugs) permanente Waffen-Mods. Drück [E].");
+    }
+    else if (this.stations.shopNear(this.player.pos)) {
+      this.hud.showPrompt("[E] 🛍️ SHOP");
+      this._tut("shop", "🛍️ Der Shop! Hier kaufst du mit 🪙 Coins Power-Ups, Gadgets & Extras. Drück [E].");
+    }
+    else if (this.stations.skinsNear?.(this.player.pos)) {
+      this.hud.showPrompt("[E] 👕 Skins (Claude-Rätsel)");
+      this._tut("skins", "👕 Skin-Station! Skins schaltest du frei, indem du eine kleine Claude-Rätselfrage beantwortest. Drück [E].");
+    }
     else if (this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z)) {
       const d = this.world.building.lockedDoorNear(this.player.pos.x, this.player.pos.z);
       this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
     }
-    else if (this._stationNear("vault")) this.hud.showPrompt(`[E] 🔬 FORSCHUNG – Daten erforschen (${this.meta.data | 0} 📡)`);
-    else if (this._stationNear("powerups")) this.hud.showPrompt(`[E] 🖨️ FABRIKATOR – Module drucken (${this.mats.scrap} 🔩)`);
-    else if (this._stationNear("spawner")) this.hud.showPrompt(`[E] 🧩 CHIP-SOCKEL – Chips stecken (${this.mats.chips} 🧩)`);
+    else if (this._stationNear("vault")) {
+      this.hud.showPrompt(`[E] 🔬 FORSCHUNG – Daten erforschen (${this.meta.data | 0} 📡)`);
+      this._tut("research", "🔬 Das Forschungslabor! Gib 📡 Daten aus, um Tech zu erforschen – jeder Knoten gibt einen Bonus UND enthüllt, warum das alles passiert. Drück [E].");
+    }
+    else if (this._stationNear("powerups")) {
+      this.hud.showPrompt(`[E] 🖨️ FABRIKATOR – Module drucken (${this.mats.scrap} 🔩)`);
+      this._tut("fab", "🖨️ Der Fabrikator! Druckt aus 🔩 Schrott über Zeit Module (Heilung/Schild/Kühlung/Purge). Im Kampf mit [1]–[4] zünden. Drück [E].");
+    }
+    else if (this._stationNear("spawner")) {
+      this.hud.showPrompt(`[E] 🧩 CHIP-SOCKEL – Chips stecken (${this.mats.chips} 🧩)`);
+      this._tut("chips", "🧩 Der Chip-Sockel! Steck 🧩 Chips ins Mainboard-Raster für Boni. Tipp: Gleiche Chips nebeneinander verstärken sich! Drück [E].");
+    }
     else if (this.stations.deployNear(this.player.pos)) {
       this.hud.showPrompt(this.defenseLoop ? "[E] ⏸ Deploy-Schleife stoppen" : "[E] 🚀 DEPLOY starten (Dauerschleife)");
+      this._tut("deploy", "🚀 Das Deploy-Terminal! [E] startet die Bug-Wellen. Halte dann [C] für OVERCLOCK (mehr Power, aber die CPU heizt auf – nicht überhitzen!).");
     }
     else if (this.carrying) this.hud.showPrompt("[F] werfen");
     else if (this.throwables.nearestIdle(this.player.pos, 2.8)) this.hud.showPrompt("[F] aufheben");
