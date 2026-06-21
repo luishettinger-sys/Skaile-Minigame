@@ -1635,9 +1635,16 @@ export class Game {
     }
   }
 
+  // Welcher Boss erscheint in Welle n? (1 pro Sektor, je eigenes Angriffsmuster)
+  _bossKeyForWave(n) {
+    const keys = ["boss", "bossNull", "bossStack", "bossRace", "bossFinal"];
+    const sector = Math.floor(n / CONFIG.waves.bossEvery); // 1..5
+    return keys[Math.min(keys.length - 1, Math.max(0, sector - 1))];
+  }
+
   _startBossIntro(n) {
     this.bossIntro = true;
-    this.intro = { t: 0, n, shown: false, spawned: false };
+    this.intro = { t: 0, n, shown: false, spawned: false, key: this._bossKeyForWave(n) };
     this.world.setCamera({ x: 0, y: 6, z: 14 }); // Blick Richtung Monitor
     this.audio.waveStart();
   }
@@ -1650,20 +1657,22 @@ export class Game {
     const monitorPos = { x: 0, y: 5, z: -44.5 }; // Monitor im Shop-Raum
     this.world.updateCamera(monitorPos, dt);
 
-    if (!I.shown) { I.shown = true; this.hud.showBossIntro("KERNEL PANIC"); }
+    const def = CONFIG.enemies[I.key] || CONFIG.enemies.boss;
+    if (!I.shown) { I.shown = true; this.hud.showBossIntro(def.label.toUpperCase()); }
 
     if (I.t > 2.6 && !I.spawned) {
       I.spawned = true;
       this.hud.hideBossIntro();
       this.hud.flash("#ff8c1a", 0.5);
       const half = this.world.arenaHalf;
-      this.boss = this.enemies.spawn("boss", 0, -(half - 3));
+      this.boss = this.enemies.spawn(I.key, 0, -(half - 3));
+      this.boss.bossWave = I.n; // für die wellenabhängige Angriffs-Skalierung
       this.audio.bossAppear();
       this.world.addShake(1.0);
       this._freeze(0.1);
-      this.effects.shockwave(0, -(half - 3), CONFIG.colors.red, 18, 26);
-      this.effects.burst(0, -(half - 3), CONFIG.colors.red, 30, 1.6);
-      this.hud.banner("⚠ KERNEL PANIC", "springt aus dem Rechner!");
+      this.effects.shockwave(0, -(half - 3), def.glow, 18, 26);
+      this.effects.burst(0, -(half - 3), def.glow, 30, 1.6);
+      this.hud.banner("⚠ " + def.label.toUpperCase(), "springt aus dem Rechner!");
       this.world.setCamera({ x: 0, y: 13, z: 20 });
     }
     if (I.t > 3.3) { this.bossIntro = false; this.intro = null; }

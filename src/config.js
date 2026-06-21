@@ -110,12 +110,41 @@ export const CONFIG = {
       ranged: true, shootInterval: 2.0, shootRange: 32, // schießt Void-Bolts
       kite: 22, // hält Abstand und feuert (Kiting)
     },
-    boss: {
+    // --- 5 verschiedene Bosse (1 pro Sektor: Welle 5/10/15/20/25) -------------
+    // Jeder hat ein eigenes Angriffsmuster (attack) + eigenen Bewegungsstil; die
+    // Muster werden mit der Welle dichter/schneller (Skalierung in enemies.js).
+    boss: { // Welle 5 – Kernel Panic: Schuss-Fächer + Slam-Sprung
       label: "Kernel Panic",
       hp: 120, speed: 2.3, radius: 2.6, damage: 26, score: 500,
       color: 0xff3355, glow: 0xff8899, scale: 3.4, isBoss: true,
-      ranged: true, shootInterval: 2.6, shootRange: 95, // Schuss-Fächer
-      lunger: true, lungeInterval: 4.5, // Slam-Sprung
+      ranged: true, attack: "fan", shootInterval: 2.4, shootRange: 110,
+      lunger: true, lungeInterval: 4.2,
+    },
+    bossNull: { // Welle 10 – Null Daemon: gezielte Schnellsalven + Teleport
+      label: "Null Daemon",
+      hp: 175, speed: 3.4, radius: 2.4, damage: 24, score: 650,
+      color: 0x4a5bff, glow: 0x9bb0ff, scale: 3.2, isBoss: true,
+      ranged: true, attack: "aimed", shootInterval: 1.9, shootRange: 120, blink: true,
+    },
+    bossStack: { // Welle 15 – Stack Smasher: Radial-Bullet-Hell + ruft Adds
+      label: "Stack Smasher",
+      hp: 250, speed: 1.9, radius: 2.9, damage: 28, score: 800,
+      color: 0x9b5de5, glow: 0xc89bff, scale: 3.8, isBoss: true,
+      ranged: true, attack: "radial", shootInterval: 2.3, shootRange: 140,
+      summon: "syntax", summonInterval: 6, lunger: true, lungeInterval: 6,
+    },
+    bossRace: { // Welle 20 – Race Daemon: rotierender Spiral-Stream + erratisch
+      label: "Race Daemon",
+      hp: 320, speed: 4.4, radius: 2.3, damage: 26, score: 950,
+      color: 0x00f5d4, glow: 0x8ffff0, scale: 3.0, isBoss: true,
+      ranged: true, attack: "spiral", shootInterval: 0.11, shootRange: 200, strafe: 0.7,
+    },
+    bossFinal: { // Welle 25 – The Segfault: alles kombiniert (Finale)
+      label: "The Segfault",
+      hp: 440, speed: 2.6, radius: 3.2, damage: 34, score: 1500,
+      color: 0xff3355, glow: 0xffd23f, scale: 4.2, isBoss: true,
+      ranged: true, attack: "combo", shootInterval: 1.6, shootRange: 220,
+      lunger: true, lungeInterval: 4, summon: "racecondition", summonInterval: 7,
     },
     bonus: {
       label: "Bonus Bug",

@@ -86,6 +86,7 @@ export class EnemySystem {
   }
 
   update(dt, targetPos, revealHidden = false, attack = null) {
+    const summons = []; // Boss-Adds, nach der Schleife gespawnt
     for (const e of this.enemies) {
       if (!e.alive) continue;
 
@@ -132,16 +133,8 @@ export class EnemySystem {
         if (e.atkT <= 0 && len < (e.def.shootRange ?? 30)) {
           e.atkT = e.def.shootInterval ?? 2.2;
           e.flash = 1; // Mündungsblitz
-          if (e.def.isBoss) {
-            const base = Math.atan2(nx, nz);
-            for (let k = -2; k <= 2; k++) {
-              const a = base + k * 0.22;
-              attack.shoot(p.x, p.z, Math.sin(a), Math.cos(a),
-                { color: e.def.glow, speed: 26, damage: 10, size: 1.4 });
-            }
-          } else {
-            attack.shoot(p.x, p.z, nx, nz, { color: e.def.glow, speed: 22, damage: 8 });
-          }
+          if (e.def.isBoss) this._bossAttack(e, p, nx, nz, attack);
+          else attack.shoot(p.x, p.z, nx, nz, { color: e.def.glow, speed: 22, damage: 8 });
         }
       }
 
@@ -188,6 +181,16 @@ export class EnemySystem {
 
       e.mesh.rotation.y = Math.atan2(dx, dz);
 
+      // Boss beschwört Adds (Stack Smasher / Segfault) – gesammelt, nach der
+      // Schleife gespawnt (kein Mutieren während der Iteration).
+      if (e.def.summon) {
+        e.summonT = (e.summonT ?? e.def.summonInterval ?? 6) - dt;
+        if (e.summonT <= 0) {
+          e.summonT = e.def.summonInterval ?? 6;
+          if (this.aliveCount() < 24) summons.push({ type: e.def.summon, x: p.x, z: p.z });
+        }
+      }
+
       // Memory Leak: hinterlässt giftige Speicher-Pfützen.
       if (e.def.leaksTrail && e.visible) {
         e.trailT = (e.trailT ?? 0) - dt;
@@ -224,6 +227,12 @@ export class EnemySystem {
         }
       }
     }
+    // Beschworene Adds spawnen (nach der Iteration).
+    for (const s of summons) {
+      const a = Math.random() * Math.PI * 2, r = 3 + Math.random() * 3;
+      this.spawn(s.type, s.x + Math.cos(a) * r, s.z + Math.sin(a) * r);
+    }
+
     // Gift-Pfützen altern + ausblenden.
     for (let i = this.hazards.length - 1; i >= 0; i--) {
       const h = this.hazards[i];
@@ -233,6 +242,33 @@ export class EnemySystem {
     }
 
     this.cull(); // u.a. abgelaufene Bonus-Bugs entfernen
+  }
+
+  // Boss-Angriffsmuster (je Boss eigenes), dichter/schneller mit der Welle.
+  _bossAttack(e, p, nx, nz, attack) {
+    const diff = (e.bossWave || 5) / 5; // 1 (Welle 5) .. 5 (Welle 25)
+    const base = Math.atan2(nx, nz);
+    const g = e.def.glow;
+    const shoot = (a, opt = {}) =>
+      attack.shoot(p.x, p.z, Math.sin(a), Math.cos(a), { color: g, speed: 24, damage: 10, size: 1.3, ...opt });
+    let A = e.def.attack || "fan";
+    if (A === "combo") { e._flip = !e._flip; A = e._flip ? "fan" : "radial"; } // Finale wechselt
+
+    if (A === "fan") {
+      const n = 1 + Math.ceil(diff);          // 2..6 → Bögen je Seite
+      for (let k = -n; k <= n; k++) shoot(base + k * 0.18, { speed: 24 + diff * 2 });
+    } else if (A === "aimed") {
+      const n = 2 + Math.floor(diff / 1.5);   // 2..5 schnelle gezielte Schüsse
+      for (let k = 0; k < n; k++) shoot(base + (Math.random() - 0.5) * 0.12, { speed: 30 + diff * 3, size: 1.1 });
+    } else if (A === "radial") {
+      const n = 8 + Math.round(diff * 3);     // 11..23 Bullets als Ring
+      const off = e._t * 0.6;                 // dreht sich
+      for (let k = 0; k < n; k++) shoot(off + (k / n) * Math.PI * 2, { speed: 18 + diff * 2 });
+    } else if (A === "spiral") {
+      const arms = 2 + Math.floor(diff / 2);  // 2..4 rotierende Arme (Stream)
+      const a0 = e._t * (3 + diff * 0.6);
+      for (let k = 0; k < arms; k++) shoot(a0 + (k / arms) * Math.PI * 2, { speed: 28, size: 1.0 });
+    }
   }
 
   damage(enemy, amount) {
