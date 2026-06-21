@@ -76,7 +76,7 @@ export const CONFIG = {
       label: "Stack Overflow",
       hp: 4, speed: 2.9, radius: 1.35, damage: 16, score: 35,
       color: 0x9b5de5, glow: 0xc89bff, scale: 1.6,
-      lunger: true, lungeInterval: 3.2, // setzt zum Sprung an
+      lunger: true, lungeInterval: 2.4, // springt häufiger (aggressiver)
     },
     racecondition: {
       label: "Race Condition",
@@ -106,7 +106,7 @@ export const CONFIG = {
       label: "Null Pointer",
       hp: 2, speed: 4.4, radius: 0.85, damage: 12, score: 35,
       color: 0x4a5bff, glow: 0x9bb0ff, scale: 1.0, fly: true,
-      ranged: true, shootInterval: 2.0, shootRange: 32, // schießt Void-Bolts
+      ranged: true, shootInterval: 1.3, shootRange: 34, // schießt häufiger Void-Bolts
       kite: 22, // hält Abstand und feuert (Kiting)
     },
     // --- 5 verschiedene Bosse (1 pro Sektor: Welle 5/10/15/20/25) -------------

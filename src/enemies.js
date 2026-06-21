@@ -56,6 +56,22 @@ export class EnemySystem {
     mesh.position.set(x, def.radius, z);
     this.group.add(mesh);
 
+    // Gefahr-Ring unter Schützen/Springern/Bossen → man sieht klar, welche man
+    // priorisieren muss (Skill: Bedrohungen jagen statt random ballern).
+    let dangerRing = null;
+    if (def.ranged || def.lunger || def.isBoss) {
+      dangerRing = new THREE.Mesh(
+        new THREE.RingGeometry(def.radius * 1.15, def.radius * 1.6, 28),
+        new THREE.MeshBasicMaterial({
+          color: def.isBoss ? 0xff1530 : 0xff5a2a, transparent: true, opacity: 0.75,
+          side: THREE.DoubleSide, depthWrite: false,
+        })
+      );
+      dangerRing.rotation.x = -Math.PI / 2;
+      dangerRing.position.y = -def.radius + 0.08; // auf Bodenhöhe
+      mesh.add(dangerRing);
+    }
+
     // Error-Label über dem Bug (eigenes Sprite im Group-Space → ohne Skalierung).
     const label = this._makeLabel(typeKey, def);
     this.group.add(label);
@@ -80,6 +96,7 @@ export class EnemySystem {
       teleT: 0, lungeT: 0, cdT: 0, lvx: 0, lvz: 0,
       _t: 0,
       ttl: def.ttl ?? Infinity, // Bonus-Bug verschwindet nach Zeit
+      dangerRing,
     };
     this.enemies.push(enemy);
     return enemy;
@@ -216,6 +233,12 @@ export class EnemySystem {
 
       // Error-Label über dem Bug mitführen.
       e.label.position.set(p.x, p.y + e.def.radius * 2.4 + 0.7, p.z);
+
+      // Gefahr-Ring pulsiert (deutlich sichtbar).
+      if (e.dangerRing) {
+        const pu = Math.abs(Math.sin(e._t * 4));
+        e.dangerRing.material.opacity = 0.5 + pu * 0.45;
+      }
 
       // Heisenbug flackert unsichtbar – außer im "Rubber Duck Moment".
       if (e.def.flickers) {

@@ -944,7 +944,9 @@ export class Game {
   // Ente kurz zum nächsten Gegner (damit Schüsse treffen), danach zurück zur
   // Laufrichtung – kein „läuft geradeaus, guckt aber zur Seite".
   _updateFacing(dt, move) {
-    const target = this._nearestEnemy(CONFIG.energy.aimRange);
+    // Nur Gegner in der vorderen Hälfte (Blickrichtung) werden anvisiert → man
+    // muss sich zu den Feinden drehen, statt automatisch in alle Richtungen zu schießen.
+    const target = this._frontTarget(CONFIG.energy.aimRange);
     this.aimTarget = target;
     const moving = move.x !== 0 || move.z !== 0;
     const firing = this.input.mouseDown || this.input.isDown("Space") ||
@@ -972,6 +974,25 @@ export class Game {
       if (!e.alive || !e.visible) continue;
       const d = distXZ(this.player.pos, e.mesh.position);
       if (d < bestD) { bestD = d; best = e; }
+    }
+    return best;
+  }
+
+  // Nächster Gegner in der vorderen Hälfte (Blickrichtung). Gefährliche Typen
+  // (Schützen/Springer/Boss) werden bei gleichem Abstand bevorzugt.
+  _frontTarget(range) {
+    const fx = Math.sin(this.player.facing), fz = Math.cos(this.player.facing);
+    let best = null, bestScore = range;
+    for (const e of this.enemies.enemies) {
+      if (!e.alive || !e.visible) continue;
+      const dx = e.mesh.position.x - this.player.pos.x, dz = e.mesh.position.z - this.player.pos.z;
+      const d = Math.hypot(dx, dz) || 1;
+      if (d > range) continue;
+      const dot = (dx * fx + dz * fz) / d; // cos(Winkel zwischen Blick & Gegner)
+      if (dot < -0.2) continue; // hinter dir → ignorieren (vordere ~200°)
+      const threat = (e.def.ranged || e.def.lunger || e.def.isBoss) ? 0.8 : 1; // Bedrohungen bevorzugen
+      const score = d * threat;
+      if (score < bestScore) { bestScore = score; best = e; }
     }
     return best;
   }
