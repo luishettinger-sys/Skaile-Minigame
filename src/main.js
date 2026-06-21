@@ -88,6 +88,23 @@ loadModel("./assets/shopkeeper.glb", { targetHeight: 2.6 }).then((obj) => {
   if (obj) game.stations.setKeeperModel(obj);
 });
 
+// CotL-Schrein „Kult der Ente": Hero-Asset (Higgsfield→Blender, web-optimiert)
+// als Arena-Mittelpunkt. Steht nördlich des Ritual-Sigills, wirft Schatten.
+loadModel("./assets/props/duck_shrine.glb", { targetHeight: 4.6 }).then((obj) => {
+  if (!obj) return;
+  obj.position.set(0, 0, -15);
+  obj.rotation.y = Math.PI; // Vorderseite (Ente) zur Arena
+  obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  world.scene.add(obj);
+  // Kollision: nicht durch den Altar laufen.
+  obj.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(obj);
+  world.building?.walls?.push({
+    minX: box.min.x + 0.3, maxX: box.max.x - 0.3,
+    minZ: box.min.z + 0.3, maxZ: box.max.z - 0.3,
+  });
+});
+
 // In Blender gebaute Waffenmodelle: an Armory-Podeste + getragene Waffe hängen.
 loadWeaponModels().then(() => {
   game.armory.populateModels();
