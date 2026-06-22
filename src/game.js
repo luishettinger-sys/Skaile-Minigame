@@ -1728,6 +1728,16 @@ export class Game {
     if (!e.def.isBoss && e.def.radius >= 1.0) this.effects.shockwave(e.mesh.position.x, e.mesh.position.z, e.def.glow, e.def.radius * 2.5, e.def.radius * 7);
     this.world.addShake(e.def.isBoss ? 1.0 : 0.07); // Kill-Shake stark reduziert (kein Dauer-Wackeln im Schwarm)
 
+    // Heller Kill-Blitz + Squish bei größeren Bugs; Bosse bekommen ein Finale.
+    this.effects.flash(e.mesh.position.x, e.def.radius + 0.4, e.mesh.position.z,
+      e.def.glow || 0xffffff, e.def.isBoss ? 5 : 1.8, 0.1);
+    if (e.def.radius >= 1.0) this.audio.bugDeath();
+    if (e.def.isBoss) { // Boss-Tod: Slow-Mo + Screen-Flash + Extra-Schockwelle
+      this._freeze(0.26);
+      this.hud.flash?.("#fff2c0", 0.25);
+      this.effects.shockwave(e.mesh.position.x, e.mesh.position.z, e.def.glow || 0xffd23f, 30, 34);
+    }
+
     this.combo++;
     this.comboTimer = CONFIG.combo.decayTime;
     this.comboMult = 1 + Math.floor(this.combo / 5);
@@ -1735,6 +1745,7 @@ export class Game {
     this.score += gained;
     this.hud.setScore(Math.floor(this.score));
     this.hud.setCombo(this.comboMult);
+    if (this.combo % 10 === 0) this.hud.flash?.("#ffd23f", 0.1); // Combo-Meilenstein-Blitz
     // Score poppt groß, wenn ein Combo-Multiplikator aktiv ist (befriedigender).
     this._popup(e.mesh.position, "+" + gained, "#ffd23f", this.comboMult > 1 ? "big" : "");
 

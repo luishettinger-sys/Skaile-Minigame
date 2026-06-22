@@ -148,13 +148,13 @@ export class ProjectileSystem {
         blending: THREE.AdditiveBlending,
       });
       const spr = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 7), mat);
-      t = { spr, life: 0, max: 0.22 };
+      t = { spr, life: 0, max: 0.3 };
       this.group.add(spr);
     }
     t.spr.material.color.setHex(color);
-    t.spr.material.opacity = 0.55;
+    t.spr.material.opacity = 0.72;
     t.spr.visible = true;
-    t.spr.scale.setScalar(scale * 0.9);
+    t.spr.scale.setScalar(scale * 1.05);
     t.spr.position.set(x, y, z);
     t.life = t.max;
     this.trails.push(t);

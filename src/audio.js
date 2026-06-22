@@ -282,8 +282,9 @@ export class Audio {
   }
 
   hit() {
-    this._noise({ dur: 0.018, gain: 0.10, type: "bandpass", freq: 2600 }); // knackiger Impakt
-    this._tone({ type: "square", from: 480, to: 200, dur: 0.05, gain: 0.10 });
+    const v = 1 + (Math.random() - 0.5) * 0.35; // Tonhöhen-Variation → kein Maschinengewehr-Einerlei
+    this._noise({ dur: 0.018, gain: 0.10, type: "bandpass", freq: 2600 * v }); // knackiger Impakt
+    this._tone({ type: "square", from: 480 * v, to: 200 * v, dur: 0.05, gain: 0.10 });
   }
 
   bugDeath() {
