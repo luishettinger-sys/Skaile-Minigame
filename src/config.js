@@ -20,7 +20,8 @@ export const CONFIG = {
     speed: 12, // Bewegungsgeschwindigkeit (Einheiten/Sekunde)
     radius: 0.9, // Kollisionsradius
     turnLerp: 16, // wie schnell sich die Ente in Laufrichtung dreht
-    maxHp: 100,
+    maxHp: 40,        // 4 Herz-Container à 10 HP – bewusst knapp (Movement statt Tank)
+    hpPerHeart: 10,   // HP pro Herz-Container (für die HUD-Herzen)
     hitInvuln: 0.9, // Sekunden Unverwundbarkeit nach Treffer
     bigHitDamage: 15, // ab so viel Schaden pro Treffer: zusätzliches "Ouch"-Voice
     contactKnockback: 6,

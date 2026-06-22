@@ -12,7 +12,7 @@ export class HUD {
       score: document.getElementById("score"),
       wave: document.getElementById("wave"),
       combo: document.getElementById("combo"),
-      hpFill: document.getElementById("hp-fill"),
+      hearts: document.getElementById("hearts"),
       ultFill: document.getElementById("ult-fill"),
       heat: document.getElementById("heat"),
       heatFill: document.getElementById("heat-fill"),
@@ -445,7 +445,15 @@ export class HUD {
   }
 
   setHp(hp, max) {
-    this.el.hpFill.style.width = Math.max(0, (hp / max) * 100) + "%";
+    if (!this.el.hearts) return;
+    const per = 10; // HP pro Herz (siehe CONFIG.player.hpPerHeart)
+    const total = Math.max(1, Math.ceil(max / per));
+    let s = "";
+    for (let i = 0; i < total; i++) {
+      const chunk = Math.max(0, Math.min(per, hp - i * per));
+      s += chunk > per * 0.5 ? "❤️" : chunk > 0 ? "💔" : "🖤";
+    }
+    this.el.hearts.textContent = s;
   }
 
   setUltimate(ratio, ready) {

@@ -248,6 +248,12 @@ body {
   margin-bottom: 4px;
 }
 
+#hearts {
+  font-size: 20px;
+  letter-spacing: 2px;
+  line-height: 1.1;
+}
+
 #weapon {
   font-size: 13px;
   font-weight: 700;
