@@ -111,6 +111,7 @@ export class EnemySystem {
       baseScale: mesh.scale.x, // Referenz für den Treffer-Punch
       flash: 0,
       flashMats, // geklonte Materialien für den weißen Treffer-Blitz
+      knockX: 0, knockZ: 0, // Treffer-Rückstoß (klingt schnell ab)
       atkT: Math.random() * 2, // Angriffs-Timer
       lungeState: "idle", // idle|tele|lunge|cd
       teleT: 0, lungeT: 0, cdT: 0, lvx: 0, lvz: 0,
@@ -216,6 +217,16 @@ export class EnemySystem {
         const step = e.speed * dt;
         p.x += mx * step;
         p.z += mz * step;
+      }
+
+      // Treffer-Rückstoß (Knockback): kurz wegschieben, schnell abklingen.
+      if (e.knockX || e.knockZ) {
+        p.x += e.knockX * dt;
+        p.z += e.knockZ * dt;
+        const kd = Math.exp(-dt * 11);
+        e.knockX *= kd; e.knockZ *= kd;
+        if (Math.abs(e.knockX) < 0.05) e.knockX = 0;
+        if (Math.abs(e.knockZ) < 0.05) e.knockZ = 0;
       }
 
       e.mesh.rotation.y = Math.atan2(dx, dz);

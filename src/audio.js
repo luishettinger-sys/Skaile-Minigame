@@ -308,8 +308,11 @@ export class Audio {
     this._tone({ type: "triangle", from: 150, to: 600, dur: 0.6, gain: 0.18, delay: 0.05 });
   }
 
-  pickup() {
-    this._tone({ type: "sine", from: 880, to: 1320, dur: 0.08, gain: 0.1 });
+  // Steigt mit der Einsammel-Serie (cha-ching-Streak).
+  pickup(streak = 0) {
+    const f = 880 + Math.min(streak, 18) * 52;
+    this._tone({ type: "sine", from: f, to: f * 1.5, dur: 0.08, gain: 0.1 });
+    this._tone({ type: "triangle", from: f * 1.5, to: f * 2, dur: 0.06, gain: 0.04, delay: 0.03 });
   }
 
   // Kauf/Auswahl bestätigt (Waffe, Boon, Automation, Meta-Upgrade, Skin):

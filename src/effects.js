@@ -14,6 +14,29 @@ export class Effects {
     this.ringGeo = new THREE.RingGeometry(0.9, 1.0, 32);
     this.rings = [];
     this.ringPool = [];
+
+    // Helle additive Blitze (Mündungsfeuer, Treffer-Funken) – Fake-Bloom ohne Post.
+    this.flashTex = makeGlowTexture();
+    this.flashes = [];
+    this.flashPool = [];
+  }
+
+  // Heller, kurz aufblitzender additiver Sprite (z.B. Mündung oder Einschlag).
+  flash(x, y, z, color = 0xffffff, size = 2, life = 0.09) {
+    let f = this.flashPool.pop();
+    if (!f) {
+      const mat = new THREE.SpriteMaterial({ map: this.flashTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+      const spr = new THREE.Sprite(mat);
+      this.group.add(spr);
+      f = { spr };
+    }
+    f.spr.visible = true;
+    f.spr.material.color.setHex(color);
+    f.spr.material.opacity = 1;
+    f.spr.position.set(x, y, z);
+    f.spr.scale.setScalar(size);
+    f.size = size; f.life = f.max = life;
+    this.flashes.push(f);
   }
 
   // Partikel-Explosion an (x,z).
@@ -98,12 +121,44 @@ export class Effects {
         this.ringPool.push(r);
       }
     }
+
+    for (let i = this.flashes.length - 1; i >= 0; i--) {
+      const f = this.flashes[i];
+      f.life -= dt;
+      const t = Math.max(0, f.life / f.max);
+      f.spr.material.opacity = t;
+      f.spr.scale.setScalar(f.size * (1.7 - t * 0.7)); // leicht expandieren beim Faden
+      if (f.life <= 0) {
+        f.spr.visible = false;
+        this.flashes.splice(i, 1);
+        this.flashPool.push(f);
+      }
+    }
   }
 
   reset() {
     for (const p of this.particles) { p.mesh.visible = false; this.partPool.push(p); }
     for (const r of this.rings) { r.mesh.visible = false; this.ringPool.push(r); }
+    for (const f of this.flashes) { f.spr.visible = false; this.flashPool.push(f); }
     this.particles = [];
     this.rings = [];
+    this.flashes = [];
   }
+}
+
+// Weicher radialer Glüh-Sprite (weiß → transparent) für additive Blitze.
+function makeGlowTexture() {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.3, "rgba(255,255,255,0.75)");
+  g.addColorStop(0.6, "rgba(255,255,255,0.22)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }

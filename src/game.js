@@ -1148,6 +1148,7 @@ export class Game {
 
     // Riesen-Magnet nach Level-Up läuft ab.
     if (this.magnetBoost > 0) this.magnetBoost = Math.max(0, this.magnetBoost - dt);
+    if (this._pkStreakT > 0) this._pkStreakT -= dt; // Pickup-Serien-Fenster
 
     // Debug-Challenge (Rätselraum): Timer + Cooldown.
     if (this._challengeCD > 0) this._challengeCD = Math.max(0, this._challengeCD - dt);
@@ -1521,6 +1522,7 @@ export class Game {
     this.player.kickWeapon(); // Rückstoß der getragenen Waffe (Wucht/„Feel")
     // Mündungsblitz an der Waffenspitze.
     this.effects.burst(mz.x, mz.z, this.weapon.color, 6, 0.55);
+    this.effects.flash(mz.x, 1.2, mz.z, this.weapon.color, 2.4, 0.06); // heller Mündungsblitz
     this.player.recoil?.(); // Waffe zurückstoßen + Aim-Pose
     this.world.addShake(0.05);
   }
@@ -1543,6 +1545,15 @@ export class Game {
             e.mesh.position.x, e.mesh.position.z, e.def.glow,
             crit ? 11 : 5, crit ? 1.0 : 0.7
           );
+          // Heller Treffer-Funke + Rückstoß entlang der Flugrichtung (Wucht).
+          this.effects.flash(e.mesh.position.x, e.def.radius + 0.3, e.mesh.position.z,
+            crit ? 0xffd0d6 : 0xffffff, crit ? 2.2 : 1.3, 0.08);
+          if (p.vel && !e.def.isBoss) {
+            const vl = Math.hypot(p.vel.x, p.vel.z) || 1;
+            const kb = crit ? 13 : 7;
+            e.knockX = (p.vel.x / vl) * kb;
+            e.knockZ = (p.vel.z / vl) * kb;
+          }
           // Schadenszahl: Crit = große rote Zahl + Shake, normal = kleine helle Zahl.
           this._popup(e.mesh.position, Math.round(dmg).toString(),
             crit ? "#ff4d6a" : "#fff2c0", crit ? "big" : "dmg");
@@ -1589,6 +1600,11 @@ export class Game {
     for (const e of this.enemies.enemies) {
       if (!e.alive || !e.visible || e === source) continue;
       if (distXZ({ x, z }, e.mesh.position) <= radius + e.radius) {
+        if (!e.def.isBoss) { // radial wegschleudern
+          const ax = e.mesh.position.x - x, az = e.mesh.position.z - z;
+          const al = Math.hypot(ax, az) || 1;
+          e.knockX = (ax / al) * 12; e.knockZ = (az / al) * 12;
+        }
         if (this.enemies.damage(e, dmg)) this._killEnemy(e);
       }
     }
@@ -1855,9 +1871,17 @@ export class Game {
     this.enemies.cull();
   }
 
+  // Einsammel-Juice: bei schnellen Serien steigt die Tonhöhe + kleiner heller Pop.
+  _pickupJuice(pos) {
+    this._pkStreak = (this._pkStreakT > 0 ? (this._pkStreak || 0) + 1 : 1);
+    this._pkStreakT = 0.6;
+    this.audio.pickup(this._pkStreak);
+    this.effects.flash(pos.x, 0.9, pos.z, 0x9fffe0, 1.0, 0.07);
+  }
+
   _collect(kind, value) {
     if (kind === "gem") {
-      this.audio.pickup();
+      this._pickupJuice(this.player.pos);
       this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.cyan, 4, 0.4);
       const leveled = this.progression.addXp(value);
       this.hud.setXp(this.progression.ratio(), this.progression.level);
@@ -1874,7 +1898,7 @@ export class Game {
     } else if (kind === "coin") {
       this.coins += value;
       this.hud.setCoins(this.coins);
-      this.audio.pickup();
+      this._pickupJuice(this.player.pos);
     } else if (kind === "lucky") {
       this._luckyReward();
     } else if (kind === "power") {
