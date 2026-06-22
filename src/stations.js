@@ -15,8 +15,7 @@ export class Stations {
     this.markers = []; // leuchtende [E]-Boden-Ringe an interagierbaren Stationen
     this.shop = null;
     this._buildShop();
-    this.deploy = null;
-    this._buildDeploy();
+    this.deploy = null; // Deploy-Terminal entfernt – Wellen starten automatisch beim Run-Beginn
   }
 
   // Leuchtender Boden-Ring + schwebende [E]-Taste → markiert eine Station klar

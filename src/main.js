@@ -97,22 +97,7 @@ loadModel("./assets/shopkeeper.glb", { targetHeight: 2.6 }).then((obj) => {
   if (obj) game.stations.setKeeperModel(obj);
 });
 
-// CotL-Schrein „Kult der Ente": Hero-Asset (Higgsfield→Blender, web-optimiert)
-// als Arena-Mittelpunkt. Steht nördlich des Ritual-Sigills, wirft Schatten.
-loadModel("./assets/props/duck_shrine.glb", { targetHeight: 4.6 }).then((obj) => {
-  if (!obj) return;
-  obj.position.set(0, 0, -15 * S);
-  obj.rotation.y = Math.PI; // Vorderseite (Ente) zur Arena
-  obj.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  world.scene.add(obj);
-  // Kollision: nicht durch den Altar laufen.
-  obj.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(obj);
-  world.building?.walls?.push({
-    minX: box.min.x + 0.3, maxX: box.max.x - 0.3,
-    minZ: box.min.z + 0.3, maxZ: box.max.z - 0.3,
-  });
-});
+// Enten-Schrein/Statue in der Arena-Mitte entfernt (Wunsch Luis) – Mitte bleibt frei.
 
 // KI-Hero-Props (Higgsfield→Blender) statt grober prozeduraler Formen: Stein-
 // Fackeln + Kandelaber. Ein GLB wird geladen und an mehrere Stellen geklont,

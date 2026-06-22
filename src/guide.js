@@ -4,13 +4,9 @@
 // zum nächsten weiter. Passt zum Rubber-Duck-Debugging-Thema.
 
 const STEPS = [
-  { on: "move",          text: "Hi! Ich bin deine Rubber-Duck 🦆 – ich lotse dich durch. Beweg dich erstmal mit WASD oder den Pfeiltasten." },
-  { on: "nearDeploy",    text: "Lauf zum 🚀 Deploy-Terminal (das leuchtende Pult)." },
-  { on: "deployStarted", text: "Drück [E] – das schickt deinen Code live, und prompt kommen die Bugs rein!" },
-  { on: "waveCleared",   text: "Top, Build grün! ✅ Fürs Abwehren gibt's 🪙 Coins. Damit kannst du was anfangen…" },
-  { on: "nearDoor",      text: "Geh zu einer 🔒 verschlossenen Tür – da kannst du einen neuen Raum freischalten." },
-  { on: "roomUnlocked",  text: "Stark! 🎉 So eroberst du die Platine Chip für Chip zurück." },
-  { on: null,            text: "Du hast's drauf! Merke: Deploy → Coins → Räume freischalten. Viel Spaß, Boss! 🦆", hold: 8 },
+  { on: "move",        text: "Hi! Ich bin deine Kampf-Ente 🦆 – beweg dich mit WASD oder den Pfeiltasten." },
+  { on: "waveCleared", text: "Stark! ✅ Die Bugs wollen den PC fressen – halt sie auf. Fürs Abwehren gibt's 🪙 Coins zum Aufrüsten." },
+  { on: null,          text: "Beschütze den PC, überlebe die Wellen, werde stärker. Viel Spaß, Boss! 🦆", hold: 8 },
 ];
 
 export class Guide {

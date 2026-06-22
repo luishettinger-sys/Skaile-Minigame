@@ -306,6 +306,8 @@ export class Game {
     this.draftChoosing = false;
     this._draftPending = false;
     this.hud.hideDraft();
+    // Kein Deploy-Terminal mehr: sobald der Build gewählt ist, starten die Wellen automatisch.
+    if (!this.defenseLoop) this.startDefense();
   }
 
   // --- SCHMIEDE (Ost): Waffen-Mods aus Schrott bauen -----------------------
