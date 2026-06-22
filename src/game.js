@@ -525,6 +525,7 @@ export class Game {
     this.equipMods = defaultMods(); // aus ausgerüsteten Items
     this._recomputeMods();
     this._refreshHeldWeapon();
+    this.player.setMeleeVisual?.("fists", WEAPONS.fists.color); // Start mit sichtbaren Fäusten
   }
 
   // Effektive Mods = Upgrades kombiniert mit Ausrüstung.
@@ -1703,7 +1704,7 @@ export class Game {
     }
     this.audio.weapon?.(w.sound || "shoot");
     this.player.recoil?.();
-    this.player.kickWeapon?.();
+    this.player.meleeSwing?.(); // sichtbarer Schwung/Stoß
     this.world.addShake(0.05);
     let hits = 0;
     for (const e of this.enemies.enemies) {
@@ -2316,6 +2317,9 @@ export class Game {
     this.fireTimer = 0;
     this.hud.setWeapon(this.weapon.name, this.weapon.icon);
     this._refreshHeldWeapon();
+    // Sichtbare Nahkampf-Optik (Fäuste/Schwert) setzen bzw. entfernen.
+    if (this.weapon.melee) this.player.setMeleeVisual?.(id === "fists" ? "fists" : "sword", this.weapon.color);
+    else this.player.setMeleeVisual?.(null);
   }
 
   // Getragenes Waffenmodell an die aktuelle Waffe anpassen (no-op falls Modelle

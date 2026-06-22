@@ -16,6 +16,13 @@ export class Player {
     this.root.add(this.placeholder);
     this.model = null; // wird durch setModel() gefüllt
 
+    // Nahkampf-Optik (sichtbare Fäuste / Schwert) + Schwung-Animation.
+    this.meleeRig = new THREE.Group();
+    this.root.add(this.meleeRig);
+    this._sword = null; this._fistL = null; this._fistR = null;
+    this._meleeKind = null;
+    this._swingT = 0; this._swingDur = 0.2; this._swingSide = 1; this._fistBaseZ = 0.35;
+
     this.pos = this.root.position;
     this.vel = new THREE.Vector3();
     this.facing = 0;
@@ -174,6 +181,9 @@ export class Player {
       this.weaponModel.rotation.x = 0.32 * k;
     }
 
+    // Nahkampf-Schwung animieren (Schwert: Halbkreis L↔R; Fäuste: Stoß vor/zurück).
+    if (this._meleeKind) this._animateMelee(dt);
+
     // Unverwundbarkeit + Blink-Feedback.
     if (this.invuln > 0) {
       this.invuln = Math.max(0, this.invuln - dt);
@@ -303,6 +313,65 @@ export class Player {
   // Rückstoß auslösen (beim Schießen) – die Waffe ruckt kurz zurück.
   kickWeapon(amount = 1) {
     this._kick = Math.min(1.5, (this._kick || 0) + amount);
+  }
+
+  // Sichtbare Nahkampf-Optik setzen: "fists" (zwei Fäuste) | "sword" | null.
+  setMeleeVisual(kind, color = 0xeaf2ff) {
+    for (const c of [...this.meleeRig.children]) {
+      this.meleeRig.remove(c);
+      c.traverse?.((o) => { o.geometry?.dispose?.(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose?.()); });
+    }
+    this._sword = null; this._fistL = null; this._fistR = null; this._meleeKind = kind || null;
+    if (kind === "sword") {
+      const piv = new THREE.Group(); piv.position.set(0, 0.95, 0.3);
+      const steel = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, metalness: 0.7, roughness: 0.3 });
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.42, 8), new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 0.85 }));
+      handle.rotation.x = Math.PI / 2; handle.position.z = 0.12;
+      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.12, 0.14), new THREE.MeshStandardMaterial({ color: 0x9a7a32, metalness: 0.6, roughness: 0.4 }));
+      guard.position.z = 0.34;
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 1.5), steel); blade.position.z = 1.12;
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.32, 4), steel); tip.rotation.x = Math.PI / 2; tip.position.z = 1.98; tip.rotation.z = Math.PI / 4;
+      piv.add(handle, guard, blade, tip);
+      this.meleeRig.add(piv); this._sword = piv;
+    } else if (kind === "fists") {
+      const skin = new THREE.MeshStandardMaterial({ color: 0xffcf3a, roughness: 0.55, metalness: 0.1 });
+      const cuff = new THREE.MeshStandardMaterial({ color: 0xff5470, roughness: 0.7 }); // rote Boxhandschuh-Manschette
+      const mk = (sx) => {
+        const g = new THREE.Group();
+        const fist = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), skin); fist.scale.set(1, 0.9, 1.1);
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.16, 10), cuff); band.rotation.x = Math.PI / 2; band.position.z = -0.24;
+        g.add(fist, band); g.position.set(sx, 0.85, this._fistBaseZ);
+        return g;
+      };
+      this._fistL = mk(-0.42); this._fistR = mk(0.42);
+      this.meleeRig.add(this._fistL, this._fistR);
+    }
+  }
+
+  // Einen Schwung/Schlag auslösen (Seite wechselt → Schwert pendelt, Fäuste alternieren).
+  meleeSwing() {
+    this._swingT = this._swingDur;
+    this._swingSide *= -1;
+  }
+
+  _animateMelee(dt) {
+    const swinging = this._swingT > 0;
+    if (swinging) this._swingT = Math.max(0, this._swingT - dt);
+    const p = swinging ? 1 - this._swingT / this._swingDur : 1; // 0..1
+    const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+    if (this._sword) {
+      // Halbkreis von links nach rechts (Richtung wechselt je Schwung).
+      this._sword.rotation.y = (0.95 - ease * 1.9) * this._swingSide;
+      this._sword.rotation.z = -0.35 + (swinging ? Math.sin(p * Math.PI) * 0.55 : 0);
+    }
+    if (this._fistL && this._fistR) {
+      this._fistL.position.z = this._fistBaseZ;
+      this._fistR.position.z = this._fistBaseZ;
+      if (swinging) {
+        const active = this._swingSide > 0 ? this._fistR : this._fistL;
+        active.position.z = this._fistBaseZ + Math.sin(p * Math.PI) * 1.05; // Stoß nach vorn
+      }
+    }
   }
 
   // Muzzle-Position: die Spitze der getragenen Waffe in Weltkoordinaten →
