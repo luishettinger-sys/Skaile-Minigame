@@ -280,49 +280,62 @@ function chipMachine(group, r, animated) {
   animated.push({ fn: (t) => { for (let i = 0; i < lights.length; i++) lights[i].visible = Math.sin(t * 3 + i * 1.7) > -0.2; die.material.emissiveIntensity = 0.7 + Math.sin(t * 2) * 0.25; } });
 }
 
-// === NORD: große zentrale Dev-Workstation – Schreibtisch + Riesen-Monitor =======
+// === NORD: große zentrale Dev-Workstation – schlanker Monitor + scharfer Screen ==
 function workstation(group, r, animated) {
   const g = new THREE.Group(); const y = r.y;
-  const deskMat = M(0x20242e, { metalness: 0.4, roughness: 0.6 });
-  const metal   = M(0x33363f, { metalness: 0.7, roughness: 0.4 });
-  const black   = M(0x0c0e14, { metalness: 0.5, roughness: 0.5 });
+  const deskTop = M(0x262b36, { metalness: 0.3, roughness: 0.55 });
+  const deskEdge = M(0x171a22, { metalness: 0.4, roughness: 0.5 });
+  const metal = M(0x3a3e48, { metalness: 0.88, roughness: 0.28 });
+  const frame = M(0x0a0c11, { metalness: 0.7, roughness: 0.35 });
 
-  // Großer Schreibtisch.
-  const top = new THREE.Mesh(new THREE.BoxGeometry(12, 0.45, 4.6), deskMat); top.position.y = y + 2.6; g.add(top);
-  for (const lx of [-5.4, 5.4]) for (const lz of [-1.9, 1.9]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.6, 0.35), metal);
-    leg.position.set(lx, y + 1.3, lz); g.add(leg);
+  // Schreibtisch mit abgesetzter Kante + Wangen-Beinen (weniger „Kiste").
+  const top = new THREE.Mesh(new THREE.BoxGeometry(12.5, 0.3, 4.8), deskTop); top.position.y = y + 2.62;
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(12.7, 0.16, 5.0), deskEdge); edge.position.y = y + 2.46;
+  g.add(top, edge);
+  for (const lx of [-5.7, 5.7]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.5, 4.4), metal);
+    leg.position.set(lx, y + 1.25, 0); g.add(leg);
   }
 
-  // Riesen-Monitor: Standfuß + Säule + Gehäuse + Bild.
-  const foot = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.6, 0.25, 24), metal); foot.position.set(0, y + 2.95, -1.4); g.add(foot);
-  const pole = new THREE.Mesh(new THREE.BoxGeometry(0.55, 4.2, 0.55), metal); pole.position.set(0, y + 5.0, -1.4); g.add(pole);
-  const bezel = new THREE.Mesh(new THREE.BoxGeometry(11.2, 6.6, 0.45), black); bezel.position.set(0, y + 6.6, -1.7); g.add(bezel);
+  // Schlanker Monitor: flacher Standfuß + Hals + dünner Rahmen, großer Screen vorne.
+  const baseFoot = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.9, 0.22, 32), metal); baseFoot.position.set(0, y + 2.9, -1.2);
+  const neck = new THREE.Mesh(new THREE.BoxGeometry(0.7, 3.6, 0.35), metal); neck.position.set(0, y + 4.8, -1.2);
+  g.add(baseFoot, neck);
+  const SW = 12.4, SH = 7.0;
+  const bezel = new THREE.Mesh(new THREE.BoxGeometry(SW + 0.5, SH + 0.5, 0.32), frame); bezel.position.set(0, y + 7.1, -1.05);
+  const backPan = new THREE.Mesh(new THREE.BoxGeometry(SW - 0.6, SH - 0.6, 0.5), M(0x14171e, { metalness: 0.6, roughness: 0.4 })); backPan.position.set(0, y + 7.1, -1.32);
+  g.add(bezel, backPan);
 
-  // Bildschirm mit deinem Community-Screenshot (selbstleuchtend → immer sichtbar).
+  // Screen: großer, SCHARFER Community-Screenshot (Anisotropie + Linear-Filter,
+  // keine Mipmaps → kein Verwischen). MeshBasic = selbstleuchtend, immer sichtbar.
   const tex = new THREE.TextureLoader().load("./assets/textures/monitor_nord.png");
   tex.colorSpace = THREE.SRGBColorSpace;
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(10.6, 6.0), new THREE.MeshBasicMaterial({ map: tex }));
-  screen.position.set(0, y + 6.6, -1.47); g.add(screen);          // Front zeigt nach +z (zur Kamera)
-  const ml = new THREE.PointLight(0xbfe0ff, 8, 26, 2); ml.position.set(0, y + 6.6, 3.0); g.add(ml);
+  tex.anisotropy = 16;
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: tex }));
+  screen.position.set(0, y + 7.1, -0.85); g.add(screen); // vor dem Rahmen, zeigt nach +z (zur Kamera)
+  const ml = new THREE.PointLight(0xbfe0ff, 9, 30, 2); ml.position.set(0, y + 7.1, 3.5); g.add(ml);
 
-  // Große Tastatur (mit angedeuteten Tasten) + Maus + Pad.
-  const kb = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.22, 1.8), M(0x14161d, { metalness: 0.3 }));
-  kb.position.set(-0.8, y + 2.85, 1.2); kb.rotation.x = -0.05; g.add(kb);
-  const keys = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.08, 1.5), E(0x2bd4ff, 0.3)); keys.position.set(-0.8, y + 2.98, 1.2); keys.rotation.x = -0.05; g.add(keys);
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.06, 1.9), M(0x101218)); pad.position.set(3.9, y + 2.83, 1.2); g.add(pad);
-  const mouse = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 12), M(0x14161d, { metalness: 0.3 }));
-  mouse.scale.set(0.7, 0.4, 1.1); mouse.position.set(3.9, y + 2.95, 1.2); g.add(mouse);
+  // Flache Tastatur (Basis + Tastenfeld) + Maus mit Sensor-Glow + Pad.
+  const kbBase = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.16, 1.8), M(0x0f1218, { metalness: 0.4, roughness: 0.5 }));
+  kbBase.position.set(-1.0, y + 2.86, 1.3); kbBase.rotation.x = -0.04;
+  const keys = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.06, 1.4), E(0x2bd4ff, 0.35)); keys.position.set(-1.0, y + 2.96, 1.3); keys.rotation.x = -0.04;
+  g.add(kbBase, keys);
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.05, 1.8), M(0x0d1016)); pad.position.set(3.9, y + 2.82, 1.3);
+  const mouse = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.5, 4, 12), M(0x14161d, { metalness: 0.45, roughness: 0.4 }));
+  mouse.rotation.x = Math.PI / 2; mouse.scale.set(1, 1, 0.85); mouse.position.set(3.9, y + 2.98, 1.3);
+  g.add(pad, mouse);
 
-  // Großer Gaming-Stuhl vor dem Tisch.
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.35, 2.4), M(0x1a1f2a)); seat.position.set(0, y + 1.9, 4.0); g.add(seat);
-  const sback = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.0, 0.35), M(0x1a1f2a)); sback.position.set(0, y + 3.4, 5.1); g.add(sback);
+  // Bürostuhl-Andeutung.
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.35, 2.4), M(0x1a1f2a)); seat.position.set(0, y + 1.9, 4.2);
+  const sback = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.0, 0.35), M(0x1a1f2a)); sback.position.set(0, y + 3.5, 5.3);
+  g.add(seat, sback);
 
-  // Zentral im Nord-Raum, leicht zur Rückwand; Bildschirm zeigt zur Raummitte/Kamera.
   g.position.set(cx(r), 0, r.minZ + 7);
   group.add(g);
-
-  animated.push({ fn: (t) => { ml.intensity = 7 + Math.sin(t * 2.4) * 1.2; } });
+  animated.push({ fn: (t) => { ml.intensity = 8 + Math.sin(t * 2.4) * 1.4; } });
 }
 
 // === WEST: Fabrikator – eingehauster Industrie-3D-Drucker =====================
