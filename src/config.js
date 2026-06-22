@@ -157,7 +157,7 @@ export const CONFIG = {
     startBudget: 8,  // Welle 1 klein & lehrreich
     budgetGrowth: 5, // sanftere Eskalation → Wellen bleiben lesbar, nicht überrollend
     spawnInterval: 0.55, // Gegner trickeln rein (Movement-Defense statt Flut)
-    breakTime: 6, // kürzere Pause zwischen Wellen
+    breakTime: 8, // ruhige Verschnaufpause zwischen Wellen (Zeit zum Reparieren/Shoppen)
     maxAlive: 14, // KEIN Swarm-Chaos mehr: nur wenige Gegner gleichzeitig → skillbar
     bossEvery: 5, // alle N Wellen erscheint ein Boss
   },

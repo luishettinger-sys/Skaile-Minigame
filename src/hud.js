@@ -460,6 +460,8 @@ export class HUD {
   setUltimate(ratio, ready) {
     this.el.ultFill.style.width = Math.min(100, ratio * 100) + "%";
     this.el.ult.classList.toggle("ready", ready);
+    // Erst zeigen, wenn der Ultimate auflädt → weniger HUD-Rauschen am Anfang.
+    if (this.el.ult) this.el.ult.style.display = (ratio > 0.001 || ready) ? "" : "none";
   }
 
   // CPU-Temperatur: Balkenbreite + Farbe (grün→gelb→rot), Zustände overclock/throttle.

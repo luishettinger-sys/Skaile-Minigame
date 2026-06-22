@@ -4,9 +4,10 @@
 // zum nächsten weiter. Passt zum Rubber-Duck-Debugging-Thema.
 
 const STEPS = [
-  { on: "move",        text: "Hi! Ich bin deine Kampf-Ente 🦆 – beweg dich mit WASD oder den Pfeiltasten." },
-  { on: "waveCleared", text: "Stark! ✅ Die Bugs wollen den PC fressen – halt sie auf. Fürs Abwehren gibt's 🪙 Coins zum Aufrüsten." },
-  { on: null,          text: "Beschütze den PC, überlebe die Wellen, werde stärker. Viel Spaß, Boss! 🦆", hold: 8 },
+  { on: "move",        text: "1) Beweg dich mit WASD / Pfeiltasten. 🦆" },
+  { on: "kill",        text: "2) Schlag die Bugs mit Maus oder Leertaste (Halbkreis vor dir). 👊" },
+  { on: "waveCleared", text: "3) Welle geschafft! ✅ Wähl dein Schwert. In der Pause: [E] am 🛡️ Tor reparieren, im 🛍️ Shop aufrüsten." },
+  { on: null,          text: "Dein Ziel: Beschütze den PC hinterm Tor – überlebe alle Wellen! 🦆", hold: 9 },
 ];
 
 export class Guide {

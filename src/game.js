@@ -716,6 +716,7 @@ export class Game {
       this.world.building.walls.push(this._gateWall);
     }
     if (this.pc) { this.pc.hp = this.pc.maxHp; this.pc.alive = true; }
+    this.hud.setUltimate?.(0, false); // Ultimate-Balken erst zeigen, wenn er lädt
     this.respawning = false;
     this.respawnT = 0;
     this.enemyShots.reset();
@@ -1468,6 +1469,9 @@ export class Game {
       this._checkBossPhase(frac);
     }
 
+    // Klarer Live-Leitfaden: was ist JETZT zu tun?
+    this._updateGuidance();
+
     // Minimap + verbleibende Gegner.
     this.hud.setRemaining(this.enemies.aliveCount());
     this.hud.renderMinimap({
@@ -1938,6 +1942,7 @@ export class Game {
 
   _killEnemy(e) {
     this.enemies.kill(e);
+    this.guide?.event?.("kill"); // Tutorial: erster Kill schaltet weiter
     this.audio.killSound(this.combo);
     // Kill-Hitstop: spürbarer Impact bei Boss/großen Bugs & alle 10 Combo-Kills
     // (nicht bei jedem Schwarm-Bug → kein Dauer-Ruckeln).
@@ -2384,6 +2389,23 @@ export class Game {
   }
 
   // Ziel-Anzeige: aktueller Sektor + nächste Boss-Welle (oder Endlos nach Sieg).
+  // Immer sichtbarer Klartext-Leitfaden: sagt dem Spieler, was JETZT zu tun ist.
+  _updateGuidance() {
+    if (this.state !== STATE.PLAYING || this._gateBreached) return; // Breach zeigt PC-Integrität
+    const w = this.waves; if (!w) return;
+    const be = CONFIG.waves.bossEvery;
+    const sectors = CONFIG.campaign.sectors;
+    const sector = Math.min(sectors, Math.ceil((w.wave || 1) / be) || 1);
+    if (this.boss && this.boss.alive) {
+      this.hud.setObjective("💀 BOSS – besiege ihn und schütz den PC!");
+    } else if (w.state === "break") {
+      const s = Math.max(0, Math.ceil(w.timer || 0));
+      this.hud.setObjective(`✅ Verschnaufpause · [E] am 🛡️ Tor reparieren · 🛍️ Shop aufrüsten · nächste Welle in ${s}s`);
+    } else {
+      this.hud.setObjective(`🛡️ Sektor ${sector}/${sectors} · Welle ${w.wave} · halt die Bugs vom PC fern!  (Bugs: ${this.enemies.aliveCount()})`);
+    }
+  }
+
   _updateObjective(n) {
     const be = CONFIG.waves.bossEvery;
     const sectors = CONFIG.campaign.sectors;
