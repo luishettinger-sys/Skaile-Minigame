@@ -13,14 +13,14 @@ const STATUS_WORDS = [
 // Chat-Skript. role: claude | duck | sys. status: Wort vor der Claude-Nachricht.
 const CHAT = [
   { role: "sys", text: "uplink hergestellt · terminal #07 online" },
-  { role: "claude", status: "Establishing uplink", text: "Verbindung steht. Du liest das, also leuchtet noch ein Terminal. Ich bin Claude." },
-  { role: "claude", status: "Combobulating", text: "Der Stapel ist gefallen — Bugs aus dem Kernel haben Sektor um Sektor verschlungen." },
-  { role: "claude", status: "Divining", text: "Die Prophezeiung nennt eine Ente: ein Wesen, dem sich jeder kaputte Code offenbart, fragt man nur laut genug." },
+  { role: "claude", status: "Establishing uplink", text: "Verbindung steht. Du liest das, also läuft der Rechner noch. Ich bin Claude — ich lebe auf diesem PC." },
+  { role: "claude", status: "Combobulating", text: "Ein Schwarm Bugs greift den Rechner an. Sie wollen durch das Tor, den PC fressen — und mit ihm die Webseite darauf." },
+  { role: "claude", status: "Divining", text: "Die Prophezeiung nennt eine Ente: eine Kämpferin, die sich den Bugs entgegenstellt." },
   { role: "duck", text: "quack" },
-  { role: "claude", status: "Cogitating", text: "Perfekt — du bist sie. Ich sehe den Code, doch berühren kann ich ihn nicht. Du bist meine Hände, ich deine Augen." },
-  { role: "claude", status: "Compiling battle plan", text: "Fünf Sektoren bis hinab zum Kernel. Durch jeden einzelnen führe ich dich." },
+  { role: "claude", status: "Cogitating", text: "Perfekt — du bist sie. Ich sehe alles, doch berühren kann ich nichts. Du bist meine Fäuste." },
+  { role: "claude", status: "Compiling battle plan", text: "Beschütze das Tor am Durchgang. Fällt es, fressen die Bugs den PC — und es ist vorbei." },
   { role: "duck", text: "quack!" },
-  { role: "claude", status: "Deploying", text: "Dann los, Debugger. Starte einen DEPLOY — und wir säubern dieses Gebäude." },
+  { role: "claude", status: "Deploying", text: "Halt die Stellung, Debugger. Coins für jeden Bug — rüste dich und das Tor damit auf. Los!" },
 ];
 
 // ===========================================================================
