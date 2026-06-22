@@ -4,6 +4,9 @@
 import * as THREE from "three";
 import { CONFIG } from "./config.js";
 
+const GATE_AGGRO = 9;  // näher am Spieler als das → Bug jagt ihn statt das Tor anzugreifen
+const GATE_DPS = 1.0;  // Tor-Schaden/Sek-Faktor pro angreifendem Bug (× def.damage)
+
 export class EnemySystem {
   constructor(scene) {
     this.scene = scene;
@@ -123,7 +126,7 @@ export class EnemySystem {
     return enemy;
   }
 
-  update(dt, targetPos, revealHidden = false, attack = null) {
+  update(dt, targetPos, revealHidden = false, attack = null, gate = null) {
     const summons = []; // Boss-Adds, nach der Schleife gespawnt
     for (const e of this.enemies) {
       if (!e.alive) continue;
@@ -135,6 +138,7 @@ export class EnemySystem {
       }
 
       const p = e.mesh.position;
+      e._atGate = false;
 
       // Richtung zum Ziel (XZ). Flieht der Gegner, dreht sich die Richtung um.
       const dx = targetPos.x - p.x;
@@ -163,6 +167,21 @@ export class EnemySystem {
         const s = Math.sin(e._t * 6.5 + e.phase) * e.def.strafe;
         mx = nx + perpx * s; mz = nz + perpz * s;
         const m = Math.hypot(mx, mz) || 1; mx /= m; mz /= m;
+      }
+
+      // --- Tor-Angriff: ist der Spieler weit weg, marschiert der Bug zum Tor und
+      //     knabbert es an (will den PC fressen). Bosse/Flieher/Kiter ausgenommen.
+      let gateBound = false;
+      if (gate && gate.alive && !e.def.isBoss && !e.def.flee && !e.def.kite && len > GATE_AGGRO) {
+        const gx = gate.x - p.x, gz = gate.z - p.z;
+        const gl = Math.hypot(gx, gz) || 1;
+        mx = gx / gl; mz = gz / gl;
+        gateBound = true;
+        if (gl <= gate.r + e.radius) {
+          gate.damage((e.def.damage || 6) * dt * GATE_DPS);
+          e.flash = Math.max(e.flash, 0.5); // Chomp-Blink
+          e._atGate = true;
+        }
       }
 
       // --- Fernkampf: schießen ---
@@ -212,8 +231,8 @@ export class EnemySystem {
           e.flash = Math.max(e.flash, 0.6); // kurzer Blink-Punch
         }
       }
-      // --- Normale Bewegung (außer Telegraph/Lunge/Blink) ---
-      else if (e.lungeState !== "tele" && !lunging) {
+      // --- Normale Bewegung (außer Telegraph/Lunge/Blink/am Tor) ---
+      else if (e.lungeState !== "tele" && !lunging && !e._atGate) {
         const step = e.speed * dt;
         p.x += mx * step;
         p.z += mz * step;
@@ -229,7 +248,7 @@ export class EnemySystem {
         if (Math.abs(e.knockZ) < 0.05) e.knockZ = 0;
       }
 
-      e.mesh.rotation.y = Math.atan2(dx, dz);
+      e.mesh.rotation.y = gateBound ? Math.atan2(mx, mz) : Math.atan2(dx, dz);
 
       // Boss beschwört Adds (Stack Smasher / Segfault) – gesammelt, nach der
       // Schleife gespawnt (kein Mutieren während der Iteration).

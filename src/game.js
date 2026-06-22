@@ -17,6 +17,7 @@ import { cloneWeaponModel } from "./weaponmodels.js";
 import { Automation } from "./automation.js";
 import { Inventory } from "./inventory.js";
 import { Stations } from "./stations.js";
+import { Gate } from "./gate.js";
 import { EnemyShots } from "./enemyshots.js";
 import { Throwables } from "./throwables.js";
 import { rollItem, defaultMods, mergeMods } from "./items.js";
@@ -73,6 +74,10 @@ export class Game {
 
     this.inventory = new Inventory();
     this.stations = new Stations(world.scene);
+    // Verteidigungs-Tor am Nord-Durchgang (schützt den PC). Feste Kollisionswand,
+    // damit Monster nicht durchlaufen – sie müssen es erst zerstören.
+    this.gate = new Gate(world.scene, 0, -28, { maxHp: 320, width: 11 });
+    world.building?.walls?.push({ minX: -5.5, maxX: 5.5, minZ: -29.2, maxZ: -26.8 });
     this.enemyShots = new EnemyShots(world.scene);
     this.throwables = new Throwables(world.scene);
     this.armory = new Armory(world.scene, world.building?.rooms?.armory);
@@ -687,6 +692,7 @@ export class Game {
     this.effects.reset();
     this.pickups.reset();
     this.stations.reset();
+    this.gate?.reset();
     this.enemyShots.reset();
     this.throwables.reset();
     this.carrying = null;
@@ -969,6 +975,15 @@ export class Game {
     } catch (e) { this.hud.toast?.("📋", "Teilen", text); }
   }
 
+  // Das Tor ist gefallen → die Bugs fressen den PC + die Webseite. Run vorbei.
+  _pcDestroyed() {
+    this.world.addShake(1.0);
+    this.hud.flash?.("#ff3b52", 0.6);
+    this.effects.shockwave?.(this.gate.x, this.gate.z, 0xff3b52, 26, 30);
+    this.hud.banner?.("💀 PC ZERFRESSEN", "Die Bugs haben den Rechner zerstört!");
+    this.gameOver();
+  }
+
   gameOver() {
     this.state = STATE.OVER;
     this.audio.gameOver();
@@ -1193,7 +1208,13 @@ export class Game {
 
     this.enemies.update(enemyDt, this.player.pos, this.ultActive, {
       shoot: (x, z, dx, dz, o) => this.enemyShots.spawn(x, z, dx, dz, o),
-    });
+    }, this.gate);
+    // Tor aktualisieren; ist es zerstört → der PC wurde gefressen (Game Over).
+    if (this.gate) {
+      this.gate.update(dt);
+      this.hud.setGate?.(this.gate.hp / this.gate.maxHp);
+      if (!this.gate.alive && this.state === STATE.PLAYING) { this._pcDestroyed(); return; }
+    }
     this.enemyShots.update(enemyDt);
     this._handleEnemyShots();
     this.projectiles.update(dt, {

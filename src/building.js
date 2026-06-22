@@ -86,7 +86,7 @@ export class Building {
     // immer raus (keine Einsperrung), aber von der Arena nicht rein.
     this.gates = [];
     for (const gd of [
-      { room: NORTH, box: { minX: -D, maxX: D, minZ: -30, maxZ: -26 } }, // Workstation
+      // Nord-Durchgang hat jetzt das Holz-Verteidigungstor (gate.js) statt eines Zeittors.
       { room: EAST,  box: { minX: 26, maxX: 30, minZ: -D, maxZ: D } },   // Waffen
     ]) this._addGate(gd.box, gd.room);
     this.setGatesOpen(true);
