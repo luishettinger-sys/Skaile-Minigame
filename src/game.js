@@ -827,27 +827,14 @@ export class Game {
     for (let i = 0; i < 5; i++) this.shopOffers.push(this._makeOffer());
   }
 
-  // Ein zufälliges Angebot (Waffe / Ausrüstung / Gadget).
+  // Ausgemistet: der Shop verkauft nur noch bessere Waffen (klar & fokussiert).
   _makeOffer() {
-    const r = Math.random();
-    if (r < 0.4) {
-      const id = WEAPON_IDS[Math.floor(Math.random() * WEAPON_IDS.length)];
-      const w = WEAPONS[id];
-      // Echter Tier-Preis (±10 % Streuung), damit starke Waffen teuer bleiben.
-      const base = WEAPON_PRICE[id] ?? 90;
-      const price = Math.round(base * (0.92 + Math.random() * 0.16));
-      const req = WEAPON_LEVEL[id] || 2;
-      return { type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc + ` · ab Lvl ${req}`, price, req };
-    } else if (r < 0.72) {
-      const it = rollItem();
-      return { type: "item", item: it, icon: it.icon, name: it.name, desc: it.desc,
-        price: 40 + Math.floor(Math.random() * 40) };
-    }
-    const id = GADGET_IDS[Math.floor(Math.random() * GADGET_IDS.length)];
-    const g = GADGETS[id];
-    const lvl = this.gadgets[id] || 0;
-    return { type: "gadget", id, icon: g.icon, name: g.name + " ▸ Lv" + (lvl + 1),
-      desc: g.desc, price: gadgetPrice(lvl) };
+    const id = WEAPON_IDS[Math.floor(Math.random() * WEAPON_IDS.length)];
+    const w = WEAPONS[id];
+    const base = WEAPON_PRICE[id] ?? 90;
+    const price = Math.round(base * (0.92 + Math.random() * 0.16));
+    const req = WEAPON_LEVEL[id] || 2;
+    return { type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc + ` · ab Lvl ${req}`, price, req };
   }
 
   _renderShop() {
@@ -1140,25 +1127,14 @@ export class Game {
     if (this.input.wasPressed("KeyP") || this.input.wasPressed("Escape")) {
       this.togglePause();
     }
-    if (this.input.wasPressed("KeyI") || this.input.wasPressed("Tab")) {
-      this.toggleInventory();
-    }
+    // Ausgemistet: nur noch der klare Kern – Tor reparieren / Waffe kaufen / Shop.
     if (this.input.wasPressed("KeyE")) {
-      const autoPad = this.automation.nearest(this.player.pos);
       const pad = this.armory.nearest(this.player.pos);
-      const door = this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z);
-      if (autoPad && !this.shopOpen) this._buyAutomation(autoPad);
+      if (!this.shopOpen && this._gateNear()) this._reinforceGate();
       else if (pad && !this.shopOpen) this._buyWeapon(pad);
-      else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) this.openForge();
-      else if (door && !this.shopOpen) this._buyRoom(door);
-      else if (!this.shopOpen && this._gateNear()) this._reinforceGate();
-      else if (!this.shopOpen && this._stationNear("spawner")) this.openChips();
-      else if (!this.shopOpen && this.stations.skinsNear(this.player.pos)) this.openSkins("riddle");
-      else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
       else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
     }
-    if (this.input.wasPressed("KeyG")) this.cycleGadget();
-    if (this.input.wasPressed("KeyB")) this.audio.toggleMute(); // Mute (war M)
+    if (this.input.wasPressed("KeyB")) this.audio.toggleMute();
 
     // (Perspektiven-Wechsel entfernt – nur noch Vogelperspektive.)
 
@@ -1171,8 +1147,7 @@ export class Game {
     // Sektor-Anomalie bei Sektor-Wechsel anwenden.
     const sec = Math.max(1, Math.ceil((this.waves?.wave || 1) / CONFIG.waves.bossEvery));
     if (!this.draftChoosing && !this._draftPending && sec !== this._activeSector) {
-      this._activeSector = sec;
-      this._applySectorMod(sec);
+      this._activeSector = sec; // Sektor-Anomalien ausgemistet (weniger Verwirrung)
     }
     // Anstehenden Boon anbieten, sobald keine andere Auswahl offen ist.
     if (this.boonPending && !this.levelingUp && !this.boonChoosing && !this.draftChoosing &&
@@ -1408,11 +1383,11 @@ export class Game {
 
     this.armory.update(dt, this.player.pos);
 
-    // Kontext-Hinweis: Automation/Armory/Shop haben Vorrang, sonst Wurfobjekt.
-    const autoPad = this.automation.nearest(this.player.pos);
+    // Ausgemistet: nur noch Tor / Waffe kaufen / Shop.
     const pad = this.armory.nearest(this.player.pos);
-    if (autoPad && !this.shopOpen) {
-      this.hud.showPrompt(this.automation.labelFor(autoPad.id));
+    if (this._gateNear()) {
+      this.hud.showPrompt(`[E] 🛡️ Tor reparieren & verstärken – ${this._gateCost || 40} 🪙`);
+      this._tut("gate", "🛡️ Dein Tor! Hier gibst du 🪙 Coins aus, um es voll zu reparieren UND dauerhaft stärker zu machen. Fällt es, fressen die Bugs den PC!");
     }
     else if (pad && !this.shopOpen) {
       const owned = this.weaponId === pad.id;
@@ -1422,36 +1397,10 @@ export class Game {
         : locked ? `🔒 ${WEAPONS[pad.id].name} – ab Lvl ${req}`
         : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙 (Lvl ${req})`);
     }
-    else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) {
-      this.hud.showPrompt(`[E] 🔨 SCHMIEDE – Waffen-Mods bauen (${this.mats.scrap} 🔩)`);
-      this._tut("forge", "🔨 Das ist die Schmiede! Hier baust du aus 🔩 Schrott (droppt aus Bugs) permanente Waffen-Mods. Drück [E].");
-    }
     else if (this.stations.shopNear(this.player.pos)) {
-      this.hud.showPrompt("[E] 🛍️ SHOP");
-      this._tut("shop", "🛍️ Der Shop! Hier kaufst du mit 🪙 Coins Power-Ups, Gadgets & Extras. Drück [E].");
+      this.hud.showPrompt("[E] 🛍️ SHOP – bessere Waffe kaufen");
+      this._tut("shop", "🛍️ Der Shop! Hier kaufst du mit 🪙 Coins bessere Waffen. Drück [E].");
     }
-    else if (this.stations.skinsNear?.(this.player.pos)) {
-      this.hud.showPrompt("[E] 👕 Skins (Claude-Rätsel)");
-      this._tut("skins", "👕 Skin-Station! Skins schaltest du frei, indem du eine kleine Claude-Rätselfrage beantwortest. Drück [E].");
-    }
-    else if (this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z)) {
-      const d = this.world.building.lockedDoorNear(this.player.pos.x, this.player.pos.z);
-      this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
-    }
-    else if (this._gateNear()) {
-      this.hud.showPrompt(`[E] 🛡️ Tor reparieren & verstärken – ${this._gateCost || 40} 🪙`);
-      this._tut("gate", "🛡️ Das ist dein Tor! Hier gibst du 🪙 Coins aus, um es voll zu reparieren UND dauerhaft stärker zu machen. Hält es nicht, fressen die Bugs den PC!");
-    }
-    else if (this._stationNear("spawner")) {
-      this.hud.showPrompt(`[E] 🧩 CHIP-SOCKEL – Chips stecken (${this.mats.chips} 🧩)`);
-      this._tut("chips", "🧩 Der Chip-Sockel! Steck 🧩 Chips ins Mainboard-Raster für Boni. Tipp: Gleiche Chips nebeneinander verstärken sich! Drück [E].");
-    }
-    else if (this.stations.deployNear(this.player.pos)) {
-      this.hud.showPrompt(this.defenseLoop ? "[E] ⏸ Deploy-Schleife stoppen" : "[E] 🚀 DEPLOY starten (Dauerschleife)");
-      this._tut("deploy", "🚀 Das Deploy-Terminal! [E] startet die Bug-Wellen. Halte dann [C] für OVERCLOCK (mehr Power, aber die CPU heizt auf – nicht überhitzen!).");
-    }
-    else if (this.carrying) this.hud.showPrompt("[F] werfen");
-    else if (this.throwables.nearestIdle(this.player.pos, 2.8)) this.hud.showPrompt("[F] aufheben");
     else this.hud.hidePrompt();
 
     this._fireWeapon(dt);
@@ -1515,7 +1464,7 @@ export class Game {
   _updateHeat(dt, moving) {
     const H = CONFIG.heat;
     // Overclock nur halten, wenn nicht überhitzt und am Leben.
-    const wantOC = this.input.isDown("KeyC") && !this.throttled && this.player.alive;
+    const wantOC = false; // Overclock/Hitze-System ausgemistet (kein extra Mechanik-Lernen)
     if (wantOC && !this.overclock) this.audio.dash?.(); // kurzes Anwerf-Geräusch
     this.overclock = wantOC;
 
@@ -2030,9 +1979,7 @@ export class Game {
     const chipChance = e.def.isBoss ? 1 : big ? 0.12 : 0.02;
     if (Math.random() < chipChance) { gotChip = e.def.isBoss ? 3 : 1; this.mats.chips += gotChip; }
     this.meta.data += Math.round((e.def.isBoss ? 10 : big ? 2 : 1) * dm.data);
-    this._matsDirty = true; // HUD/Meta-Speicher am Frame-Ende aktualisieren
-    if (gotChip) this._popup(e.mesh.position, "+" + gotChip + " 🧩", "#c792ea", "dmg");
-    else if (big) this._popup(e.mesh.position, "+" + scrap + " 🔩", "#9fb4d4", "dmg");
+    this._matsDirty = true; // (Schrott/Chips still mitgezählt, aber nicht mehr als Popup-Clutter)
 
     // Bonus-Bug erwischt → fette Belohnung.
     if (e.type === "bonus") {
@@ -2070,8 +2017,6 @@ export class Game {
           e.mesh.position.z + (Math.random() - 0.5) * 4, 2
         );
       }
-      this.pickups.spawnLoot(e.mesh.position.x + 2, e.mesh.position.z, rollItem());
-      this.pickups.spawnLoot(e.mesh.position.x - 2, e.mesh.position.z, rollItem());
       this.pickups.spawnLucky(e.mesh.position.x, e.mesh.position.z + 2);
 
       // Meilenstein bei Welle 25 (Gebäude befreit), aber ENDLOS weiterspielen –
@@ -2507,8 +2452,6 @@ export class Game {
       this._startBossIntro(n); // Cinematic: Zoom auf Monitor → Bug springt raus
     } else {
       this.hud.banner("WELLE " + n, "Bugs eingehend…");
-      // Alle 3 Wellen (außer Boss-Wellen) einen Run-Boon zur Wahl stellen.
-      if (n > 1 && n % 3 === 0) this.boonPending = true;
     }
   }
 
