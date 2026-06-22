@@ -22,7 +22,7 @@ export const CONFIG = {
     turnLerp: 16, // wie schnell sich die Ente in Laufrichtung dreht
     maxHp: 40,        // 4 Herz-Container à 10 HP – bewusst knapp (Movement statt Tank)
     hpPerHeart: 10,   // HP pro Herz-Container (für die HUD-Herzen)
-    hitInvuln: 0.9, // Sekunden Unverwundbarkeit nach Treffer
+    hitInvuln: 1.15, // etwas mehr Luft nach einem Treffer (kein Chain-Hit-Tod)
     bigHitDamage: 15, // ab so viel Schaden pro Treffer: zusätzliches "Ouch"-Voice
     contactKnockback: 6,
     regen: 0, // HP/Sekunde (per Upgrade erhöhbar)
@@ -154,11 +154,11 @@ export const CONFIG = {
   },
 
   waves: {
-    startBudget: 14, // "Punkte" Gegner-Wert in Welle 1
-    budgetGrowth: 14, // +Budget pro Welle (steile Eskalation → Farming-Loop wird hart)
-    spawnInterval: 0.3, // schnelle Spawns → dichte Schwärme
-    breakTime: 10, // ~10s Pause zwischen Wellen → Türen offen, Zeit zum Shoppen
-    maxAlive: 75, // Obergrenze gleichzeitiger Gegner
+    startBudget: 8,  // Welle 1 klein & lehrreich
+    budgetGrowth: 5, // sanftere Eskalation → Wellen bleiben lesbar, nicht überrollend
+    spawnInterval: 0.55, // Gegner trickeln rein (Movement-Defense statt Flut)
+    breakTime: 6, // kürzere Pause zwischen Wellen
+    maxAlive: 14, // KEIN Swarm-Chaos mehr: nur wenige Gegner gleichzeitig → skillbar
     bossEvery: 5, // alle N Wellen erscheint ein Boss
   },
 
@@ -166,9 +166,9 @@ export const CONFIG = {
   // (alle bossEvery Wellen) säubert einen Sektor; nach dem letzten Sektor
   // ist das Gebäude befreit → Sieg (danach optional endlos weiter).
   campaign: {
-    sectors: 5, // Anzahl Sektoren bis zum Sieg
+    sectors: 3, // kürzere, gewinnbare Kampagne (15 Wellen) statt 25er-Slog
     sectorNames: [
-      "Der I/O-Port", "Die RAM-Bänke", "Der GPU-Kern", "Der CPU-Die", "Der Kernel",
+      "Der I/O-Port", "Die RAM-Bänke", "Der Kernel",
     ],
     get finalWave() { return CONFIG.waves.bossEvery * this.sectors; }, // = 25
   },

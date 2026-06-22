@@ -1722,7 +1722,7 @@ export class Game {
       this.effects.burst(e.mesh.position.x, e.mesh.position.z, w.color || 0xffffff, crit ? 9 : 5, crit ? 1.0 : 0.7);
       this.effects.flash?.(e.mesh.position.x, e.def.radius + 0.3, e.mesh.position.z, 0xffffff, crit ? 2.0 : 1.2, 0.08);
       this._popup(e.mesh.position, Math.round(hitDmg).toString(), crit ? "#ff4d6a" : "#fff2c0", crit ? "big" : "dmg");
-      if (!e.def.isBoss) { const dl = d || 1; e.knockX = (ex / dl) * 9; e.knockZ = (ez / dl) * 9; }
+      if (!e.def.isBoss) { const dl = d || 1; e.knockX = (ex / dl) * 16; e.knockZ = (ez / dl) * 16; } // mehr Knockback = Raum schaffen
       if (w.element === "fire") { e.burnT = 2.2; e.burnDps = Math.max(2, dmg * 0.5); }
       if (w.element === "ice") { e.slowT = 2.5; }
       if (killed) this._killEnemy(e);
