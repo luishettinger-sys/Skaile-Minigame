@@ -693,6 +693,8 @@ export class Game {
     this.pickups.reset();
     this.stations.reset();
     this.gate?.reset();
+    this.respawning = false;
+    this.respawnT = 0;
     this.enemyShots.reset();
     this.throwables.reset();
     this.carrying = null;
@@ -975,6 +977,36 @@ export class Game {
     } catch (e) { this.hud.toast?.("📋", "Teilen", text); }
   }
 
+  // Spieler fällt: statt sofort Game Over gibt's eine 5-Sek-Gnadenfrist (Respawn),
+  // in der das Tor halten muss. Ist das Tor schon hin → echtes Game Over.
+  _playerDown() {
+    if (this.respawning) return;
+    if (!this.gate || !this.gate.alive) { this.gameOver(); return; }
+    this.respawning = true;
+    this.respawnT = 5;
+    this.player.alive = false;
+    this.player._setVisible?.(false);
+    this.world.addShake(0.7);
+    this.effects.burst(this.player.pos.x, this.player.pos.z, CONFIG.colors.duckBody, 26, 1.5);
+    this.hud.flash?.("#ff3b52", 0.4);
+    this.hud.banner?.("💀 DOWN!", "Respawn in 5 s – das Tor muss halten!");
+    this.audio.playerHurt?.();
+    this._breakCombo();
+  }
+
+  _revive() {
+    this.respawning = false;
+    this.player.alive = true;
+    this.player.hp = Math.max(1, Math.round(this.player.maxHp * 0.6));
+    this.player.invuln = 2.5; // kurze Unverwundbarkeit nach dem Respawn
+    this.player.pos.set(0, 0, -20); // nahe dem Tor wieder einsteigen
+    this.player._setVisible?.(true);
+    this.hud.setHp(this.player.hp, this.player.maxHp);
+    this.hud.banner?.("🦆 ZURÜCK!", "Verteidige das Tor weiter!");
+    this.audio.levelUp?.();
+    this.effects.flash?.(this.player.pos.x, 1.2, this.player.pos.z, 0x39ff9a, 3, 0.2);
+  }
+
   // Das Tor ist gefallen → die Bugs fressen den PC + die Webseite. Run vorbei.
   _pcDestroyed() {
     this.world.addShake(1.0);
@@ -1088,6 +1120,12 @@ export class Game {
     if (this.hitStop > 0) {
       this.hitStop = Math.max(0, this.hitStop - dt);
       dt *= 0.06;
+    }
+
+    // Respawn-Gnadenfrist: Spieler ist „down", das Tor muss währenddessen halten.
+    if (this.respawning) {
+      this.respawnT -= dt;
+      if (this.respawnT <= 0) this._revive();
     }
 
     this._autoCamera(dt);
@@ -1403,7 +1441,7 @@ export class Game {
       if (this.player.alive) {
         this.player.hp = Math.max(0, this.player.hp - H.overheatDmg * dt);
         this.hud.setHp(this.player.hp, this.player.maxHp);
-        if (this.player.hp <= 0) { this.player.alive = false; this.gameOver(); return; }
+        if (this.player.hp <= 0) { this.player.alive = false; this._playerDown(); return; }
       }
       if (this.heat <= H.recover) {
         this.throttled = false;
@@ -1474,6 +1512,7 @@ export class Game {
 
   // -------------------------------------------------------------- Combat --
   _fireWeapon(dt) {
+    if (!this.player.alive) return; // während der Respawn-Gnadenfrist nicht feuern
     this.fireTimer -= dt;
     const firing =
       this.input.mouseDown ||
@@ -1673,7 +1712,7 @@ export class Game {
         this.audio.playerHurt?.();
         this.hud.setHp(this.player.hp, this.player.maxHp);
         this.hud.flash("#80ed99", 0.25);
-        if (!this.player.alive) { this.gameOver(); return; }
+        if (!this.player.alive) { this._playerDown(); return; }
       }
     }
     for (const e of this.enemies.enemies) {
@@ -1690,7 +1729,7 @@ export class Game {
           this.effects.shockwave(this.player.pos.x, this.player.pos.z, CONFIG.colors.red, 4, 12);
           this.hud.setHp(this.player.hp, this.player.maxHp);
           this._breakCombo();
-          if (!this.player.alive) { this.gameOver(); return; }
+          if (!this.player.alive) { this._playerDown(); return; }
         }
         const dx = e.mesh.position.x - this.player.pos.x;
         const dz = e.mesh.position.z - this.player.pos.z;
@@ -1732,7 +1771,7 @@ export class Game {
           this.hud.flash("#ff5470", 0.3);
           this.hud.setHp(this.player.hp, this.player.maxHp);
           this._breakCombo();
-          if (!this.player.alive) { this.gameOver(); return; }
+          if (!this.player.alive) { this._playerDown(); return; }
         }
         this.enemyShots.retire(i);
       }
