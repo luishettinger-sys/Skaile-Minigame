@@ -18,6 +18,7 @@ export class HUD {
       heatFill: document.getElementById("heat-fill"),
       heatLabel: document.getElementById("heat-label"),
       enFill: document.getElementById("en-fill"),
+      en: document.getElementById("en"),
       ult: document.getElementById("ult"),
       banner: document.getElementById("banner"),
       popups: document.getElementById("popups"),
@@ -521,6 +522,12 @@ export class HUD {
 
   setWeapon(name, icon) {
     this.el.weapon.textContent = icon + " " + name.toUpperCase();
+  }
+
+  // Nahkampf braucht keine Energie/CPU-Hitze → diese Balken ausblenden (klareres HUD).
+  setMeleeMode(melee) {
+    if (this.el.en) this.el.en.style.display = melee ? "none" : "";
+    if (this.el.heat) this.el.heat.style.display = melee ? "none" : "";
   }
 
   setEnergy(ratio) {

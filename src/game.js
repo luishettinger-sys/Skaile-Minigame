@@ -526,6 +526,7 @@ export class Game {
     this._recomputeMods();
     this._refreshHeldWeapon();
     this.player.setMeleeVisual?.("fists", WEAPONS.fists.color); // Start mit sichtbaren Fäusten
+    this.hud.setMeleeMode?.(true); // Start im Nahkampf → Energie/Hitze-Balken aus
   }
 
   // Effektive Mods = Upgrades kombiniert mit Ausrüstung.
@@ -2320,6 +2321,7 @@ export class Game {
     // Sichtbare Nahkampf-Optik (Fäuste/Schwert) setzen bzw. entfernen.
     if (this.weapon.melee) this.player.setMeleeVisual?.(id === "fists" ? "fists" : "sword", this.weapon.color);
     else this.player.setMeleeVisual?.(null);
+    this.hud.setMeleeMode?.(!!this.weapon.melee); // Energie/Hitze-Balken nur bei Guns
   }
 
   // Getragenes Waffenmodell an die aktuelle Waffe anpassen (no-op falls Modelle
