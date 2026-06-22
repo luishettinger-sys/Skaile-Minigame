@@ -693,6 +693,7 @@ export class Game {
     this.pickups.reset();
     this.stations.reset();
     this.gate?.reset();
+    this._gateCost = 40;
     this.respawning = false;
     this.respawnT = 0;
     this.enemyShots.reset();
@@ -977,6 +978,26 @@ export class Game {
     } catch (e) { this.hud.toast?.("📋", "Teilen", text); }
   }
 
+  // Steht die Ente am Tor? (Reichweite zum Reparieren/Verstärken)
+  _gateNear() {
+    return this.gate && this.gate.alive &&
+      Math.hypot(this.player.pos.x - this.gate.x, this.player.pos.z - this.gate.z) <= 6.5;
+  }
+
+  // Coins ausgeben: Tor voll reparieren UND dauerhaft verstärken (+max HP).
+  _reinforceGate() {
+    const cost = this._gateCost || 40;
+    if (this.coins < cost) { this.hud.toast?.("🛡️", "Tor", `Kostet ${cost} 🪙`); this.audio.error?.(); return; }
+    this.coins -= cost; this.hud.setCoins(this.coins);
+    this.gate.maxHp += 70;
+    this.gate.hp = this.gate.maxHp;
+    this._gateCost = Math.round(cost * 1.5);
+    this.audio.buy?.();
+    this.world.addShake(0.12);
+    this.hud.flash?.("#c79a5a", 0.2);
+    this.hud.banner?.("🛡️ TOR VERSTÄRKT", `Voll repariert · +70 HP · max ${this.gate.maxHp}`);
+  }
+
   // Spieler fällt: statt sofort Game Over gibt's eine 5-Sek-Gnadenfrist (Respawn),
   // in der das Tor halten muss. Ist das Tor schon hin → echtes Game Over.
   _playerDown() {
@@ -1086,6 +1107,7 @@ export class Game {
       else if (pad && !this.shopOpen) this._buyWeapon(pad);
       else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) this.openForge();
       else if (door && !this.shopOpen) this._buyRoom(door);
+      else if (!this.shopOpen && this._gateNear()) this._reinforceGate();
       else if (!this.shopOpen && this._stationNear("spawner")) this.openChips();
       else if (!this.shopOpen && this.stations.skinsNear(this.player.pos)) this.openSkins("riddle");
       else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
@@ -1344,6 +1366,10 @@ export class Game {
     else if (this.world.building?.lockedDoorNear?.(this.player.pos.x, this.player.pos.z)) {
       const d = this.world.building.lockedDoorNear(this.player.pos.x, this.player.pos.z);
       this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
+    }
+    else if (this._gateNear()) {
+      this.hud.showPrompt(`[E] 🛡️ Tor reparieren & verstärken – ${this._gateCost || 40} 🪙`);
+      this._tut("gate", "🛡️ Das ist dein Tor! Hier gibst du 🪙 Coins aus, um es voll zu reparieren UND dauerhaft stärker zu machen. Hält es nicht, fressen die Bugs den PC!");
     }
     else if (this._stationNear("spawner")) {
       this.hud.showPrompt(`[E] 🧩 CHIP-SOCKEL – Chips stecken (${this.mats.chips} 🧩)`);
