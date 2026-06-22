@@ -236,14 +236,24 @@ export const WEAPONS = {
 // deutlich mehr → man muss auf sie hinsparen.
 export const WEAPON_PRICE = {
   // günstig
-  shotgun: 70, trishot: 80, smg: 95, needler: 95,
+  shotgun: 130, trishot: 150, smg: 175, needler: 175,
   // Mittelklasse
-  flak: 110, cannon: 120, pulse: 120, sawblade: 130, minigun: 140, arc: 150,
+  flak: 210, cannon: 230, pulse: 230, sawblade: 250, minigun: 270, arc: 290,
   // Spitze
-  glitch: 160, nova: 160, railgun: 180, recursion: 190, voidlober: 200, sniper: 210, photon: 230,
+  glitch: 320, nova: 320, railgun: 360, recursion: 380, voidlober: 400, sniper: 420, photon: 460,
   // kreative Waffen (nach Verhalten/Stärke eingeordnet)
-  wobble: 110, ricochet: 130, flame: 130, swarm: 145, tesla: 150, forkbomb: 150,
-  boomerang: 135, grenade: 175, rocket: 185, singularity: 230,
+  wobble: 210, ricochet: 250, flame: 250, swarm: 280, tesla: 290, forkbomb: 290,
+  boomerang: 260, grenade: 350, rocket: 370, singularity: 460,
+};
+
+// Mindest-Level pro Waffe – stärkere Waffen brauchen mehr Level (man muss sie sich
+// erspielen, nicht direkt durchkaufen). Default 2, falls nicht gelistet.
+export const WEAPON_LEVEL = {
+  shotgun: 2, trishot: 2, smg: 3, needler: 3,
+  flak: 4, cannon: 4, pulse: 5, sawblade: 5, minigun: 6, arc: 6,
+  wobble: 4, ricochet: 5, flame: 5, boomerang: 5, swarm: 6, tesla: 6, forkbomb: 7,
+  glitch: 7, nova: 7, railgun: 8, recursion: 8, grenade: 8, rocket: 9,
+  voidlober: 9, sniper: 10, photon: 11, singularity: 12,
 };
 
 // Nur Schusswaffen kaufbar/anzeigbar (Fäuste/Schwerter sind Nahkampf-only).

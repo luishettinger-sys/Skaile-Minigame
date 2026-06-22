@@ -11,7 +11,7 @@ import { WaveManager } from "./waves.js";
 import { Guide } from "./guide.js";
 import { Progression } from "./progression.js";
 import { PickupSystem } from "./pickups.js";
-import { WEAPONS, WEAPON_IDS, WEAPON_PRICE } from "./weapons.js";
+import { WEAPONS, WEAPON_IDS, WEAPON_PRICE, WEAPON_LEVEL } from "./weapons.js";
 import { Armory } from "./armory.js";
 import { cloneWeaponModel } from "./weaponmodels.js";
 import { Automation } from "./automation.js";
@@ -820,7 +820,8 @@ export class Game {
       // Echter Tier-Preis (±10 % Streuung), damit starke Waffen teuer bleiben.
       const base = WEAPON_PRICE[id] ?? 90;
       const price = Math.round(base * (0.92 + Math.random() * 0.16));
-      return { type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc, price };
+      const req = WEAPON_LEVEL[id] || 2;
+      return { type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc + ` · ab Lvl ${req}`, price, req };
     } else if (r < 0.72) {
       const it = rollItem();
       return { type: "item", item: it, icon: it.icon, name: it.name, desc: it.desc,
@@ -840,6 +841,11 @@ export class Game {
   _buy(i) {
     const o = this.shopOffers[i];
     if (!o || this.coins < o.price) return;
+    if (o.type === "weapon" && this.progression.level < (o.req || 2)) {
+      this.hud.toast?.("🔒", "Level zu niedrig", `${WEAPONS[o.id].name} ab Lvl ${o.req}`);
+      this.audio.error?.();
+      return;
+    }
     this.coins -= o.price;
     this.hud.setCoins(this.coins);
     this.audio.pickup();
@@ -1365,7 +1371,11 @@ export class Game {
     }
     else if (pad && !this.shopOpen) {
       const owned = this.weaponId === pad.id;
-      this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)` : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙`);
+      const req = WEAPON_LEVEL[pad.id] || 2;
+      const locked = this.progression.level < req;
+      this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)`
+        : locked ? `🔒 ${WEAPONS[pad.id].name} – ab Lvl ${req}`
+        : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙 (Lvl ${req})`);
     }
     else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) {
       this.hud.showPrompt(`[E] 🔨 SCHMIEDE – Waffen-Mods bauen (${this.mats.scrap} 🔩)`);
@@ -2340,6 +2350,12 @@ export class Game {
   // Waffe im Armory-Raum kaufen + sofort ausrüsten (Run-Coins).
   _buyWeapon(pad) {
     if (this.weaponId === pad.id) return;
+    const req = WEAPON_LEVEL[pad.id] || 2;
+    if (this.progression.level < req) {
+      this.hud.toast("🔒", "Level zu niedrig", `${WEAPONS[pad.id].name} ab Lvl ${req} (du: Lvl ${this.progression.level})`);
+      this.audio.error?.();
+      return;
+    }
     if (this.coins < pad.price) {
       this.hud.toast("🪙", "Nicht genug Coins", `${WEAPONS[pad.id].name} kostet ${pad.price}`);
       this.audio.error?.();

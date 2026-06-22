@@ -12,22 +12,22 @@ import { cloneWeaponModel } from "./weaponmodels.js";
 
 // Welche Waffen ausgestellt werden (Basis-Blaster bleibt gratis am Start).
 // Die kreativen Spezialwaffen stehen voran, damit sie sofort auffallen.
+// Kuratierte, übersichtliche Auswahl: 3 Tier-Reihen à 4 Waffen (von schwach → stark).
+// Die übrigen Waffen bleiben über den Shop erhältlich – der Raum bleibt aufgeräumt.
 const DISPLAY = [
-  // kreative Spezialwaffen
-  "boomerang", "rocket", "grenade", "ricochet", "singularity",
-  "tesla", "swarm", "wobble", "flame", "forkbomb",
-  // klassisches Arsenal
-  "smg", "shotgun", "minigun", "trishot", "needler",
-  "sniper", "railgun", "cannon", "flak", "pulse",
-  "sawblade", "arc", "glitch", "recursion", "nova",
-  "voidlober", "photon",
+  // Tier 1 – Einstieg (niedriges Level)
+  "shotgun", "smg", "trishot", "needler",
+  // Tier 2 – Mittelklasse
+  "cannon", "minigun", "flak", "flame",
+  // Tier 3 – Spitze (hohes Level)
+  "railgun", "sniper", "rocket", "photon",
 ];
 
-// Tier-Farbe nach Preis → Gruppierung auf einen Blick.
+// Tier-Farbe nach Preis → Gruppierung auf einen Blick (neue Preis-Schwellen).
 function tierColor(price) {
-  if (price <= 95) return 0x6ee7ff;   // Einstieg – Cyan
-  if (price <= 150) return 0x9b5de5;  // Mittelklasse – Violett
-  return 0xffd23f;                     // Spitze – Gold
+  if (price <= 175) return 0x6ee7ff;   // Einstieg – Cyan
+  if (price <= 290) return 0x9b5de5;   // Mittelklasse – Violett
+  return 0xffd23f;                       // Spitze – Gold
 }
 
 export class Armory {
@@ -43,7 +43,7 @@ export class Armory {
     // Flaches, breites Raster: viele Spalten, wenige Reihen → man blickt die
     // Waffen nebeneinander an statt in einen tiefen Stapel.
     const n = DISPLAY.length;
-    const colCount = 5;
+    const colCount = 4; // 4 pro Reihe = je eine Tier-Reihe → klar gruppiert
     const rows = Math.ceil(n / colCount);
     // Waffen-Podeste NUR in der vorderen Raumhälfte (Eingangsseite) → klar
     // getrennt von der Schmiede-Esse hinten; man kann die Waffen frei ansehen.
