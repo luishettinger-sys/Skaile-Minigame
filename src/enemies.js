@@ -127,7 +127,7 @@ export class EnemySystem {
     return enemy;
   }
 
-  update(dt, targetPos, revealHidden = false, attack = null, gate = null) {
+  update(dt, targetPos, revealHidden = false, attack = null, gate = null, pc = null) {
     const summons = []; // Boss-Adds, nach der Schleife gespawnt
     for (const e of this.enemies) {
       if (!e.alive) continue;
@@ -171,16 +171,18 @@ export class EnemySystem {
         const m = Math.hypot(mx, mz) || 1; mx /= m; mz /= m;
       }
 
-      // --- Tor-Angriff: ist der Spieler weit weg, marschiert der Bug zum Tor und
-      //     knabbert es an (will den PC fressen). Bosse/Flieher/Kiter ausgenommen.
+      // --- Ziel-Objekt: erst das Tor, nach dessen Durchbruch der PC dahinter.
+      //     Ist der Spieler weit weg, marschiert der Bug zum Objekt und knabbert
+      //     es an. Bosse/Flieher/Kiter ausgenommen.
+      const obj = (gate && gate.alive) ? gate : (pc && pc.alive ? pc : null);
       let gateBound = false;
-      if (gate && gate.alive && !e.def.isBoss && !e.def.flee && !e.def.kite && len > GATE_AGGRO) {
-        const gx = gate.x - p.x, gz = gate.z - p.z;
+      if (obj && !e.def.isBoss && !e.def.flee && !e.def.kite && len > GATE_AGGRO) {
+        const gx = obj.x - p.x, gz = obj.z - p.z;
         const gl = Math.hypot(gx, gz) || 1;
         mx = gx / gl; mz = gz / gl;
         gateBound = true;
-        if (gl <= gate.r + e.radius) {
-          gate.damage((e.def.damage || 6) * dt * GATE_DPS);
+        if (gl <= obj.r + e.radius) {
+          obj.damage((e.def.damage || 6) * dt * GATE_DPS);
           e.flash = Math.max(e.flash, 0.5); // Chomp-Blink
           e._atGate = true;
         }

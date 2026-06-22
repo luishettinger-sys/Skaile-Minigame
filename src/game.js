@@ -77,7 +77,14 @@ export class Game {
     // Verteidigungs-Tor am Nord-Durchgang (schützt den PC). Feste Kollisionswand,
     // damit Monster nicht durchlaufen – sie müssen es erst zerstören.
     this.gate = new Gate(world.scene, 0, -28, { maxHp: 320, width: 11 });
-    world.building?.walls?.push({ minX: -5.5, maxX: 5.5, minZ: -29.2, maxZ: -26.8 });
+    this._gateWall = { minX: -5.5, maxX: 5.5, minZ: -29.2, maxZ: -26.8 };
+    world.building?.walls?.push(this._gateWall);
+    // Der PC hinter dem Tor – das eigentliche Schutzziel. Erst wenn DER zerstört
+    // ist, ist der Run vorbei. Das Tor ist nur der Zeitpuffer davor.
+    this.pc = {
+      x: 0, z: -45, r: 4.8, maxHp: 220, hp: 220, alive: true,
+      damage(a) { if (this.hp <= 0) return false; this.hp = Math.max(0, this.hp - a); this.alive = this.hp > 0; return this.hp <= 0; },
+    };
     this.enemyShots = new EnemyShots(world.scene);
     this.throwables = new Throwables(world.scene);
     this.armory = new Armory(world.scene, world.building?.rooms?.armory);
@@ -701,6 +708,12 @@ export class Game {
     this.stations.reset();
     this.gate?.reset();
     this._gateCost = 40;
+    this._gateBreached = false;
+    this._pcHpPrev = undefined;
+    if (this._gateWall && this.world.building?.walls && !this.world.building.walls.includes(this._gateWall)) {
+      this.world.building.walls.push(this._gateWall);
+    }
+    if (this.pc) { this.pc.hp = this.pc.maxHp; this.pc.alive = true; }
     this.respawning = false;
     this.respawnT = 0;
     this.enemyShots.reset();
@@ -993,22 +1006,36 @@ export class Game {
 
   // Steht die Ente am Tor? (Reichweite zum Reparieren/Verstärken)
   _gateNear() {
-    return this.gate && this.gate.alive &&
+    return this.gate &&
       Math.hypot(this.player.pos.x - this.gate.x, this.player.pos.z - this.gate.z) <= 6.5;
   }
 
-  // Coins ausgeben: Tor voll reparieren UND dauerhaft verstärken (+max HP).
+  _removeGateWall() {
+    const w = this._gateWall, arr = this.world.building?.walls;
+    if (w && arr) { const i = arr.indexOf(w); if (i >= 0) arr.splice(i, 1); }
+  }
+
+  // Coins ausgeben: Tor reparieren+verstärken – oder ein gefallenes Tor wieder aufbauen.
   _reinforceGate() {
     const cost = this._gateCost || 40;
     if (this.coins < cost) { this.hud.toast?.("🛡️", "Tor", `Kostet ${cost} 🪙`); this.audio.error?.(); return; }
     this.coins -= cost; this.hud.setCoins(this.coins);
+    const wasDead = !this.gate.alive;
     this.gate.maxHp += 70;
     this.gate.hp = this.gate.maxHp;
-    this._gateCost = Math.round(cost * 1.5);
     this.audio.buy?.();
     this.world.addShake(0.12);
     this.hud.flash?.("#c79a5a", 0.2);
-    this.hud.banner?.("🛡️ TOR VERSTÄRKT", `Voll repariert · +70 HP · max ${this.gate.maxHp}`);
+    if (wasDead) {
+      this._gateBreached = false;
+      if (this._gateWall && this.world.building?.walls && !this.world.building.walls.includes(this._gateWall)) {
+        this.world.building.walls.push(this._gateWall);
+      }
+      this.hud.banner?.("🛡️ TOR WIEDER AUFGEBAUT", `Die Mauer steht wieder – max ${this.gate.maxHp} HP`);
+    } else {
+      this.hud.banner?.("🛡️ TOR VERSTÄRKT", `Voll repariert · +70 HP · max ${this.gate.maxHp}`);
+    }
+    this._gateCost = Math.round(cost * 1.5);
   }
 
   // Spieler fällt: statt sofort Game Over gibt's eine 5-Sek-Gnadenfrist (Respawn),
@@ -1045,8 +1072,9 @@ export class Game {
   _pcDestroyed() {
     this.world.addShake(1.0);
     this.hud.flash?.("#ff3b52", 0.6);
-    this.effects.shockwave?.(this.gate.x, this.gate.z, 0xff3b52, 26, 30);
-    this.hud.banner?.("💀 PC ZERFRESSEN", "Die Bugs haben den Rechner zerstört!");
+    this.effects.shockwave?.(this.pc.x, this.pc.z, 0xff3b52, 26, 30);
+    this.effects.burst?.(this.pc.x, this.pc.z, 0xff5470, 36, 1.8);
+    this.hud.banner?.("💀 PC ZERSTÖRT", "Die Bugs haben den Rechner zerfressen!");
     this.gameOver();
   }
 
@@ -1290,12 +1318,26 @@ export class Game {
 
     this.enemies.update(enemyDt, this.player.pos, this.ultActive, {
       shoot: (x, z, dx, dz, o) => this.enemyShots.spawn(x, z, dx, dz, o),
-    }, this.gate);
-    // Tor aktualisieren; ist es zerstört → der PC wurde gefressen (Game Over).
+    }, this.gate, this.pc);
+    // Tor aktualisieren; fällt es, bricht die Mauer auf → Bugs stürmen zum PC.
     if (this.gate) {
       this.gate.update(dt);
-      this.hud.setGate?.(this.gate.hp / this.gate.maxHp);
-      if (!this.gate.alive && this.state === STATE.PLAYING) { this._pcDestroyed(); return; }
+      if (!this.gate.alive && !this._gateBreached) {
+        this._gateBreached = true;
+        this._removeGateWall();
+        this.hud.banner?.("🛑 TOR DURCHBROCHEN!", "Die Bugs greifen jetzt den PC an – schlag sie zurück!");
+        this.hud.flash?.("#ff3b52", 0.5);
+        this.world.addShake(0.7);
+      }
+    }
+    // PC-Schaden-Feedback + Lose-Condition: Game Over ERST, wenn der PC zerstört ist.
+    if (this.pc && this._gateBreached && this.state === STATE.PLAYING) {
+      if (this.pc.hp < (this._pcHpPrev ?? this.pc.hp)) {
+        this.effects.burst(this.pc.x, this.pc.z, 0xff5470, 4, 0.6);
+      }
+      this._pcHpPrev = this.pc.hp;
+      this.hud.setObjective?.(`💻 PC-Integrität: ${Math.ceil((this.pc.hp / this.pc.maxHp) * 100)}% · schlag die Bugs zurück!`);
+      if (!this.pc.alive) { this._pcDestroyed(); return; }
     }
     this.enemyShots.update(enemyDt);
     this._handleEnemyShots();
@@ -2339,6 +2381,7 @@ export class Game {
   _updateObjective(n) {
     const be = CONFIG.waves.bossEvery;
     const sectors = CONFIG.campaign.sectors;
+    if (this._gateBreached) return; // PC-Integrität wird live angezeigt – nicht überschreiben
     if (this.won) { this.hud.setObjective("🏆 Mainboard befreit · Endlos-Modus"); return; }
     const sector = Math.min(sectors, Math.floor((n - 1) / be) + 1);
     const name = CONFIG.campaign.sectorNames[sector - 1] || ("Sektor " + sector);
