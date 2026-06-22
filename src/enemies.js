@@ -61,6 +61,20 @@ export class EnemySystem {
     mesh.position.set(x, def.radius, z);
     this.group.add(mesh);
 
+    // Per-Instanz-Materialien klonen → der weiße Treffer-Blitz trifft nur DIESEN
+    // Gegner (gleiche Bug-Typen teilen sonst ein Material und blitzten alle zugleich).
+    const flashMats = [];
+    mesh.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const arr = Array.isArray(o.material) ? o.material : [o.material];
+      const cl = arr.map((m) => m.clone());
+      o.material = Array.isArray(o.material) ? cl : cl[0];
+      for (const c of cl) {
+        if (c.emissive) flashMats.push({ mat: c, em: c.emissive.clone(), ei: c.emissiveIntensity ?? 1 });
+        else if (c.color) flashMats.push({ mat: c, col: c.color.clone() });
+      }
+    });
+
     // Gefahr-Ring unter Schützen/Springern/Bossen → man sieht klar, welche man
     // priorisieren muss (Skill: Bedrohungen jagen statt random ballern).
     let dangerRing = null;
@@ -96,6 +110,7 @@ export class EnemySystem {
       visible: true,
       baseScale: mesh.scale.x, // Referenz für den Treffer-Punch
       flash: 0,
+      flashMats, // geklonte Materialien für den weißen Treffer-Blitz
       atkT: Math.random() * 2, // Angriffs-Timer
       lungeState: "idle", // idle|tele|lunge|cd
       teleT: 0, lungeT: 0, cdT: 0, lvx: 0, lvz: 0,
@@ -232,10 +247,13 @@ export class EnemySystem {
       p.y = gy + e.def.radius + bounce + fly;
       e.mesh.rotation.z = Math.sin(e.phase * 0.7) * 0.16; // seitliches Wackeln
 
-      // Treffer-Punch (per Instanz, daher Skalierung statt Material).
-      if (e.flash > 0) e.flash = Math.max(0, e.flash - dt * 6);
+      // Treffer-Punch: Scale-Pop + weißer Material-Blitz (beides per Instanz).
+      if (e.flash > 0) {
+        e.flash = Math.max(0, e.flash - dt * 7);
+        applyFlash(e.flashMats, e.flash); // bei 0 → setzt Material auf Basis zurück
+      }
       if (e.lungeState !== "tele") {
-        e.mesh.scale.setScalar(e.baseScale * (1 + e.flash * 0.35));
+        e.mesh.scale.setScalar(e.baseScale * (1 + e.flash * 0.42));
       }
 
       // Error-Label über dem Bug mitführen.
@@ -446,7 +464,26 @@ export class EnemySystem {
 function disposeMesh(obj) {
   obj.traverse((o) => {
     if (o.geometry) o.geometry.dispose?.();
+    if (o.material) { // geklonte Per-Instanz-Materialien (Treffer-Blitz) mit aufräumen
+      const arr = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of arr) m.dispose?.();
+    }
   });
+}
+
+// Weißer Treffer-Blitz: lerpt die geklonten Materialien Richtung Weiß (f=1) und
+// wieder auf ihre Basis zurück (f=0). Emissive bevorzugt, sonst Vertex-Farbe.
+const _FLASH_WHITE = new THREE.Color(0xffffff);
+function applyFlash(mats, f) {
+  if (!mats) return;
+  for (const m of mats) {
+    if (m.em) {
+      m.mat.emissive.copy(m.em).lerp(_FLASH_WHITE, Math.min(1, f * 0.85));
+      m.mat.emissiveIntensity = m.ei + f * 1.7;
+    } else if (m.col) {
+      m.mat.color.copy(m.col).lerp(_FLASH_WHITE, Math.min(1, f * 0.8));
+    }
+  }
 }
 
 // Error-Label als Canvas-Sprite (z.B. "SyntaxError").

@@ -1703,6 +1703,10 @@ export class Game {
   _killEnemy(e) {
     this.enemies.kill(e);
     this.audio.killSound(this.combo);
+    // Kill-Hitstop: spürbarer Impact bei Boss/großen Bugs & alle 10 Combo-Kills
+    // (nicht bei jedem Schwarm-Bug → kein Dauer-Ruckeln).
+    if (e.def.isBoss) this._freeze(CONFIG.juice.hitStopBoss);
+    else if (e.def.radius >= 1.0 || (this.combo > 0 && this.combo % 10 === 0)) this._freeze(CONFIG.juice.hitStopKill);
     // Fetterer Kill-Effekt: Partikel-Pop + kurze Schockwelle (Bugs „zerplatzen").
     this.effects.burst(e.mesh.position.x, e.mesh.position.z, e.def.color, e.def.isBoss ? 44 : 20, e.def.isBoss ? 1.8 : 1.25);
     if (!e.def.isBoss && e.def.radius >= 1.0) this.effects.shockwave(e.mesh.position.x, e.mesh.position.z, e.def.glow, e.def.radius * 2.5, e.def.radius * 7);
