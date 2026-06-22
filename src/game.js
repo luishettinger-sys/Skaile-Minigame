@@ -1037,8 +1037,6 @@ export class Game {
       else if (pad && !this.shopOpen) this._buyWeapon(pad);
       else if (!this.shopOpen && this.armory.forgeNear(this.player.pos)) this.openForge();
       else if (door && !this.shopOpen) this._buyRoom(door);
-      else if (!this.shopOpen && this._stationNear("vault")) this.openResearch();
-      else if (!this.shopOpen && this._stationNear("powerups")) this.openFab();
       else if (!this.shopOpen && this._stationNear("spawner")) this.openChips();
       else if (!this.shopOpen && this.stations.skinsNear(this.player.pos)) this.openSkins("riddle");
       else if (!this.shopOpen && this.stations.deployNear(this.player.pos)) this.startDefense();
@@ -1285,14 +1283,6 @@ export class Game {
       const d = this.world.building.lockedDoorNear(this.player.pos.x, this.player.pos.z);
       this.hud.showPrompt(`[E] 🔒 ${d.label} freischalten – ${d.price} 🪙`);
     }
-    else if (this._stationNear("vault")) {
-      this.hud.showPrompt(`[E] 🔬 FORSCHUNG – Daten erforschen (${this.meta.data | 0} 📡)`);
-      this._tut("research", "🔬 Das Forschungslabor! Gib 📡 Daten aus, um Tech zu erforschen – jeder Knoten gibt einen Bonus UND enthüllt, warum das alles passiert. Drück [E].");
-    }
-    else if (this._stationNear("powerups")) {
-      this.hud.showPrompt(`[E] 🖨️ FABRIKATOR – Module drucken (${this.mats.scrap} 🔩)`);
-      this._tut("fab", "🖨️ Der Fabrikator! Druckt aus 🔩 Schrott über Zeit Module (Heilung/Schild/Kühlung/Purge). Im Kampf mit [1]–[4] zünden. Drück [E].");
-    }
     else if (this._stationNear("spawner")) {
       this.hud.showPrompt(`[E] 🧩 CHIP-SOCKEL – Chips stecken (${this.mats.chips} 🧩)`);
       this._tut("chips", "🧩 Der Chip-Sockel! Steck 🧩 Chips ins Mainboard-Raster für Boni. Tipp: Gleiche Chips nebeneinander verstärken sich! Drück [E].");
@@ -1339,7 +1329,7 @@ export class Game {
   _inSideRoom() {
     const R = this.world.building?.rooms; if (!R) return false;
     const x = this.player.pos.x, z = this.player.pos.z;
-    for (const name of ["spawner", "armory", "vault", "powerups"]) {
+    for (const name of ["spawner", "armory"]) {
       const r = R[name];
       if (r && x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) return true;
     }

@@ -49,35 +49,26 @@ export class Building {
     const R = this.rooms;
 
     const ARENA = R.arena    = { minX: -26, maxX: 26, minZ: -26, maxZ: 26, y: 0 };
-    const NORTH = R.spawner  = { minX: -15, maxX: 15, minZ: -52, maxZ: -30, y: 0 }; // vorne: Bug-Farm
-    const SOUTH = R.vault    = { minX: -15, maxX: 15, minZ: 30,  maxZ: 52,  y: 0 }; // hinten: Skins
+    const NORTH = R.spawner  = { minX: -15, maxX: 15, minZ: -52, maxZ: -30, y: 0 }; // oben: Workstation
     const EAST  = R.armory   = { minX: 30,  maxX: 52,  minZ: -15, maxZ: 15,  y: 0 }; // rechts: Waffen
-    const WEST  = R.powerups = { minX: -52, maxX: -30, minZ: -15, maxZ: 15,  y: 0 }; // links: Power-Ups
+    // Süd (Forschung) & West (Fabrikator) entfernt – waren unklar/verwirrend (Wunsch Luis).
 
     // Böden (Platinen-Look). Farben = Leitfarbe je Raum.
     this._floor(ARENA, 0x123026, false, "tech");
     this._floor(NORTH, 0x2a1418, false, "tech");
-    this._floor(SOUTH, 0x141f2e, false, "tech");
     this._floor(EAST,  0x2e1414, false, "tech");
-    this._floor(WEST,  0x142030, false, "tech");
 
     // Korridore (Tür-Öffnungen Arena ↔ Räume).
     this._connector(-D, D, -30, -26, 0); // -> Nord
-    this._connector(-D, D, 26, 30, 0);   // -> Süd
     this._connector(26, 30, -D, D, 0);   // -> Ost
-    this._connector(-30, -26, -D, D, 0); // -> West
 
     // Wände + Türöffnungen.
     this._roomWalls(ARENA, [
       { side: "north", from: -D, to: D },
-      { side: "south", from: -D, to: D },
       { side: "east",  from: -D, to: D },
-      { side: "west",  from: -D, to: D },
-    ]);
+    ]); // Süd- & West-Seite jetzt massiv (keine Öffnung mehr)
     this._roomWalls(NORTH, [{ side: "south", from: -D, to: D }]);
-    this._roomWalls(SOUTH, [{ side: "north", from: -D, to: D }]);
     this._roomWalls(EAST,  [{ side: "west",  from: -D, to: D }]);
-    this._roomWalls(WEST,  [{ side: "east",  from: -D, to: D }]);
 
     // Dunkle Platinen-Boden-Hülle unter allem.
     const base = new THREE.Mesh(
@@ -95,10 +86,8 @@ export class Building {
     // immer raus (keine Einsperrung), aber von der Arena nicht rein.
     this.gates = [];
     for (const gd of [
-      { room: NORTH, box: { minX: -D, maxX: D, minZ: -30, maxZ: -26 } }, // Bug-Farm
-      { room: SOUTH, box: { minX: -D, maxX: D, minZ: 26, maxZ: 30 } },   // Skins
+      { room: NORTH, box: { minX: -D, maxX: D, minZ: -30, maxZ: -26 } }, // Workstation
       { room: EAST,  box: { minX: 26, maxX: 30, minZ: -D, maxZ: D } },   // Waffen
-      { room: WEST,  box: { minX: -30, maxX: -26, minZ: -D, maxZ: D } }, // Power-Ups
     ]) this._addGate(gd.box, gd.room);
     this.setGatesOpen(true);
   }
