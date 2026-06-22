@@ -288,10 +288,15 @@ export class Game {
   }
 
   // --- ROGUELITE: Run-Start-Draft (Build wählen) ----------------------------
+  // Nach Welle 1: Auswahl aus 3 Schwertern (löst die Fäuste ab).
   _offerDraft() {
     this.draftChoosing = true;
     this.audio.levelUp?.();
-    this._draftChoices = rollDrafts(3);
+    this._draftChoices = [
+      { weapon: "sword", icon: "⚔️", name: "Schwert", desc: "Halbkreis-Flächenschaden, kurze Reichweite" },
+      { weapon: "sword_fire", icon: "🔥", name: "Feuerschwert", desc: "Setzt Bugs in Brand (Schaden über Zeit)" },
+      { weapon: "sword_ice", icon: "❄️", name: "Eisschwert", desc: "Friert Bugs an – verlangsamt sie stark" },
+    ];
     this.hud.showDraft(this._draftChoices, (i) => this._pickDraft(i));
   }
 
@@ -507,8 +512,8 @@ export class Game {
 
   // Waffe + additive/multiplikative Upgrade-Modifikatoren.
   _initLoadout() {
-    this.weaponId = "blaster";
-    this.weapon = WEAPONS.blaster;
+    this.weaponId = "fists";
+    this.weapon = WEAPONS.fists;
     this.upgradeMods = defaultMods(); // aus Level-Up-Upgrades
     this.equipMods = defaultMods(); // aus ausgerüsteten Items
     this._recomputeMods();
@@ -644,7 +649,9 @@ export class Game {
     this._sectorCoinMult = 1;
     this.draftMods = defaultMods();
     this.draftChoosing = false;
-    this._draftPending = true; // beim ersten Playing-Frame Build wählen
+    this._draftPending = false; // kein Start-Draft mehr: Start mit Fäusten
+    this._autoStarted = false;  // Wellen starten automatisch nach dem Intro
+    this._swordChosen = false;  // Schwert-Wahl wird nach Welle 1 angeboten
     this._dropMult = this._computeDropMult(); // Forschung × Sektor-Loot
     // Fabrikator: Verbrauchsgüter-Gürtel + laufender Druckauftrag (run-basiert).
     this.consumables = { heal: 0, shield: 0, cool: 0, purge: 0 };
@@ -1150,6 +1157,15 @@ export class Game {
       if (this.respawnT <= 0) this._revive();
     }
 
+    // Wellen starten automatisch, sobald das Intro durch ist (kein Deploy-Terminal mehr).
+    if (!this._autoStarted && !this.defenseLoop && !this.cutsceneActive) {
+      this._autoStarted = true;
+      this.startDefense();
+    }
+
+    // Brand-Schaden (Feuerschwert) ticken.
+    this._updateBurn(dt);
+
     this._autoCamera(dt);
     // Bewegung welt-relativ (W=hoch/Nord, S=runter, A=links, D=rechts) – sauber &
     // nicht invertiert. Die Drohnen-Kamera trailt hinterher (siehe updateCamera).
@@ -1556,6 +1572,9 @@ export class Game {
 
     this.fireTimer = this._fireInterval() * (this.ultActive ? 0.5 : 1);
 
+    // Nahkampf (Fäuste/Schwerter): Halbkreis-Schlag statt Projektile, keine Hitze.
+    if (this.weapon.melee) { this._meleeSwing(); return; }
+
     // CPU-Hitze pro Schuss (im Overclock stärker; Sektor-Anomalie skaliert mit).
     this.heat = Math.min(CONFIG.heat.max, this.heat + CONFIG.heat.perShot * (this.overclock ? CONFIG.heat.overclockShotMult : 1) * (this._sectorHeatGain || 1));
 
@@ -1613,6 +1632,65 @@ export class Game {
     this.effects.flash(mz.x, 1.2, mz.z, this.weapon.color, 2.4, 0.06); // heller Mündungsblitz
     this.player.recoil?.(); // Waffe zurückstoßen + Aim-Pose
     this.world.addShake(0.05);
+  }
+
+  // Halbkreis-Nahkampfschlag: trifft alle Gegner im Bogen vor der Ente.
+  _meleeSwing() {
+    const w = this.weapon;
+    const range = (w.meleeRange || 2.5) * (this.mods.rangeMult || 1);
+    const half = (w.arc || Math.PI) / 2;
+    const dmg = this._damage() * (w.dmgMult || 1);
+    const px = this.player.pos.x, pz = this.player.pos.z;
+    const ang = this.aimTarget
+      ? Math.atan2(this.aimTarget.mesh.position.x - px, this.aimTarget.mesh.position.z - pz)
+      : this.player.facing;
+    // Swing-Optik: heller Bogen aus Blitzen vor der Ente.
+    for (let k = -1; k <= 1; k++) {
+      const a = ang + k * half * 0.7;
+      this.effects.flash?.(px + Math.sin(a) * range * 0.7, 1.1, pz + Math.cos(a) * range * 0.7, w.color || 0xffffff, 1.5, 0.08);
+    }
+    this.audio.weapon?.(w.sound || "shoot");
+    this.player.recoil?.();
+    this.player.kickWeapon?.();
+    this.world.addShake(0.05);
+    let hits = 0;
+    for (const e of this.enemies.enemies) {
+      if (!e.alive || !e.visible) continue;
+      const ex = e.mesh.position.x - px, ez = e.mesh.position.z - pz;
+      const d = Math.hypot(ex, ez);
+      if (d > range + e.radius) continue;
+      let da = Math.atan2(ex, ez) - ang;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      if (Math.abs(da) > half) continue; // außerhalb des Halbkreises
+      const crit = Math.random() < CONFIG.juice.critChance + this.mods.critAdd;
+      const hitDmg = crit ? dmg * CONFIG.juice.critMult : dmg;
+      const killed = this.enemies.damage(e, hitDmg);
+      this.effects.burst(e.mesh.position.x, e.mesh.position.z, w.color || 0xffffff, crit ? 9 : 5, crit ? 1.0 : 0.7);
+      this.effects.flash?.(e.mesh.position.x, e.def.radius + 0.3, e.mesh.position.z, 0xffffff, crit ? 2.0 : 1.2, 0.08);
+      this._popup(e.mesh.position, Math.round(hitDmg).toString(), crit ? "#ff4d6a" : "#fff2c0", crit ? "big" : "dmg");
+      if (!e.def.isBoss) { const dl = d || 1; e.knockX = (ex / dl) * 9; e.knockZ = (ez / dl) * 9; }
+      if (w.element === "fire") { e.burnT = 2.2; e.burnDps = Math.max(2, dmg * 0.5); }
+      if (w.element === "ice") { e.slowT = 2.5; }
+      if (killed) this._killEnemy(e);
+      hits++;
+    }
+    if (hits) this._freeze(CONFIG.juice.hitStopKill);
+  }
+
+  // Brand-Schaden (Feuerschwert): tickt über Zeit auf brennende Gegner.
+  _updateBurn(dt) {
+    for (const e of this.enemies.enemies) {
+      if (!e.alive || !e.burnT || e.burnT <= 0) continue;
+      e.burnT -= dt;
+      e._burnTick = (e._burnTick || 0) - dt;
+      if (e._burnTick <= 0) {
+        e._burnTick = 0.25;
+        const killed = this.enemies.damage(e, (e.burnDps || 2) * 0.25);
+        this.effects.burst(e.mesh.position.x, e.mesh.position.z, 0xff7a1a, 3, 0.5);
+        if (killed) this._killEnemy(e);
+      }
+    }
   }
 
   _handleProjectileHits() {
@@ -2401,11 +2479,10 @@ export class Game {
       this.guide.event("deployStarted");
       this.audio.buy?.();
       this.world.addShake(0.15);
-      this.hud.flash("#2bd4ff", 0.3);
-      this.hud.banner("🚀 DEPLOY AN", "Wellen laufen jetzt durchgehend");
+      this.hud.flash("#ff5470", 0.3);
+      this.hud.banner("⚔️ BUGS INCOMING", "Beschütze das Tor – los, Kampf-Ente!");
     } else {
-      this.hud.banner("⏸ DEPLOY AUS", "Keine neuen Wellen mehr");
-      this.hud.toast("🚀", "Deploy", "Dauerschleife gestoppt");
+      this.hud.banner("⏸ Pause", "Keine neuen Wellen mehr");
     }
   }
 
@@ -2421,6 +2498,8 @@ export class Game {
     this.guide.event("waveCleared");
     this.hud.toast("📝", "Patch Notes", PATCH_NOTES[Math.floor(Math.random() * PATCH_NOTES.length)]);
     this._saveMeta(); // gesammelte Daten (permanent) sichern
+    // Nach der ersten Welle: Schwert wählen (löst die Fäuste ab).
+    if (!this._swordChosen) { this._swordChosen = true; this._offerDraft(); }
   }
 
   _popup(worldPos, text, color, kind = "") {

@@ -1,6 +1,31 @@
 // Waffen-Arsenal. Jede Waffe definiert Basiswerte; Upgrades (mods) modifizieren
 // sie zusätzlich. Geschoss-Optik (Farbe/Größe/Speed) und Sound pro Waffe.
 export const WEAPONS = {
+  // --- Nahkampf (Start + Schwert-Draft; NICHT im Shop, siehe WEAPON_IDS) ---
+  fists: {
+    id: "fists", name: "Fäuste", icon: "🥊",
+    fireInterval: 0.32, damage: 1, energyCost: 0, color: 0xffe0c0, sound: "shoot",
+    melee: true, meleeRange: 2.3, arc: Math.PI, dmgMult: 1.0,
+    range: 2.3, style: "ball", desc: "Boxen – sehr kurze Reichweite, Halbkreis",
+  },
+  sword: {
+    id: "sword", name: "Schwert", icon: "⚔️",
+    fireInterval: 0.42, damage: 2, energyCost: 0, color: 0xeaf2ff, sound: "shoot",
+    melee: true, meleeRange: 3.3, arc: Math.PI, dmgMult: 1.7,
+    range: 3.3, style: "ball", desc: "Normales Schwert – Halbkreis-Flächenschaden",
+  },
+  sword_fire: {
+    id: "sword_fire", name: "Feuerschwert", icon: "🔥",
+    fireInterval: 0.46, damage: 2, energyCost: 0, color: 0xff7a1a, sound: "shoot",
+    melee: true, meleeRange: 3.3, arc: Math.PI, dmgMult: 1.5, element: "fire",
+    range: 3.3, style: "ball", desc: "Setzt Bugs in Brand – Schaden über Zeit",
+  },
+  sword_ice: {
+    id: "sword_ice", name: "Eisschwert", icon: "❄️",
+    fireInterval: 0.46, damage: 2, energyCost: 0, color: 0x7fe9ff, sound: "shoot",
+    melee: true, meleeRange: 3.3, arc: Math.PI, dmgMult: 1.5, element: "ice",
+    range: 3.3, style: "ball", desc: "Friert Bugs an – verlangsamt sie stark",
+  },
   blaster: {
     id: "blaster", name: "Quack-Blaster", icon: "🔫",
     fireInterval: 0.15, damage: 1, projCount: 1, spread: 0.10, pierce: 0,
@@ -221,4 +246,5 @@ export const WEAPON_PRICE = {
   boomerang: 135, grenade: 175, rocket: 185, singularity: 230,
 };
 
-export const WEAPON_IDS = Object.keys(WEAPONS);
+// Nur Schusswaffen kaufbar/anzeigbar (Fäuste/Schwerter sind Nahkampf-only).
+export const WEAPON_IDS = Object.keys(WEAPONS).filter((id) => !WEAPONS[id].melee);

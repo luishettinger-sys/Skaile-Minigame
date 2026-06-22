@@ -115,6 +115,7 @@ export class EnemySystem {
       flash: 0,
       flashMats, // geklonte Materialien für den weißen Treffer-Blitz
       knockX: 0, knockZ: 0, // Treffer-Rückstoß (klingt schnell ab)
+      slowT: 0,             // Verlangsamung (Eisschwert)
       atkT: Math.random() * 2, // Angriffs-Timer
       lungeState: "idle", // idle|tele|lunge|cd
       teleT: 0, lungeT: 0, cdT: 0, lvx: 0, lvz: 0,
@@ -139,6 +140,7 @@ export class EnemySystem {
 
       const p = e.mesh.position;
       e._atGate = false;
+      if (e.slowT > 0) e.slowT = Math.max(0, e.slowT - dt); // Eis-Verlangsamung abbauen
 
       // Richtung zum Ziel (XZ). Flieht der Gegner, dreht sich die Richtung um.
       const dx = targetPos.x - p.x;
@@ -233,7 +235,7 @@ export class EnemySystem {
       }
       // --- Normale Bewegung (außer Telegraph/Lunge/Blink/am Tor) ---
       else if (e.lungeState !== "tele" && !lunging && !e._atGate) {
-        const step = e.speed * dt;
+        const step = e.speed * (e.slowT > 0 ? 0.4 : 1) * dt; // Eisschwert verlangsamt
         p.x += mx * step;
         p.z += mz * step;
       }
