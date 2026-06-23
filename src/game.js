@@ -687,6 +687,7 @@ export class Game {
     this._heatWarned = false;
     this.bossIntro = false;
     this.intro = null;
+    this.startCine = null;
     this.buffs = { rapid: 0, double: 0, shield: 0, slow: 0 };
     this.gadgets = {}; // id -> Stufe
     this.activeGadget = null;
@@ -780,12 +781,19 @@ export class Game {
     }
     this.state = STATE.PLAYING;
 
-    // Onboarding-Chat mit Claude (vor animierter Kampf-Cutscene): einmal pro
-    // Sitzung — Restarts nach Tod überspringen ihn.
+    // Start IM Halbkreis vor dem Tor (Verteidigungsposition), Blick zum Monitor.
+    this.player.pos.set(0, 0, -18);
+    this.player.facing = Math.PI;
+    const inZone = this.gate?.inDefendZone(this.player.pos.x, this.player.pos.z);
+    // Kamera sofort in die richtige Perspektive setzen (kein Schwenk beim Einstieg).
+    this.world.primeDefendView?.(this.player.pos, !!inZone);
+
+    // Intro-Cinematic NUR beim allerersten Run der Sitzung (Restarts überspringen):
+    // Monitor (Skaile-Seite) groß zeigen → langsam auf die Ente schwenken →
+    // Spielperspektive. Während der Cutscene kann man nicht spielen.
     if (!this._introSeen) {
       this._introSeen = true;
-      this.cutsceneActive = true;
-      this.introChat.play().then(() => { this.cutsceneActive = false; });
+      this._beginStartCine();
     }
   }
 
@@ -1139,6 +1147,7 @@ export class Game {
   }
 
   update(dt) {
+    if (this.startCine) { this._updateStartCine(dt); return; } // Intro-Kamerafahrt
     if (this.cutsceneActive) return; // Story läuft → Sim einfrieren
     if (this.state !== STATE.PLAYING) return;
 
@@ -2478,6 +2487,49 @@ export class Game {
     const keys = ["boss", "bossNull", "bossStack", "bossRace", "bossFinal"];
     const sector = Math.floor(n / CONFIG.waves.bossEvery); // 1..5
     return keys[Math.min(keys.length - 1, Math.max(0, sector - 1))];
+  }
+
+  // --- Intro-Cinematic beim Spielstart --------------------------------------
+  // Zeigt erst den Monitor (Skaile-Seite) groß, schwenkt dann langsam auf die
+  // Ente und übergibt nahtlos in die Spielperspektive. Nicht spielbar währenddessen.
+  _beginStartCine() {
+    this.startCine = { t: 0 };
+    this.hud.hidePrompt?.();
+    this.hud.banner?.("DEBUG-DECK ONLINE", "Beschütze den Rechner …");
+  }
+
+  _updateStartCine(dt) {
+    const C = this.startCine;
+    C.t += dt;
+    const cam = this.world.camera;
+    const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    const HOLD = 2.4, PAN = 2.8; // Monitor halten, dann schwenken
+    const monLook = new THREE.Vector3(0, 9, -45.85);   // Screen-Mitte der Workstation
+    const monCamA = new THREE.Vector3(0, 10.4, -37.5);
+    const monCamB = new THREE.Vector3(0, 10.0, -33.5);
+    const duck = this.player.pos;
+    const duckLook = new THREE.Vector3(duck.x, 0, duck.z);
+    const duckCam = new THREE.Vector3(duck.x, 36, duck.z - 22); // = Verteidigungs-Spielkamera
+
+    if (C.t < HOLD) {
+      // Langsamer Push-in auf den Monitor.
+      cam.position.lerpVectors(monCamA, monCamB, ease(Math.min(1, C.t / HOLD)));
+      cam.lookAt(monLook);
+    } else {
+      const k = ease(Math.min(1, (C.t - HOLD) / PAN));
+      cam.position.lerpVectors(monCamB, duckCam, k);
+      cam.lookAt(new THREE.Vector3().lerpVectors(monLook, duckLook, k));
+      if (k >= 1) this._endStartCine();
+    }
+  }
+
+  _endStartCine() {
+    this.startCine = null;
+    const inZone = this.gate?.inDefendZone(this.player.pos.x, this.player.pos.z);
+    this.world.primeDefendView?.(this.player.pos, !!inZone); // nahtlos in die Spielperspektive
+    // Danach das kurze Onboarding (Story-Chat), dann läuft das Spiel.
+    this.cutsceneActive = true;
+    this.introChat.play().then(() => { this.cutsceneActive = false; });
   }
 
   _startBossIntro(n) {

@@ -180,6 +180,15 @@ export function createWorld(canvas) {
   // Verteidigungs-Blick: am Tor dreht die Kamera 180° (PC-Raum nach unten/Süd).
   api.setDefendView = (on) => { camYawTarget = on ? Math.PI : 0; };
   api.getCamYaw = () => camYaw;
+  // Kamera SOFORT auf ein Ziel + Yaw setzen (ohne Damping/Schwenk) – für saubere
+  // Übergänge aus einer Cutscene in die Spielperspektive (kein Sprung/Spin).
+  api.primeDefendView = (pos, on) => {
+    camYaw = camYawTarget = on ? Math.PI : 0;
+    camClose = camCloseTarget = 0;
+    focus.set(pos.x, pos.y || 0, pos.z);
+    lastTarget.set(pos.x, pos.y || 0, pos.z);
+    initialized = true;
+  };
   // Zoom/feste Perspektiven gibt es nicht mehr (No-ops für Altaufrufe).
   api.zoom = () => {};
   api.resetZoom = () => {};

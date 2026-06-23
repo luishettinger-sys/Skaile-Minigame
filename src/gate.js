@@ -10,7 +10,7 @@ export class Gate {
     this.maxHp = opts.maxHp ?? 320;
     this.hp = this.maxHp;
     this.r = opts.r ?? 3.6;     // Reichweite, in der Monster das Tor anknabbern
-    this.defendR = opts.defendR ?? 11; // Radius der Verteidigungs-Zone (Halbkreis vor dem Tor)
+    this.defendR = opts.defendR ?? 13.5; // Radius der Verteidigungs-Zone (Halbkreis vor dem Tor)
     this.scene = scene;
     this.group = new THREE.Group();
     scene.add(this.group);
