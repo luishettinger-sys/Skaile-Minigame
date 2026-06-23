@@ -1173,9 +1173,16 @@ export class Game {
     this._updateBurn(dt);
 
     this._autoCamera(dt);
-    // Bewegung welt-relativ (W=hoch/Nord, S=runter, A=links, D=rechts) – sauber &
-    // nicht invertiert. Die Drohnen-Kamera trailt hinterher (siehe updateCamera).
+    // Bewegung: kamera-relativ. Normal = welt-relativ; im 180°-Verteidigungsblick
+    // wird der Input mitgedreht, damit „hoch" auf dem Schirm immer „hoch" bleibt.
     const move = this.input.moveVector();
+    const cyaw = this.world.getCamYaw?.() || 0;
+    if (cyaw > 0.01) {
+      const cs = Math.sin(cyaw), cc = Math.cos(cyaw);
+      const mx = move.x * cc - move.z * cs;
+      const mz = move.x * cs + move.z * cc;
+      move.x = mx; move.z = mz;
+    }
     this._updateFacing(dt, move);
     if (move.x !== 0 || move.z !== 0) this.guide.event("move");
     // Näherungs-Ereignisse für den Guide (Terminal / verschlossene Tür).
@@ -1422,6 +1429,9 @@ export class Game {
 
     // Kamera näher heranziehen, wenn die Ente in einem der kleinen Seitenräume ist.
     this.world.setCamZoom?.(this._inSideRoom());
+    // Verteidigungs-Blick: nah am Tor dreht die Kamera 180° (PC-Raum nach unten).
+    const ng = this.gate && Math.hypot(this.player.pos.x - this.gate.x, this.player.pos.z - this.gate.z) < 13;
+    this.world.setDefendView?.(!!ng);
     this.world.updateCamera(this.player.pos, dt);
   }
 

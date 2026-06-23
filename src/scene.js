@@ -94,6 +94,7 @@ export function createWorld(canvas) {
   const BIRDS = { y: 36, z: 22 };       // Arena: stärker geneigt (dynamischer 3/4-Blick)
   const ROOM  = { y: 22, z: 14 };       // kleiner Raum (näher + geneigt)
   let camClose = 0, camCloseTarget = 0;
+  let camYaw = 0, camYawTarget = 0; // 0 = Standard, π = 180°-Verteidigungsblick (PC unten)
   let bank = 0, yawSway = 0; // dynamische Roll-/Gier-Neigung
 
   // Vorausschau (Flow): Kamera blickt leicht in Bewegungsrichtung.
@@ -121,9 +122,11 @@ export function createWorld(canvas) {
 
     // Kamera-Nähe weich überblenden (Arena ↔ kleiner Raum).
     camClose = damp(camClose, camCloseTarget, 4, dt);
+    camYaw = damp(camYaw, camYawTarget, 3, dt); // sanft um 180° schwenken beim Verteidigen
     const camY = BIRDS.y + (ROOM.y - BIRDS.y) * camClose;
     const camZ = BIRDS.z + (ROOM.z - BIRDS.z) * camClose;
-    camera.position.set(focus.x, focus.y + camY + hover, focus.z + camZ);
+    const cs = Math.sin(camYaw), cc = Math.cos(camYaw);
+    camera.position.set(focus.x - camZ * cs, focus.y + camY + hover, focus.z + camZ * cc);
     const camDist = Math.hypot(camY, camZ);
     const lookX = focus.x, lookY = focus.y, lookZ = focus.z;
 
@@ -174,6 +177,9 @@ export function createWorld(canvas) {
 
   // Kamera-Nähe: in kleinen Räumen näher an die Ente (close=true), in der Arena weiter.
   api.setCamZoom = (close) => { camCloseTarget = close ? 1 : 0; };
+  // Verteidigungs-Blick: am Tor dreht die Kamera 180° (PC-Raum nach unten/Süd).
+  api.setDefendView = (on) => { camYawTarget = on ? Math.PI : 0; };
+  api.getCamYaw = () => camYaw;
   // Zoom/feste Perspektiven gibt es nicht mehr (No-ops für Altaufrufe).
   api.zoom = () => {};
   api.resetZoom = () => {};
