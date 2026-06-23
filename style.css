@@ -685,6 +685,13 @@ kbd {
   justify-content: flex-start;
   min-height: 70px;
 }
+/* Waffen-Arsenal: scrollbar, damit das volle, sortierte Sortiment reinpasst. */
+#shop-offers {
+  max-height: 56vh;
+  overflow-y: auto;
+  align-content: flex-start;
+  padding-right: 6px;
+}
 .inv-cell {
   pointer-events: auto;
   width: 92px;

@@ -40,38 +40,55 @@ export class Armory {
   }
 
   _build(r) {
-    // Flaches, breites Raster: viele Spalten, wenige Reihen → man blickt die
-    // Waffen nebeneinander an statt in einen tiefen Stapel.
-    const n = DISPLAY.length;
-    const colCount = 4; // 4 pro Reihe = je eine Tier-Reihe → klar gruppiert
-    const rows = Math.ceil(n / colCount);
-    // Waffen-Podeste NUR in der vorderen Raumhälfte (Eingangsseite) → klar
-    // getrennt von der Schmiede-Esse hinten; man kann die Waffen frei ansehen.
-    const cols = [];
-    for (let c = 0; c < colCount; c++) {
-      cols.push(r.minX + (r.maxX - r.minX) * (0.06 + 0.5 * (c / (colCount - 1))));
-    }
-    const z0 = r.minZ + 4, z1 = r.maxZ - 4;
-    let idx = 0;
-    for (let row = 0; row < rows; row++) {
-      for (let c = 0; c < colCount; c++) {
-        if (idx >= n) break;
-        const id = DISPLAY[idx++];
-        const w = WEAPONS[id];
-        if (!w) continue;
-        const z = rows === 1 ? (z0 + z1) / 2 : z0 + ((z1 - z0) * row) / (rows - 1);
-        this._pedestal(cols[c], r.y, z, id, w);
-      }
-    }
+    const cz = (r.minZ + r.maxZ) / 2;
+    // Aufgeräumt: EIN Marktstand mit Verkäufer-Ente (statt 27 Podesten). [E] öffnet
+    // das scrollbare, nach Stärke sortierte Arsenal.
+    this._buildStall(r.minX + 6, r.y, cz);
+  }
 
-    // Großes "SCHMIEDE"-Schild über der Esse (hinten am Raum).
-    const sign = new THREE.Sprite(makeLabel("🔨 SCHMIEDE", "Waffen vorne · Mods bauen [E]", 0xffa040, 0xffffff));
-    sign.scale.set(10, 3.0, 1);
-    sign.position.set(r.maxX - 4.5, r.y + 6.4, (r.minZ + r.maxZ) / 2);
-    this.group.add(sign);
+  // Markt-Verkaufsstand: Theke + Baldachin + Verkäufer-Ente + Preview-Waffen.
+  _buildStall(x, y, z) {
+    const g = new THREE.Group();
+    const wood = new THREE.MeshStandardMaterial({ color: 0x6a4524, roughness: 0.85 });
+    const woodDark = new THREE.MeshStandardMaterial({ color: 0x4a3018, roughness: 0.9 });
+    // Theke.
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(5.5, 1.5, 2.0), wood); counter.position.y = 0.75;
+    const top = new THREE.Mesh(new THREE.BoxGeometry(5.9, 0.2, 2.4), woodDark); top.position.y = 1.55;
+    g.add(counter, top);
+    // 4 Pfosten + gestreiftes Baldachin-Dach.
+    for (const px of [-2.7, 2.7]) for (const pz of [-1.1, 1.1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 4.0, 0.18), woodDark); post.position.set(px, 2.0, pz); g.add(post);
+    }
+    for (let i = 0; i < 6; i++) {
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.12, 3.0),
+        new THREE.MeshStandardMaterial({ color: i % 2 ? 0xd23b3b : 0xf2e9d8, roughness: 0.8 }));
+      stripe.position.set(-2.5 + i, 4.0, 0); stripe.rotation.x = 0.12; g.add(stripe);
+    }
+    // Schild.
+    const sign = new THREE.Sprite(makeLabel("🛒 WAFFEN-MARKT", "[E] Arsenal öffnen", 0xffd23f, 0xffffff));
+    sign.scale.set(6.0, 1.9, 1); sign.position.set(0, 5.2, 0); g.add(sign);
+    // Verkäufer-Ente hinter der Theke.
+    const duck = makeVendorDuck(); duck.position.set(0, 0, -0.9); g.add(duck);
+    // Preview-Waffen auf der Theke (drehen sich).
+    this._previews = [];
+    const previewIds = ["shotgun", "railgun", "sniper"];
+    previewIds.forEach((id, i) => {
+      const m = cloneWeaponModel(id);
+      if (!m) return;
+      m.scale.setScalar(1.1);
+      m.position.set(-1.6 + i * 1.6, 1.95, 0.4);
+      g.add(m); this._previews.push(m);
+    });
+    g.position.set(x, y, z);
+    g.rotation.y = -Math.PI / 2; // Front (Theke) zur Arena/Eingang (−x)
+    this.group.add(g);
+    this.stall = { x, z, r: 3.8 };
+  }
 
-    // Schmiede-Amboss direkt vor der Esse (hinten, klar abgesetzt von den Waffen).
-    this._buildForge(r.maxX - 5, r.y, (r.minZ + r.maxZ) / 2);
+  // Steht die Ente am Marktstand?
+  stallNear(pos, range) {
+    if (!this.stall) return false;
+    return Math.hypot(pos.x - this.stall.x, pos.z - this.stall.z) <= (range || this.stall.r);
   }
 
   // Amboss + Glut-Esse: hier baust du aus Schrott permanente Waffen-Mods.
@@ -215,6 +232,8 @@ export class Armory {
       this.forge.glow.material.opacity = 0.6 + Math.sin(this._t * 3) * 0.25;
       this.forge.glow.scale.setScalar(1 + Math.sin(this._t * 3) * 0.12);
     }
+    // Preview-Waffen am Stand drehen.
+    if (this._previews) for (const m of this._previews) m.rotation.y += dt * 1.2;
 
     // Nächstes Podest bestimmen (Fokus).
     let focus = null, fd = 3.4;
@@ -310,4 +329,26 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+// Kleine prozedurale Verkäufer-Ente (Händler hinter der Theke).
+function makeVendorDuck() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.62, 16, 12),
+    new THREE.MeshStandardMaterial({ color: 0xffd23f, roughness: 0.6 }));
+  body.scale.set(1, 0.92, 1.08); body.position.y = 1.15;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 14, 12),
+    new THREE.MeshStandardMaterial({ color: 0xffdf5a, roughness: 0.6 }));
+  head.position.set(0, 1.85, 0.18);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.4, 10),
+    new THREE.MeshStandardMaterial({ color: 0xff8c1a, roughness: 0.5 }));
+  beak.rotation.x = Math.PI / 2; beak.position.set(0, 1.82, 0.6);
+  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 14),
+    new THREE.MeshStandardMaterial({ color: 0x2b6a3a, roughness: 0.7 }));
+  hatBrim.position.set(0, 2.12, 0.18);
+  const hatTop = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.32, 0.34, 14),
+    new THREE.MeshStandardMaterial({ color: 0x2b6a3a, roughness: 0.7 }));
+  hatTop.position.set(0, 2.32, 0.18);
+  for (const o of [body, head, beak, hatBrim, hatTop]) { o.castShadow = true; g.add(o); }
+  return g;
 }

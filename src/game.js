@@ -822,48 +822,44 @@ export class Game {
     }
   }
 
+  // Das volle Waffen-Arsenal, nach Stärke (Mindest-Level, dann Preis) sortiert.
   _rollShop() {
-    this.shopOffers = [];
-    for (let i = 0; i < 5; i++) this.shopOffers.push(this._makeOffer());
-  }
-
-  // Ausgemistet: der Shop verkauft nur noch bessere Waffen (klar & fokussiert).
-  _makeOffer() {
-    const id = WEAPON_IDS[Math.floor(Math.random() * WEAPON_IDS.length)];
-    const w = WEAPONS[id];
-    const base = WEAPON_PRICE[id] ?? 90;
-    const price = Math.round(base * (0.92 + Math.random() * 0.16));
-    const req = WEAPON_LEVEL[id] || 2;
-    return { type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc + ` · ab Lvl ${req}`, price, req };
+    this.shopOffers = WEAPON_IDS
+      .map((id) => ({ id, req: WEAPON_LEVEL[id] || 2, price: WEAPON_PRICE[id] ?? 90 }))
+      .sort((a, b) => (a.req - b.req) || (a.price - b.price))
+      .map(({ id, req, price }) => {
+        const w = WEAPONS[id];
+        return { type: "weapon", id, icon: w.icon, name: w.name, desc: w.desc, price, req };
+      });
   }
 
   _renderShop() {
+    // Besitz/Level-Sperre für die Anzeige annotieren.
+    const lvl = this.progression.level;
+    for (const o of this.shopOffers) {
+      o.owned = this.weaponId === o.id;
+      o.locked = lvl < (o.req || 2);
+      o.reqText = `ab Lvl ${o.req}`;
+    }
     this.hud.renderShop(this.shopOffers, this.coins, (i) => this._buy(i));
   }
 
   _buy(i) {
     const o = this.shopOffers[i];
-    if (!o || this.coins < o.price) return;
-    if (o.type === "weapon" && this.progression.level < (o.req || 2)) {
+    if (!o) return;
+    if (this.weaponId === o.id) { this.hud.toast?.("✅", "Bereits ausgerüstet", WEAPONS[o.id].name); return; }
+    if (this.progression.level < (o.req || 2)) {
       this.hud.toast?.("🔒", "Level zu niedrig", `${WEAPONS[o.id].name} ab Lvl ${o.req}`);
       this.audio.error?.();
       return;
     }
+    if (this.coins < o.price) { this.hud.toast?.("🪙", "Nicht genug Coins", `${WEAPONS[o.id].name} kostet ${o.price}`); this.audio.error?.(); return; }
     this.coins -= o.price;
     this.hud.setCoins(this.coins);
-    this.audio.pickup();
-    if (o.type === "weapon") {
-      this._setWeapon(o.id);
-      this.hud.banner("GEKAUFT", WEAPONS[o.id].name);
-    } else if (o.type === "item") {
-      this.inventory.add(o.item);
-      this.hud.banner("GEKAUFT", o.item.icon + " " + o.item.name);
-    } else if (o.type === "gadget") {
-      this.buyGadget(o.id);
-      this.hud.banner("GEKAUFT", GADGETS[o.id].icon + " " + GADGETS[o.id].name);
-    }
-    this.shopOffers[i] = this._makeOffer(); // sofort neuer Nachschub
-    this._renderShop();
+    this.audio.buy?.();
+    this._setWeapon(o.id);
+    this.hud.banner("GEKAUFT", WEAPONS[o.id].name);
+    this._renderShop(); // Liste bleibt – nur Besitz-Status aktualisieren
   }
 
   // Einmaliges Tutorial pro Station/Mechanik: zeigt einmalig (über alle Runs) die
@@ -1127,12 +1123,10 @@ export class Game {
     if (this.input.wasPressed("KeyP") || this.input.wasPressed("Escape")) {
       this.togglePause();
     }
-    // Ausgemistet: nur noch der klare Kern – Tor reparieren / Waffe kaufen / Shop.
+    // Ausgemistet: nur noch der klare Kern – Tor reparieren / Waffen-Markt / Shop.
     if (this.input.wasPressed("KeyE")) {
-      const pad = this.armory.nearest(this.player.pos);
       if (!this.shopOpen && this._gateNear()) this._reinforceGate();
-      else if (pad && !this.shopOpen) this._buyWeapon(pad);
-      else if (this.shopOpen || this.stations.shopNear(this.player.pos)) this.toggleShop();
+      else if (this.shopOpen || this.stations.shopNear(this.player.pos) || this.armory.stallNear(this.player.pos)) this.toggleShop();
     }
     if (this.input.wasPressed("KeyB")) this.audio.toggleMute();
 
@@ -1383,23 +1377,18 @@ export class Game {
 
     this.armory.update(dt, this.player.pos);
 
-    // Ausgemistet: nur noch Tor / Waffe kaufen / Shop.
-    const pad = this.armory.nearest(this.player.pos);
+    // Ausgemistet: nur noch Tor / Waffen-Markt / Shop.
     if (this._gateNear()) {
       this.hud.showPrompt(`[E] 🛡️ Tor reparieren & verstärken – ${this._gateCost || 40} 🪙`);
       this._tut("gate", "🛡️ Dein Tor! Hier gibst du 🪙 Coins aus, um es voll zu reparieren UND dauerhaft stärker zu machen. Fällt es, fressen die Bugs den PC!");
     }
-    else if (pad && !this.shopOpen) {
-      const owned = this.weaponId === pad.id;
-      const req = WEAPON_LEVEL[pad.id] || 2;
-      const locked = this.progression.level < req;
-      this.hud.showPrompt(owned ? `${WEAPONS[pad.id].name} (ausgerüstet)`
-        : locked ? `🔒 ${WEAPONS[pad.id].name} – ab Lvl ${req}`
-        : `[E] ${WEAPONS[pad.id].name} – ${pad.price} 🪙 (Lvl ${req})`);
+    else if (!this.shopOpen && this.armory.stallNear(this.player.pos)) {
+      this.hud.showPrompt("[E] 🛒 Waffen-Markt – Arsenal öffnen");
+      this._tut("market", "🛒 Der Waffen-Markt! Hier kaufst du mit 🪙 Coins bessere Waffen – nach Stärke sortiert. Höhere Waffen brauchen mehr Level. Drück [E].");
     }
     else if (this.stations.shopNear(this.player.pos)) {
-      this.hud.showPrompt("[E] 🛍️ SHOP – bessere Waffe kaufen");
-      this._tut("shop", "🛍️ Der Shop! Hier kaufst du mit 🪙 Coins bessere Waffen. Drück [E].");
+      this.hud.showPrompt("[E] 🛍️ Waffen-Markt – Arsenal öffnen");
+      this._tut("shop", "🛍️ Hier kaufst du mit 🪙 Coins bessere Waffen (nach Stärke sortiert). Drück [E].");
     }
     else this.hud.hidePrompt();
 

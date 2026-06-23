@@ -736,12 +736,16 @@ export class HUD {
     this.el.shopOffers.innerHTML = "";
     offers.forEach((o, i) => {
       const d = document.createElement("div");
-      const afford = coins >= o.price;
-      d.className = "inv-cell" + (afford ? "" : " empty");
+      const locked = !!o.locked, owned = !!o.owned;
+      const buyable = !locked && !owned && coins >= o.price;
+      d.className = "inv-cell" + (buyable ? "" : " empty");
+      const foot = owned ? "✅ ausgerüstet"
+        : locked ? `🔒 ${o.reqText || ("ab Lvl " + o.req)}`
+        : `${o.price} 🪙`;
       d.innerHTML =
         `<div class="icon">${o.icon}</div><div class="nm">${o.name}</div>` +
-        `<div class="ds">${o.desc}</div><div class="nm">${o.price} 🪙</div>`;
-      if (afford) d.addEventListener("click", () => onBuy(i));
+        `<div class="ds">${o.desc}</div><div class="nm">${foot}</div>`;
+      if (buyable) d.addEventListener("click", () => onBuy(i));
       this.el.shopOffers.appendChild(d);
     });
   }
