@@ -39,14 +39,16 @@ export class EnemyShots {
     }
     s.spr.material.color.setHex(opts.color ?? 0xff5470);
     s.spr.visible = true;
-    s.spr.scale.setScalar(opts.size ?? 1.1);
+    // Größer (besser sichtbar) + langsamer (besser ausweichbar). Die Trefferzone
+    // (radius) bleibt bewusst KLEINER als die Optik → fair/forgiving zu treffen.
+    s.spr.scale.setScalar(opts.size ?? 1.6);
     s.spr.position.set(x, 1.1, z);
-    const sp = opts.speed ?? 22;
+    const sp = opts.speed ?? 15;
     const l = Math.hypot(dx, dz) || 1;
     s.vel.set((dx / l) * sp, 0, (dz / l) * sp);
-    s.life = opts.life ?? 3.2;
+    s.life = opts.life ?? 3.6;
     s.damage = opts.damage ?? 8;
-    s.radius = opts.radius ?? 0.8;
+    s.radius = opts.radius ?? 0.7;
     this.active.push(s);
   }
 

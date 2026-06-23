@@ -113,12 +113,12 @@ export const CONFIG = {
     // --- 5 verschiedene Bosse (1 pro Sektor: Welle 5/10/15/20/25) -------------
     // Jeder hat ein eigenes Angriffsmuster (attack) + eigenen Bewegungsstil; die
     // Muster werden mit der Welle dichter/schneller (Skalierung in enemies.js).
-    boss: { // Welle 5 – Kernel Panic: Schuss-Fächer + Slam-Sprung
+    boss: { // Welle 5 – Kernel Panic: Schuss-Fächer + Slam-Sprung (erster Boss: fair & lernbar)
       label: "Kernel Panic",
-      hp: 120, speed: 2.3, radius: 2.6, damage: 26, score: 500,
+      hp: 85, speed: 2.0, radius: 2.6, damage: 16, score: 500,
       color: 0xff3355, glow: 0xff8899, scale: 3.4, isBoss: true,
-      ranged: true, attack: "fan", shootInterval: 2.4, shootRange: 110,
-      lunger: true, lungeInterval: 4.2,
+      ranged: true, attack: "fan", shootInterval: 3.0, shootRange: 110,
+      lunger: true, lungeInterval: 5.5,
     },
     bossNull: { // Welle 10 – Null Daemon: gezielte Schnellsalven + Teleport
       label: "Null Daemon",

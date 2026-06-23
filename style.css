@@ -64,8 +64,9 @@ body {
   transition: opacity 0.5s;
 }
 #loading.hidden { opacity: 0; pointer-events: none; }
-.load-duck { font-size: 72px; animation: bobDuck 1s ease-in-out infinite; }
-@keyframes bobDuck { 0%,100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-12px) rotate(6deg); } }
+.load-duck { animation: bobDuck 1.4s ease-in-out infinite; }
+.load-duck img { width: 130px; height: auto; display: block; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5)); }
+@keyframes bobDuck { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
 .load-text { font-size: 14px; letter-spacing: 0.25em; color: var(--cyan); }
 .load-bar { width: 240px; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
 .load-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--yellow), var(--cyan)); transition: width 0.3s; }

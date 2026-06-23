@@ -10,11 +10,46 @@ export class Gate {
     this.maxHp = opts.maxHp ?? 320;
     this.hp = this.maxHp;
     this.r = opts.r ?? 3.6;     // Reichweite, in der Monster das Tor anknabbern
+    this.defendR = opts.defendR ?? 11; // Radius der Verteidigungs-Zone (Halbkreis vor dem Tor)
     this.scene = scene;
     this.group = new THREE.Group();
     scene.add(this.group);
     this._flash = 0;
+    this._zoneT = 0;
     this._build();
+    this._buildZone();
+  }
+
+  // Halbkreis am Boden vor dem Tor (Süd-Seite, +z): markiert die Verteidigungs-Zone.
+  // NUR wenn die Ente hier drinsteht, dreht die Kamera in den Verteidigungs-Blick.
+  _buildZone() {
+    const R = this.defendR;
+    const zone = new THREE.Group();
+    // Gefüllte Halbscheibe (dezent leuchtend) – local -y mappt nach world +z (Süden).
+    const fillGeo = new THREE.CircleGeometry(R, 48, Math.PI, Math.PI);
+    this._zoneFill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({
+      color: 0x39ff9a, transparent: true, opacity: 0.06,
+      side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    this._zoneFill.rotation.x = -Math.PI / 2;
+    this._zoneFill.position.y = 0.04;
+    // Leuchtender Rand-Bogen.
+    const rimGeo = new THREE.RingGeometry(R - 0.32, R, 64, 1, Math.PI, Math.PI);
+    this._zoneRim = new THREE.Mesh(rimGeo, new THREE.MeshBasicMaterial({
+      color: 0x6effc0, transparent: true, opacity: 0.55,
+      side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    this._zoneRim.rotation.x = -Math.PI / 2;
+    this._zoneRim.position.y = 0.05;
+    zone.add(this._zoneFill, this._zoneRim);
+    this.group.add(zone);
+    this._zone = zone;
+  }
+
+  // Steht ein Punkt (Weltkoordinaten) im Halbkreis vor dem Tor?
+  inDefendZone(x, z) {
+    const dx = x - this.x, dz = z - this.z;
+    return dz >= 0 && (dx * dx + dz * dz) <= this.defendR * this.defendR;
   }
 
   _build() {
@@ -77,6 +112,14 @@ export class Gate {
     }
     // Sichtbar einsacken, wenn zerstört.
     this.group.scale.y = this.hp <= 0 ? 0.25 : 1;
+
+    // Zone sanft pulsieren lassen (atmet) + bei zerstörtem Tor ausblenden.
+    if (this._zone) {
+      this._zoneT += dt;
+      const pulse = 0.42 + Math.sin(this._zoneT * 2.2) * 0.16;
+      this._zoneRim.material.opacity = this.hp > 0 ? pulse : 0.0;
+      this._zoneFill.material.opacity = this.hp > 0 ? 0.05 + Math.sin(this._zoneT * 2.2) * 0.025 : 0.0;
+    }
   }
 
   reset() {

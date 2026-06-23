@@ -6,6 +6,47 @@ import { damp } from "./utils.js";
 import { loadSkinTexture } from "./skins.js";
 import { makeBlob } from "./shadowblob.js";
 
+// Sichel-förmiger Slash-Schweif: ein Mesh mit Vertex-Farb-Verlauf, das an den
+// beiden Hörnern zu Schwarz ausfadet. Mit additivem Blending wird Schwarz =
+// transparent → ein weicher, sich verjüngender „Schweif" statt harter Kanten/Punkte.
+function makeSlashSwoosh(color = 0xffffff, opts = {}) {
+  const ri = opts.ri ?? 2.0;   // Innenradius (zur Ente hin)
+  const ro = opts.ro ?? 3.9;   // Außenradius (Reichweite)
+  const span = opts.span ?? 2.5; // Öffnungswinkel des Bogens
+  const N = 40;
+  const base = new THREE.Color(color);
+  const aMid = Math.PI * 1.5;  // Mitte zeigt nach +Z (vor die Ente)
+  const a0 = aMid - span / 2;
+  const pos = [], col = [], idx = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;               // 0..1 entlang des Bogens
+    const a = a0 + t * span;
+    const f = Math.sin(t * Math.PI); // hell in der Mitte, dunkel an den Hörnern
+    // Breite verjüngt sich zu den Hörnern → spitz auslaufender Schweif.
+    const innerR = ro - (ro - ri) * Math.pow(f, 0.7);
+    const ca = Math.cos(a), sa = Math.sin(a);
+    pos.push(innerR * ca, innerR * sa, 0); // innen
+    pos.push(ro * ca, ro * sa, 0);          // außen
+    // Außenkante etwas heller als Innenkante (leuchtende Schneide).
+    const ci = base.clone().multiplyScalar(f * 0.55);
+    const co = base.clone().multiplyScalar(f * 1.0);
+    col.push(ci.r, ci.g, ci.b, co.r, co.g, co.b);
+  }
+  for (let i = 0; i < N; i++) {
+    const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+    idx.push(a, b, d, a, d, c);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  geo.setIndex(idx);
+  const mat = new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0,
+    side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  return new THREE.Mesh(geo, mat);
+}
+
 export class Player {
   constructor(scene) {
     this.scene = scene;
@@ -324,29 +365,35 @@ export class Player {
     this._sword = null; this._fistL = null; this._fistR = null; this._slash = null; this._meleeKind = kind || null;
     if (kind === "sword") {
       const piv = new THREE.Group(); piv.position.set(0, 0.95, 0.25);
-      const steel = new THREE.MeshStandardMaterial({ color: 0xdfe7f2, metalness: 0.85, roughness: 0.22 });
-      const edge = new THREE.MeshBasicMaterial({ color }); // leuchtende Schneide (Elementfarbe)
-      const gold = new THREE.MeshStandardMaterial({ color: 0xc9a23a, metalness: 0.8, roughness: 0.3 });
-      const grip = new THREE.MeshStandardMaterial({ color: 0x3a241a, roughness: 0.9 });
-      // Klinge: echte extrudierte Silhouette (parallel, dann Spitze) + Mittelgrat + glühende Schneiden.
+      // Steel mit leichtem Eigenleuchten → liest sich auch im dunklen Fog-of-War.
+      const steel = new THREE.MeshStandardMaterial({ color: 0xeef3fb, metalness: 0.95, roughness: 0.16, emissive: 0x223044, emissiveIntensity: 0.6 });
+      const edgeGlow = new THREE.MeshBasicMaterial({ color }); // glühende Schneide (Elementfarbe)
+      const gold = new THREE.MeshStandardMaterial({ color: 0xe7c25a, metalness: 0.9, roughness: 0.25, emissive: 0x3a2a08, emissiveIntensity: 0.4 });
+      const grip = new THREE.MeshStandardMaterial({ color: 0x2c1a12, roughness: 0.9 });
+      // Klinge: schlanke, lange Silhouette mit sauberer Spitze + abgeschrägter Schneide.
+      const L = 2.15; // Klingenlänge
       const sh = new THREE.Shape();
-      sh.moveTo(-0.09, 0); sh.lineTo(0.09, 0); sh.lineTo(0.09, 1.5); sh.lineTo(0, 1.85); sh.lineTo(-0.09, 1.5); sh.lineTo(-0.09, 0);
-      const bladeGeo = new THREE.ExtrudeGeometry(sh, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 1 });
-      bladeGeo.translate(0, 0, -0.045); bladeGeo.rotateX(-Math.PI / 2); // Klinge zeigt nach +Z
+      sh.moveTo(-0.085, 0); sh.lineTo(0.085, 0);
+      sh.lineTo(0.085, L * 0.74); sh.lineTo(0.055, L * 0.9); sh.lineTo(0, L);  // Spitze
+      sh.lineTo(-0.055, L * 0.9); sh.lineTo(-0.085, L * 0.74); sh.lineTo(-0.085, 0);
+      const bladeGeo = new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: true, bevelThickness: 0.018, bevelSize: 0.03, bevelSegments: 2 });
+      bladeGeo.translate(0, 0, -0.04); bladeGeo.rotateX(-Math.PI / 2); // Klinge zeigt nach +Z
       const blade = new THREE.Mesh(bladeGeo, steel); blade.position.z = 0.34;
-      const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 1.35), edge); fuller.position.set(0, 0.041, 1.0);
-      const fuller2 = fuller.clone(); fuller2.position.y = -0.041;
-      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.13, 0.16), gold); guard.position.z = 0.3;
-      const q1 = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), gold); q1.position.set(0.26, 0, 0.3);
-      const q2 = q1.clone(); q2.position.x = -0.26;
-      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.4, 10), grip); handle.rotation.x = Math.PI / 2; handle.position.z = 0.08;
-      const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), gold); pommel.position.z = -0.14;
+      // Glühender Mittelgrat (Hohlkehle) – beidseitig.
+      const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.012, L * 0.82), edgeGlow); fuller.position.set(0, 0.05, 0.34 + L * 0.46);
+      const fuller2 = fuller.clone(); fuller2.position.y = -0.05;
+      // Parierstange + Knauf.
+      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.14, 0.18), gold); guard.position.z = 0.3;
+      const q1 = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), gold); q1.position.set(0.3, 0, 0.3);
+      const q2 = q1.clone(); q2.position.x = -0.3;
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.062, 0.42, 12), grip); handle.rotation.x = Math.PI / 2; handle.position.z = 0.07;
+      const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 12), gold); pommel.position.z = -0.16;
       piv.add(blade, fuller, fuller2, guard, q1, q2, handle, pommel);
       this.meleeRig.add(piv); this._sword = piv;
-      // Leuchtender Slash-Bogen (flach am Boden vor der Ente) – erscheint beim Schwung.
-      const arcMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
-      const arc = new THREE.Mesh(new THREE.RingGeometry(2.0, 3.7, 36, 1, Math.PI * 1.5 - 0.95, 1.9), arcMat);
-      arc.rotation.x = -Math.PI / 2; arc.position.set(0, 0.35, 0.6);
+      // Durchgehender Slash-SCHWEIF (statt einzelner Punkte): ein Sichel-Mesh mit
+      // Farb-Verlauf, das an den Hörnern ausfadet (additiv) → klassischer Anime-Slash.
+      const arc = makeSlashSwoosh(color);
+      arc.rotation.x = -Math.PI / 2; arc.position.set(0, 0.45, 0.5);
       this.meleeRig.add(arc); this._slash = arc;
     } else if (kind === "fists") {
       const glove = new THREE.MeshStandardMaterial({ color: 0xff5470, roughness: 0.55, metalness: 0.05 });
@@ -384,10 +431,14 @@ export class Player {
       this._sword.rotation.x = tilt;
       this._sword.rotation.z = side * 0.2;
       if (this._slash) {
-        const vis = swinging && p > 0.18 ? Math.sin(Math.min(1, (p - 0.18) / 0.82) * Math.PI) : 0;
-        this._slash.material.opacity = vis * 0.85;
-        this._slash.scale.setScalar(0.85 + vis * 0.3);
-        this._slash.rotation.z = -side * (0.6 - vis * 1.2); // Bogen zieht in Schwungrichtung
+        // Schweif fadet schnell ein und zieht über die Front (folgt der Klinge) → wischt aus.
+        const s = swinging ? Math.min(1, Math.max(0, (p - 0.16) / 0.84)) : 1;
+        const vis = swinging && p > 0.16 ? Math.sin(s * Math.PI) : 0;
+        this._slash.material.opacity = vis;
+        this._slash.scale.set(0.9 + vis * 0.35, 1, 0.9 + vis * 0.35);
+        // Sweep: der Bogen zieht von der Aushol-Seite zur Gegenseite (Schweif-Bewegung).
+        this._slash.rotation.z = side * (0.9 - s * 1.8);
+        this._slash.visible = vis > 0.01;
       }
     }
     if (this._fistL && this._fistR) {

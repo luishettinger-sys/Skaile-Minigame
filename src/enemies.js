@@ -197,7 +197,7 @@ export class EnemySystem {
           e.atkT = (e.def.shootInterval ?? 2.2) / phaseRush;
           e.flash = 1; // Mündungsblitz
           if (e.def.isBoss) this._bossAttack(e, p, nx, nz, attack);
-          else attack.shoot(p.x, p.z, nx, nz, { color: e.def.glow, speed: 22, damage: 8 });
+          else attack.shoot(p.x, p.z, nx, nz, { color: e.def.glow, speed: 15, damage: 7, size: 1.5 });
         }
       }
 
@@ -333,31 +333,32 @@ export class EnemySystem {
     const pb = ph - 1;                  // Phasen-Bonus 0..2
     const base = Math.atan2(nx, nz);
     const g = e.def.glow;
+    // Geschosse generell langsamer + größer → gut sicht- und ausweichbar (Skill statt Glück).
     const shoot = (a, opt = {}) =>
-      attack.shoot(p.x, p.z, Math.sin(a), Math.cos(a), { color: g, speed: 24, damage: 10, size: 1.3, ...opt });
+      attack.shoot(p.x, p.z, Math.sin(a), Math.cos(a), { color: g, speed: 16, damage: 8, size: 1.7, ...opt });
     let A = e.def.attack || "fan";
     if (A === "combo") { e._flip = !e._flip; A = e._flip ? "fan" : "radial"; } // Finale wechselt
     // Ab Phase 3 hängt jeder Boss einen rotierenden Ring an (Bullet-Hell-Feeling).
     if (ph >= 3) {
       const n = 12;
       const off = e._t * 1.2;
-      for (let k = 0; k < n; k++) shoot(off + (k / n) * Math.PI * 2, { speed: 16, size: 0.9 });
+      for (let k = 0; k < n; k++) shoot(off + (k / n) * Math.PI * 2, { speed: 12, size: 1.4 });
     }
 
     if (A === "fan") {
       const n = 1 + Math.ceil(diff) + pb;     // breiter in höheren Phasen
-      for (let k = -n; k <= n; k++) shoot(base + k * 0.18, { speed: 24 + diff * 2 });
+      for (let k = -n; k <= n; k++) shoot(base + k * 0.18, { speed: 15 + diff * 1.3 });
     } else if (A === "aimed") {
       const n = 2 + Math.floor(diff / 1.5) + pb;
-      for (let k = 0; k < n; k++) shoot(base + (Math.random() - 0.5) * 0.12, { speed: 30 + diff * 3, size: 1.1 });
+      for (let k = 0; k < n; k++) shoot(base + (Math.random() - 0.5) * 0.12, { speed: 19 + diff * 2, size: 1.6 });
     } else if (A === "radial") {
       const n = 8 + Math.round(diff * 3) + pb * 4; // dichterer Ring
       const off = e._t * 0.6;                 // dreht sich
-      for (let k = 0; k < n; k++) shoot(off + (k / n) * Math.PI * 2, { speed: 18 + diff * 2 });
+      for (let k = 0; k < n; k++) shoot(off + (k / n) * Math.PI * 2, { speed: 13 + diff * 1.3 });
     } else if (A === "spiral") {
       const arms = 2 + Math.floor(diff / 2) + pb; // mehr Arme
       const a0 = e._t * (3 + diff * 0.6);
-      for (let k = 0; k < arms; k++) shoot(a0 + (k / arms) * Math.PI * 2, { speed: 28, size: 1.0 });
+      for (let k = 0; k < arms; k++) shoot(a0 + (k / arms) * Math.PI * 2, { speed: 18, size: 1.5 });
     }
   }
 
@@ -541,14 +542,18 @@ function makeLabelMaterial(text, colorHex) {
 }
 
 // Spawn-Position am Arena-Rand (Arena-Größe wächst pro Welle).
+// Gegner kommen IMMER aus dem Süden (positive z), der dem PC/Tor (Norden) gegenüber
+// liegt – so spawnen sie nie im PC-Raum oder direkt auf dem Spieler, sondern marschieren
+// von vorne auf das Tor zu. Verteilung: meist die Süd-Kante, etwas Streuung in die
+// südlichen Flanken (untere Hälfte der Ost/West-Kanten) für Breite.
 export function edgeSpawn(half = CONFIG.arena.half) {
   half -= 1;
-  const side = Math.floor(Math.random() * 4);
-  const t = (Math.random() * 2 - 1) * half;
-  switch (side) {
-    case 0: return { x: t, z: -half };
-    case 1: return { x: t, z: half };
-    case 2: return { x: -half, z: t };
-    default: return { x: half, z: t };
+  const r = Math.random();
+  if (r < 0.7) {
+    // Süd-Kante (volle Breite)
+    return { x: (Math.random() * 2 - 1) * half, z: half };
   }
+  // Südliche Flanke links/rechts (z nur in der unteren Hälfte → bleibt „vorne")
+  const z = Math.random() * half; // 0..half (Süd)
+  return { x: r < 0.85 ? -half : half, z };
 }

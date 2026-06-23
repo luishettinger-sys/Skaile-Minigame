@@ -1451,8 +1451,8 @@ export class Game {
 
     // Kamera näher heranziehen, wenn die Ente in einem der kleinen Seitenräume ist.
     this.world.setCamZoom?.(this._inSideRoom());
-    // Verteidigungs-Blick: nah am Tor dreht die Kamera 180° (PC-Raum nach unten).
-    const ng = this.gate && Math.hypot(this.player.pos.x - this.gate.x, this.player.pos.z - this.gate.z) < 13;
+    // Verteidigungs-Blick: NUR im Halbkreis vor dem Tor dreht die Kamera 180° (PC-Raum nach unten).
+    const ng = this.gate && this.gate.inDefendZone(this.player.pos.x, this.player.pos.z);
     this.world.setDefendView?.(!!ng);
     this.world.updateCamera(this.player.pos, dt);
   }
@@ -1673,11 +1673,8 @@ export class Game {
     const ang = this.aimTarget
       ? Math.atan2(this.aimTarget.mesh.position.x - px, this.aimTarget.mesh.position.z - pz)
       : this.player.facing;
-    // Swing-Optik: heller Bogen aus Blitzen vor der Ente.
-    for (let k = -1; k <= 1; k++) {
-      const a = ang + k * half * 0.7;
-      this.effects.flash?.(px + Math.sin(a) * range * 0.7, 1.1, pz + Math.cos(a) * range * 0.7, w.color || 0xffffff, 1.5, 0.08);
-    }
+    // Optik: ein durchgehender Slash-Schweif (player.meleeSwing zeichnet den Bogen),
+    // statt einzelner Punkte.
     this.audio.weapon?.(w.sound || "shoot");
     this.player.recoil?.();
     this.player.meleeSwing?.(); // sichtbarer Schwung/Stoß
@@ -2423,7 +2420,11 @@ export class Game {
 
   // ----------------------------------------------------------------- Waves --
   _spawnEnemy(type) {
-    const { x, z } = edgeSpawn(this.world.arenaHalf);
+    // Gegner kommen aus dem SÜDEN (gegenüber vom PC/Tor im Norden) und rücken
+    // auf einen zu – nicht mehr rund um den Spieler / nicht beim PC.
+    const half = this.world.arenaHalf || CONFIG.arena.half;
+    const x = (Math.random() * 2 - 1) * (half - 2);
+    const z = half - 1.5;
     this.enemies.spawn(type, x, z);
   }
 
@@ -2502,14 +2503,15 @@ export class Game {
       this.hud.hideBossIntro();
       this.hud.flash("#ff8c1a", 0.5);
       const half = this.world.arenaHalf;
-      this.boss = this.enemies.spawn(I.key, 0, -(half - 3));
+      const bz = half - 3; // Süd-Seite (positive z), gegenüber dem PC/Tor – Boss rückt auf den Spieler zu
+      this.boss = this.enemies.spawn(I.key, 0, bz);
       this.boss.bossWave = I.n; // für die wellenabhängige Angriffs-Skalierung
       this._bossPhase = 1; // Phasen-System: eskaliert mit sinkender Boss-HP
       this.audio.bossAppear();
       this.world.addShake(1.0);
       this._freeze(0.1);
-      this.effects.shockwave(0, -(half - 3), def.glow, 18, 26);
-      this.effects.burst(0, -(half - 3), def.glow, 30, 1.6);
+      this.effects.shockwave(0, bz, def.glow, 18, 26);
+      this.effects.burst(0, bz, def.glow, 30, 1.6);
       this.hud.banner("⚠ " + def.label.toUpperCase(), "springt aus dem Rechner!");
       this.world.setCamera({ x: 0, y: 13, z: 20 });
     }
