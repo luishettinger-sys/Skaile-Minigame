@@ -1,3 +1,18 @@
+/* Mobile-Touch-Steuerung (nur auf Touch-Geräten per JS eingefügt). */
+.tjoy { position: fixed; left: 22px; bottom: 22px; width: 130px; height: 130px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.18); z-index: 60; touch-action: none; }
+.tjoy-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px;
+  border-radius: 50%; background: rgba(255,255,255,0.30); border: 2px solid rgba(255,255,255,0.45); }
+.tbtn { position: fixed; z-index: 60; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: rgba(255,255,255,0.10); border: 2px solid rgba(255,255,255,0.22);
+  color: #fff; font-size: 26px; user-select: none; -webkit-user-select: none; touch-action: none; }
+.tbtn.on { background: rgba(255,210,60,0.35); }
+.tbtn-attack { right: 26px; bottom: 30px; width: 96px; height: 96px; font-size: 40px;
+  background: rgba(255,90,110,0.22); border-color: rgba(255,90,110,0.55); }
+.tbtn-dash { right: 142px; bottom: 42px; width: 64px; height: 64px; }
+.tbtn-e { right: 64px; bottom: 142px; width: 64px; height: 64px; font-weight: 700; }
+.tbtn-q { right: 152px; bottom: 134px; width: 60px; height: 60px; }
+
 :root {
   --yellow: #ffd23f;
   --cyan: #6ee7ff;

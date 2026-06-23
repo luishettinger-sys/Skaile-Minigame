@@ -1530,7 +1530,7 @@ export class Game {
     const target = this._frontTarget(CONFIG.energy.aimRange);
     this.aimTarget = target;
     const moving = move.x !== 0 || move.z !== 0;
-    const firing = this.input.mouseDown || this.input.isDown("Space") ||
+    const firing = this.input.mouseDown || this.input.touchFire || this.input.isDown("Space") ||
       this.input.isDown("Enter") || this.input.isDown("NumpadEnter");
 
     // Während (und kurz nach) dem Feuern auf den Gegner ausrichten.
@@ -1584,6 +1584,7 @@ export class Game {
     this.fireTimer -= dt;
     const firing =
       this.input.mouseDown ||
+      this.input.touchFire ||
       this.input.isDown("Space") ||
       this.input.isDown("Enter") ||
       this.input.isDown("NumpadEnter");
