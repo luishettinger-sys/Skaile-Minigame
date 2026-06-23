@@ -64,9 +64,13 @@ body {
   transition: opacity 0.5s;
 }
 #loading.hidden { opacity: 0; pointer-events: none; }
-.load-duck { animation: bobDuck 1.4s ease-in-out infinite; }
-.load-duck img { width: 130px; height: auto; display: block; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5)); }
-@keyframes bobDuck { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
+.load-duck { position: relative; animation: bobDuck 1.6s ease-in-out infinite; }
+/* Weicher Spotlight hinter der Ente. */
+.load-duck::before { content: ""; position: absolute; left: 50%; top: 46%; width: 220px; height: 220px; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255,210,63,0.28), rgba(255,210,63,0.0) 68%); filter: blur(4px); z-index: 0; }
+.load-duck img { position: relative; z-index: 1; width: 150px; height: auto; display: block;
+  filter: drop-shadow(0 14px 22px rgba(0,0,0,0.55)) drop-shadow(0 0 16px rgba(255,210,63,0.35)); }
+@keyframes bobDuck { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-14px) rotate(3deg); } }
 .load-text { font-size: 14px; letter-spacing: 0.25em; color: var(--cyan); }
 .load-bar { width: 240px; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
 .load-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--yellow), var(--cyan)); transition: width 0.3s; }
