@@ -25,23 +25,16 @@ export class Gate {
   _buildZone() {
     const R = this.defendR;
     const zone = new THREE.Group();
-    // Gefüllte Halbscheibe (dezent leuchtend) – local -y mappt nach world +z (Süden).
-    const fillGeo = new THREE.CircleGeometry(R, 48, Math.PI, Math.PI);
-    this._zoneFill = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({
-      color: 0x39ff9a, transparent: true, opacity: 0.06,
-      side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
-    }));
-    this._zoneFill.rotation.x = -Math.PI / 2;
-    this._zoneFill.position.y = 0.04;
-    // Leuchtender Rand-Bogen.
-    const rimGeo = new THREE.RingGeometry(R - 0.32, R, 64, 1, Math.PI, Math.PI);
+    // Nur eine dünne leuchtende Rand-Linie (Halbkreis-Umriss) – KEINE große additive
+    // Füllfläche mehr (die kostete Fill-Rate → Ruckeln). Günstig & klar erkennbar.
+    const rimGeo = new THREE.RingGeometry(R - 0.28, R, 64, 1, Math.PI, Math.PI);
     this._zoneRim = new THREE.Mesh(rimGeo, new THREE.MeshBasicMaterial({
-      color: 0x6effc0, transparent: true, opacity: 0.55,
-      side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+      color: 0x6effc0, transparent: true, opacity: 0.5,
+      side: THREE.DoubleSide, depthWrite: false,
     }));
     this._zoneRim.rotation.x = -Math.PI / 2;
     this._zoneRim.position.y = 0.05;
-    zone.add(this._zoneFill, this._zoneRim);
+    zone.add(this._zoneRim);
     this.group.add(zone);
     this._zone = zone;
   }
@@ -118,7 +111,6 @@ export class Gate {
       this._zoneT += dt;
       const pulse = 0.42 + Math.sin(this._zoneT * 2.2) * 0.16;
       this._zoneRim.material.opacity = this.hp > 0 ? pulse : 0.0;
-      this._zoneFill.material.opacity = this.hp > 0 ? 0.05 + Math.sin(this._zoneT * 2.2) * 0.025 : 0.0;
     }
   }
 

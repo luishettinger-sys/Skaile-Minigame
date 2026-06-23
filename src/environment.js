@@ -7,11 +7,9 @@ import { CONFIG } from "./config.js";
 export function buildOffice(scene) {
   const group = new THREE.Group();
 
-  // Großer Build-Monitor als Feature-Wand im Shop-Raum (Norden, z≈-45).
-  // Auch Ziel des Boss-Intros ("der Bug springt aus dem Rechner").
-  const monitor = makeMonitor(0, -44.5);
-  monitor.scale.setScalar(0.62); // passt in den Shop-Raum (Breite ~20)
-  group.add(monitor);
+  // (Früher stand hier ein zweiter, gröberer Feature-Monitor bei z≈-44.5. Er lag
+  // direkt VOR der detaillierten Workstation (roomdecor.js, z≈-45) und verdeckte
+  // sie. Entfernt → der vergrößerte Workstation-Monitor ist jetzt das klare PC-Ziel.)
 
   // Deko-Props in der Lounge (Westen) – stimmungsvolles Set-Dressing.
   group.add(makePlant(-50, 10));

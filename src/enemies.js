@@ -252,6 +252,13 @@ export class EnemySystem {
         if (Math.abs(e.knockZ) < 0.05) e.knockZ = 0;
       }
 
+      // Gegner an denselben Wänden auflösen wie der Spieler → Kiter/Flieher/Strafer
+      // können nicht mehr durch die Wände in den Void laufen (bleiben im Spielfeld).
+      if (this.terrain?.resolveMove) {
+        const rs = this.terrain.resolveMove(p.x, p.z, e.radius || e.def.radius || 0.8);
+        p.x = rs.x; p.z = rs.z;
+      }
+
       e.mesh.rotation.y = gateBound ? Math.atan2(mx, mz) : Math.atan2(dx, dz);
 
       // Boss beschwört Adds (Stack Smasher / Segfault) – gesammelt, nach der

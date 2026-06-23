@@ -301,10 +301,14 @@ function workstation(group, r, animated) {
   const baseFoot = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.9, 0.22, 32), metal); baseFoot.position.set(0, y + 2.9, -1.2);
   const neck = new THREE.Mesh(new THREE.BoxGeometry(0.7, 3.6, 0.35), metal); neck.position.set(0, y + 4.8, -1.2);
   g.add(baseFoot, neck);
-  const SW = 12.4, SH = 7.0;
-  const bezel = new THREE.Mesh(new THREE.BoxGeometry(SW + 0.5, SH + 0.5, 0.32), frame); bezel.position.set(0, y + 7.1, -1.05);
-  const backPan = new THREE.Mesh(new THREE.BoxGeometry(SW - 0.6, SH - 0.6, 0.5), M(0x14171e, { metalness: 0.6, roughness: 0.4 })); backPan.position.set(0, y + 7.1, -1.32);
-  g.add(bezel, backPan);
+  // Deutlich GRÖSSERER, klar erkennbarer Monitor (das Schutzziel) – höher gesetzt,
+  // damit der ganze Screen über dem Tisch frei steht.
+  const SW = 18.0, SH = 10.4, MY = y + 9.0;
+  const bezel = new THREE.Mesh(new THREE.BoxGeometry(SW + 0.7, SH + 0.7, 0.34), frame); bezel.position.set(0, MY, -1.05);
+  const backPan = new THREE.Mesh(new THREE.BoxGeometry(SW - 0.6, SH - 0.6, 0.5), M(0x14171e, { metalness: 0.6, roughness: 0.4 })); backPan.position.set(0, MY, -1.32);
+  // Leuchtender Rahmen-Rand → der Monitor „poppt" und ist sofort als PC erkennbar.
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(SW + 1.0, SH + 1.0, 0.18), E(0x2bd4ff, 1.1)); rim.position.set(0, MY, -1.18);
+  g.add(rim, bezel, backPan);
 
   // Screen: großer, SCHARFER Community-Screenshot (Anisotropie + Linear-Filter,
   // keine Mipmaps → kein Verwischen). MeshBasic = selbstleuchtend, immer sichtbar.
@@ -315,8 +319,10 @@ function workstation(group, r, animated) {
   tex.minFilter = THREE.LinearFilter;
   tex.magFilter = THREE.LinearFilter;
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: tex }));
-  screen.position.set(0, y + 7.1, -0.85); g.add(screen); // vor dem Rahmen, zeigt nach +z (zur Kamera)
-  const ml = new THREE.PointLight(0xbfe0ff, 9, 30, 2); ml.position.set(0, y + 7.1, 3.5); g.add(ml);
+  screen.position.set(0, MY, -0.85); g.add(screen); // vor dem Rahmen, zeigt nach +z (zur Kamera)
+  // Höherer, längerer Hals trägt den größeren Monitor.
+  const neck2 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 4.4, 0.4), metal); neck2.position.set(0, y + 5.6, -1.2); g.add(neck2);
+  const ml = new THREE.PointLight(0xbfe0ff, 14, 44, 2); ml.position.set(0, MY, 4.0); g.add(ml);
 
   // Flache Tastatur (Basis + Tastenfeld) + Maus mit Sensor-Glow + Pad.
   const kbBase = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.16, 1.8), M(0x0f1218, { metalness: 0.4, roughness: 0.5 }));
@@ -335,7 +341,7 @@ function workstation(group, r, animated) {
 
   g.position.set(cx(r), 0, r.minZ + 7);
   group.add(g);
-  animated.push({ fn: (t) => { ml.intensity = 8 + Math.sin(t * 2.4) * 1.4; } });
+  animated.push({ fn: (t) => { ml.intensity = 14 + Math.sin(t * 2.4) * 1.8; } });
 }
 
 // === WEST: Fabrikator – eingehauster Industrie-3D-Drucker =====================
