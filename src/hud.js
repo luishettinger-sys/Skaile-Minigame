@@ -742,8 +742,11 @@ export class HUD {
       const foot = owned ? "✅ ausgerüstet"
         : locked ? `🔒 ${o.reqText || ("ab Lvl " + o.req)}`
         : `${o.price} 🪙`;
+      const iconHtml = o.thumb
+        ? `<img class="wicon" src="${o.thumb}" alt="" draggable="false">`
+        : `<div class="icon">${o.icon}</div>`;
       d.innerHTML =
-        `<div class="icon">${o.icon}</div><div class="nm">${o.name}</div>` +
+        `${iconHtml}<div class="nm">${o.name}</div>` +
         `<div class="ds">${o.desc}</div><div class="nm">${foot}</div>`;
       if (buyable) d.addEventListener("click", () => onBuy(i));
       this.el.shopOffers.appendChild(d);

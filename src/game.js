@@ -14,6 +14,7 @@ import { PickupSystem } from "./pickups.js";
 import { WEAPONS, WEAPON_IDS, WEAPON_PRICE, WEAPON_LEVEL } from "./weapons.js";
 import { Armory } from "./armory.js";
 import { cloneWeaponModel } from "./weaponmodels.js";
+import { weaponThumb } from "./weaponthumbs.js";
 import { Automation } from "./automation.js";
 import { Inventory } from "./inventory.js";
 import { Stations } from "./stations.js";
@@ -853,6 +854,7 @@ export class Game {
       o.owned = this.weaponId === o.id;
       o.locked = lvl < (o.req || 2);
       o.reqText = `ab Lvl ${o.req}`;
+      if (o.thumb === undefined) o.thumb = weaponThumb(o.id); // Mini-Abbildung der Waffe
     }
     this.hud.renderShop(this.shopOffers, this.coins, (i) => this._buy(i));
   }

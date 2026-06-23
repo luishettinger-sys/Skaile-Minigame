@@ -700,6 +700,8 @@ kbd {
   justify-content: flex-start;
   min-height: 70px;
 }
+/* Mini-Abbildung der Waffe (gerendertes 3D-Thumbnail) in der Markt-Karte. */
+.wicon { width: 52px; height: 52px; object-fit: contain; display: block; margin: 2px auto 4px; image-rendering: auto; }
 /* Waffen-Arsenal: scrollbar, damit das volle, sortierte Sortiment reinpasst. */
 #shop-offers {
   max-height: 56vh;
