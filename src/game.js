@@ -646,6 +646,7 @@ export class Game {
     this.ultTimer = 0;
     this.paused = false;
     this.levelingUp = false;
+    this._swordOffered = false; // erstes Level-Up gibt garantiert das Schwert
     this.pendingLevels = 0;
     this.boss = null;
     this.energy = CONFIG.energy.max;
@@ -1248,7 +1249,8 @@ export class Game {
       this.hud.setHp(this.player.hp, this.player.maxHp);
     }
 
-    if (this.input.wasPressed("KeyR") && this.ultReady && !this.ultActive) {
+    // Rubber Duck Moment: Q (wie in der Steuerung angezeigt) – R bleibt als Alias.
+    if ((this.input.wasPressed("KeyQ") || this.input.wasPressed("KeyR")) && this.ultReady && !this.ultActive) {
       this._activateUltimate();
     }
     this._updateBuffs(dt);
@@ -2258,8 +2260,16 @@ export class Game {
 
   _openLevelUp() {
     this.levelingUp = true;
-    // Nur klare Power-Ups (keine Waffen!) – Waffen gibt's am Marktstand/Shop.
-    const choices = this.progression.roll(3);
+    let choices;
+    if (!this._swordOffered) {
+      // Erstes Level-Up: garantiert das Schwert (einzige Auswahl) – klarer Power-Spike.
+      this._swordOffered = true;
+      const w = WEAPONS.sword;
+      choices = [{ weaponId: "sword", icon: w.icon, name: w.name, desc: w.desc || "Nahkampf-Schwert mit Halbkreis-Flächenschaden" }];
+    } else {
+      // Danach: nur klare Power-Ups (keine Waffen!) – Waffen gibt's am Marktstand/Shop.
+      choices = this.progression.roll(3);
+    }
 
     this.hud.showLevelUp(this.progression.level, choices, (i) =>
       this._pickChoice(choices, i)

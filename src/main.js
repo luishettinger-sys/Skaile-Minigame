@@ -29,6 +29,11 @@ function beginGame() {
 
 hud.el.startBtn.addEventListener("click", beginGame);
 hud.el.restartBtn.addEventListener("click", beginGame);
+// Aus der Pause heraus den Run komplett neu starten (umgeht die "playing"-Sperre).
+document.getElementById("restart-btn-pause")?.addEventListener("click", () => {
+  audio.init(); audio.resume();
+  game.start();
+});
 document.getElementById("share-btn")?.addEventListener("click", () => game.shareResult());
 document.getElementById("victory-share")?.addEventListener("click", () => game.shareResult());
 hud.el.resumeBtn.addEventListener("click", () => game.resume());
