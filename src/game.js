@@ -48,6 +48,19 @@ const PATCH_NOTES = [
   "v1.7 – Null Pointer zeigt endlich irgendwohin",
   "v2.0 – 'Works on my machine' offiziell unterstützt",
 ];
+// Claude feuert dich bei Combo-Meilensteinen an (Thema + Sympathie).
+const CLAUDE_QUIPS = [
+  "Sauber gedebuggt! ✨",
+  "It compiles! 🚀",
+  "Das war ein force-push direkt ins Gesicht der Bugs. 😈",
+  "Green build! Weiter so. ✅",
+  "Ship it! 🦆",
+  "Refactor abgeschlossen – die Bugs sind weg. 🧹",
+  "Stack sauber, Heap ruhig. Stark!",
+  "Das war kein Bug, das war ein Feature… das du gerade gelöscht hast.",
+  "100 % Test-Coverage gegen Bugs. 🔥",
+  "Merge approved. ✅",
+];
 const DUCK_TIPS = [
   "Schon mal aus- und wieder eingeschaltet? 🦆",
   "Erklär den Bug der Ente – dann siehst du ihn.",
@@ -951,6 +964,7 @@ export class Game {
     if (this._banked) return;
     this._banked = true;
     const score = Math.floor(this.score);
+    this._newRecord = score > this.highscore && score > 0;
     if (score > this.highscore) {
       this.highscore = score;
       localStorage.setItem(HISCORE_KEY, String(score));
@@ -969,10 +983,11 @@ export class Game {
     const kills = this.runStats?.kills || 0;
     const wave = this.waves?.wave || 1;
     const url = (typeof location !== "undefined" && location.origin + location.pathname) || "";
+    const rec = this._newRecord ? " 🥇 NEUER REKORD!" : "";
     const text =
-      `🦆 SKAILE Building Challenge\n` +
-      `${this.won ? "🏆 MAINBOARD BEFREIT! " : ""}Score ${score.toLocaleString("de-DE")} · Welle ${wave} · Sektor ${sector}/${CONFIG.campaign.sectors} · ${kills} Bugs gedebuggt\n` +
-      `Schaffst du mehr? ${url}`.trim();
+      `🦆 Duck & Debug — SKAILE Building Challenge\n` +
+      `${this.won ? "🏆 PC GERETTET! " : "💻 "}Score ${score.toLocaleString("de-DE")} · Welle ${wave} · ${kills} Bugs gedebuggt${rec}\n` +
+      `Schlägst du meinen Score? 👉 ${url}`.trim();
     const done = () => this.hud.toast?.("📋", "Kopiert!", "Ergebnis ist in der Zwischenablage – einfügen & teilen");
     try {
       if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done, () => this._shareFallback(text));
@@ -1072,6 +1087,11 @@ export class Game {
     this._bankRun();
     this.audio.stopMusic();
     this.hud.showGameOver(Math.floor(this.score), this.waves.wave, this.highscore, this.runStats.kills);
+    if (this._newRecord) {
+      this.hud.flash?.("#ffd23f", 0.5);
+      this.hud.banner?.("🥇 NEUER REKORD!", "Teile deinen Score und fordere die Community heraus!");
+      this.audio.levelUp?.();
+    }
   }
 
   // Großes Ziel erreicht: Final-Boss besiegt → Sieg. Run kann endlos weiterlaufen.
@@ -1918,7 +1938,10 @@ export class Game {
     this.score += gained;
     this.hud.setScore(Math.floor(this.score));
     this.hud.setCombo(this.comboMult);
-    if (this.combo % 10 === 0) this.hud.flash?.("#ffd23f", 0.1); // Combo-Meilenstein-Blitz
+    if (this.combo % 10 === 0) { // Combo-Meilenstein: Blitz + Claude-Spruch
+      this.hud.flash?.("#ffd23f", 0.1);
+      this.hud.toast?.("✦", "Claude", CLAUDE_QUIPS[Math.floor(Math.random() * CLAUDE_QUIPS.length)]);
+    }
     // Score poppt groß, wenn ein Combo-Multiplikator aktiv ist (befriedigender).
     this._popup(e.mesh.position, "+" + gained, "#ffd23f", this.comboMult > 1 ? "big" : "");
 
