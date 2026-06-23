@@ -2227,16 +2227,8 @@ export class Game {
 
   _openLevelUp() {
     this.levelingUp = true;
+    // Nur klare Power-Ups (keine Waffen!) – Waffen gibt's am Marktstand/Shop.
     const choices = this.progression.roll(3);
-
-    // Mit Wahrscheinlichkeit eine Waffe statt einer Fähigkeit anbieten.
-    const others = WEAPON_IDS.filter((id) => id !== this.weaponId);
-    if (others.length && Math.random() < 0.45) {
-      const w = WEAPONS[others[Math.floor(Math.random() * others.length)]];
-      choices[choices.length - 1] = {
-        icon: w.icon, name: "Waffe: " + w.name, desc: w.desc, weaponId: w.id,
-      };
-    }
 
     this.hud.showLevelUp(this.progression.level, choices, (i) =>
       this._pickChoice(choices, i)
