@@ -21,7 +21,7 @@ export class Player {
     this.root.add(this.meleeRig);
     this._sword = null; this._fistL = null; this._fistR = null;
     this._meleeKind = null;
-    this._swingT = 0; this._swingDur = 0.2; this._swingSide = 1; this._fistBaseZ = 0.35;
+    this._swingT = 0; this._swingDur = 0.26; this._swingSide = 1; this._fistBaseZ = 0.35;
 
     this.pos = this.root.position;
     this.vel = new THREE.Vector3();
@@ -315,32 +315,48 @@ export class Player {
     this._kick = Math.min(1.5, (this._kick || 0) + amount);
   }
 
-  // Sichtbare Nahkampf-Optik setzen: "fists" (zwei Fäuste) | "sword" | null.
+  // Sichtbare Nahkampf-Optik setzen: "fists" (zwei Boxhandschuhe) | "sword" | null.
   setMeleeVisual(kind, color = 0xeaf2ff) {
     for (const c of [...this.meleeRig.children]) {
       this.meleeRig.remove(c);
       c.traverse?.((o) => { o.geometry?.dispose?.(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => m.dispose?.()); });
     }
-    this._sword = null; this._fistL = null; this._fistR = null; this._meleeKind = kind || null;
+    this._sword = null; this._fistL = null; this._fistR = null; this._slash = null; this._meleeKind = kind || null;
     if (kind === "sword") {
-      const piv = new THREE.Group(); piv.position.set(0, 0.95, 0.3);
-      const steel = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, metalness: 0.7, roughness: 0.3 });
-      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.42, 8), new THREE.MeshStandardMaterial({ color: 0x3a2a18, roughness: 0.85 }));
-      handle.rotation.x = Math.PI / 2; handle.position.z = 0.12;
-      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.12, 0.14), new THREE.MeshStandardMaterial({ color: 0x9a7a32, metalness: 0.6, roughness: 0.4 }));
-      guard.position.z = 0.34;
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.07, 1.5), steel); blade.position.z = 1.12;
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.32, 4), steel); tip.rotation.x = Math.PI / 2; tip.position.z = 1.98; tip.rotation.z = Math.PI / 4;
-      piv.add(handle, guard, blade, tip);
+      const piv = new THREE.Group(); piv.position.set(0, 0.95, 0.25);
+      const steel = new THREE.MeshStandardMaterial({ color: 0xdfe7f2, metalness: 0.85, roughness: 0.22 });
+      const edge = new THREE.MeshBasicMaterial({ color }); // leuchtende Schneide (Elementfarbe)
+      const gold = new THREE.MeshStandardMaterial({ color: 0xc9a23a, metalness: 0.8, roughness: 0.3 });
+      const grip = new THREE.MeshStandardMaterial({ color: 0x3a241a, roughness: 0.9 });
+      // Klinge: echte extrudierte Silhouette (parallel, dann Spitze) + Mittelgrat + glühende Schneiden.
+      const sh = new THREE.Shape();
+      sh.moveTo(-0.09, 0); sh.lineTo(0.09, 0); sh.lineTo(0.09, 1.5); sh.lineTo(0, 1.85); sh.lineTo(-0.09, 1.5); sh.lineTo(-0.09, 0);
+      const bladeGeo = new THREE.ExtrudeGeometry(sh, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 1 });
+      bladeGeo.translate(0, 0, -0.045); bladeGeo.rotateX(-Math.PI / 2); // Klinge zeigt nach +Z
+      const blade = new THREE.Mesh(bladeGeo, steel); blade.position.z = 0.34;
+      const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 1.35), edge); fuller.position.set(0, 0.041, 1.0);
+      const fuller2 = fuller.clone(); fuller2.position.y = -0.041;
+      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.13, 0.16), gold); guard.position.z = 0.3;
+      const q1 = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), gold); q1.position.set(0.26, 0, 0.3);
+      const q2 = q1.clone(); q2.position.x = -0.26;
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.4, 10), grip); handle.rotation.x = Math.PI / 2; handle.position.z = 0.08;
+      const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), gold); pommel.position.z = -0.14;
+      piv.add(blade, fuller, fuller2, guard, q1, q2, handle, pommel);
       this.meleeRig.add(piv); this._sword = piv;
+      // Leuchtender Slash-Bogen (flach am Boden vor der Ente) – erscheint beim Schwung.
+      const arcMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+      const arc = new THREE.Mesh(new THREE.RingGeometry(2.0, 3.7, 36, 1, Math.PI * 1.5 - 0.95, 1.9), arcMat);
+      arc.rotation.x = -Math.PI / 2; arc.position.set(0, 0.35, 0.6);
+      this.meleeRig.add(arc); this._slash = arc;
     } else if (kind === "fists") {
-      const skin = new THREE.MeshStandardMaterial({ color: 0xffcf3a, roughness: 0.55, metalness: 0.1 });
-      const cuff = new THREE.MeshStandardMaterial({ color: 0xff5470, roughness: 0.7 }); // rote Boxhandschuh-Manschette
+      const glove = new THREE.MeshStandardMaterial({ color: 0xff5470, roughness: 0.55, metalness: 0.05 });
+      const cuff = new THREE.MeshStandardMaterial({ color: 0xf2e9d8, roughness: 0.7 });
       const mk = (sx) => {
         const g = new THREE.Group();
-        const fist = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), skin); fist.scale.set(1, 0.9, 1.1);
-        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.16, 10), cuff); band.rotation.x = Math.PI / 2; band.position.z = -0.24;
-        g.add(fist, band); g.position.set(sx, 0.85, this._fistBaseZ);
+        const fist = new THREE.Mesh(new THREE.SphereGeometry(0.3, 14, 12), glove); fist.scale.set(1, 0.92, 1.15);
+        const thumb = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), glove); thumb.position.set(sx > 0 ? -0.18 : 0.18, 0.02, 0.14);
+        const band = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.16, 12), cuff); band.rotation.x = Math.PI / 2; band.position.z = -0.26;
+        g.add(fist, thumb, band); g.position.set(sx, 0.85, this._fistBaseZ);
         return g;
       };
       this._fistL = mk(-0.42); this._fistR = mk(0.42);
@@ -348,7 +364,6 @@ export class Player {
     }
   }
 
-  // Einen Schwung/Schlag auslösen (Seite wechselt → Schwert pendelt, Fäuste alternieren).
   meleeSwing() {
     this._swingT = this._swingDur;
     this._swingSide *= -1;
@@ -358,18 +373,32 @@ export class Player {
     const swinging = this._swingT > 0;
     if (swinging) this._swingT = Math.max(0, this._swingT - dt);
     const p = swinging ? 1 - this._swingT / this._swingDur : 1; // 0..1
-    const ease = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
     if (this._sword) {
-      // Halbkreis von links nach rechts (Richtung wechselt je Schwung).
-      this._sword.rotation.y = (0.95 - ease * 1.9) * this._swingSide;
-      this._sword.rotation.z = -0.35 + (swinging ? Math.sin(p * Math.PI) * 0.55 : 0);
+      // Schwung: kurzes Ausholen (zurück) → schneller Sweep über die Front → Nachschwung.
+      const side = this._swingSide;
+      let yaw, tilt;
+      if (!swinging) { yaw = 0.7 * side; tilt = -0.3; } // Ruhepose (schräg gehalten)
+      else if (p < 0.22) { const w = p / 0.22; yaw = (0.7 + 0.7 * w) * side; tilt = -0.3 - 0.5 * w; } // Ausholen
+      else { const s = (p - 0.22) / 0.78; const e = s < 0.5 ? 2 * s * s : 1 - Math.pow(-2 * s + 2, 2) / 2; yaw = (1.4 - 3.0 * e) * side; tilt = -0.8 + e * 0.7; } // Sweep
+      this._sword.rotation.y = yaw;
+      this._sword.rotation.x = tilt;
+      this._sword.rotation.z = side * 0.2;
+      if (this._slash) {
+        const vis = swinging && p > 0.18 ? Math.sin(Math.min(1, (p - 0.18) / 0.82) * Math.PI) : 0;
+        this._slash.material.opacity = vis * 0.85;
+        this._slash.scale.setScalar(0.85 + vis * 0.3);
+        this._slash.rotation.z = -side * (0.6 - vis * 1.2); // Bogen zieht in Schwungrichtung
+      }
     }
     if (this._fistL && this._fistR) {
-      this._fistL.position.z = this._fistBaseZ;
-      this._fistR.position.z = this._fistBaseZ;
+      this._fistL.position.z = this._fistBaseZ; this._fistR.position.z = this._fistBaseZ;
+      this._fistL.position.x = -0.42; this._fistR.position.x = 0.42;
       if (swinging) {
         const active = this._swingSide > 0 ? this._fistR : this._fistL;
-        active.position.z = this._fistBaseZ + Math.sin(p * Math.PI) * 1.05; // Stoß nach vorn
+        // Jab: kurz zurückziehen, dann schnell nach vorn stoßen.
+        const jab = p < 0.25 ? -0.35 * (p / 0.25) : Math.sin(((p - 0.25) / 0.75) * Math.PI) * 1.25;
+        active.position.z = this._fistBaseZ + jab;
+        active.position.x = (this._swingSide > 0 ? 0.42 : -0.42) - this._swingSide * 0.12 * Math.max(0, jab);
       }
     }
   }
